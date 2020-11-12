@@ -1,0 +1,15 @@
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+
+build
+out
+vendor
+.idea
+*.iml
+*.DS_Store
+env.*
+.git
