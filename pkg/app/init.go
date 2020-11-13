@@ -2,6 +2,7 @@ package app
 
 import (
 	"go.uber.org/zap"
+	"identification-service/pkg/cache"
 	"identification-service/pkg/client"
 	"identification-service/pkg/config"
 	"identification-service/pkg/database"
@@ -42,6 +43,9 @@ func initServices(cfg config.Config) (client.Service, user.Service, session.Serv
 	db, err := database.NewHandler(cfg.DatabaseConfig()).GetDB()
 	logError(err)
 
+	cc, err := cache.NewHandler(cfg.CacheConfig()).GetCache()
+	logError(err)
+
 	//TODO: PASS PROPER LOGGER OR REMOVE LOGGER
 	qu := queue.NewQueue(cfg.AMPQConfig().QueueName(), cfg.AMPQConfig().Address(), zap.NewNop())
 
@@ -50,7 +54,7 @@ func initServices(cfg config.Config) (client.Service, user.Service, session.Serv
 	gn, err := token.NewGenerator(cfg.TokenConfig())
 	logError(err)
 
-	cs := client.NewService(db)
+	cs := client.NewService(db, cc)
 	us := user.NewService(db, ec, qu)
 	ss := session.NewService(db, us, cs, gn)
 

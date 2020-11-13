@@ -14,9 +14,9 @@ const (
 )
 
 type Store interface {
-	CreateUser(user User) (string, error)
-	GetUser(email string) (User, error)
-	UpdatePassword(userID string, newPasswordHash string, newPasswordSalt []byte) (int64, error)
+	CreateUser(ctx context.Context, user User) (string, error)
+	GetUser(ctx context.Context, email string) (User, error)
+	UpdatePassword(ctx context.Context, userID string, newPasswordHash string, newPasswordSalt []byte) (int64, error)
 }
 
 // TODO: RENAME
@@ -24,7 +24,7 @@ type userStore struct {
 	db *sql.DB
 }
 
-func (us *userStore) CreateUser(user User) (string, error) {
+func (us *userStore) CreateUser(ctx context.Context, user User) (string, error) {
 	var id string
 
 	//TODO: RETURN DIFFERENT ERROR KIND FOR DUPLICATE RECORD
@@ -36,7 +36,7 @@ func (us *userStore) CreateUser(user User) (string, error) {
 	return id, nil
 }
 
-func (us *userStore) GetUser(email string) (User, error) {
+func (us *userStore) GetUser(ctx context.Context, email string) (User, error) {
 	var user User
 
 	row := us.db.QueryRowContext(context.Background(), getUserByEmail, email)
@@ -52,7 +52,7 @@ func (us *userStore) GetUser(email string) (User, error) {
 	return user, nil
 }
 
-func (us *userStore) UpdatePassword(userID string, newPasswordHash string, newPasswordSalt []byte) (int64, error) {
+func (us *userStore) UpdatePassword(ctx context.Context, userID string, newPasswordHash string, newPasswordSalt []byte) (int64, error) {
 	wrap := func(err error) error { return liberr.WithOp("Store.UpdatePassword", err) }
 
 	res, err := us.db.ExecContext(context.Background(), updatePassword, newPasswordHash, newPasswordSalt, userID)

@@ -68,7 +68,7 @@ func apiFunc(api, path string) string {
 }
 
 //TODO: FIX THE WAY MIDDLEWARE ARE APPLIED
-func withMiddlewares(lgr *zap.Logger, prometheus reporters.Prometheus, api string, handler func(resp http.ResponseWriter, req *http.Request), ) http.HandlerFunc {
+func withMiddlewares(lgr *zap.Logger, prometheus reporters.Prometheus, api string, handler func(resp http.ResponseWriter, req *http.Request)) http.HandlerFunc {
 	return mdl.WithReqRespLog(lgr,
 		mdl.WithResponseHeaders(
 			mdl.WithPrometheus(prometheus, api, handler),

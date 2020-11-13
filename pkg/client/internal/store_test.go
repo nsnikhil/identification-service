@@ -1,9 +1,11 @@
 package internal_test
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/go-redis/redis/v8"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"identification-service/pkg/client/internal"
@@ -25,7 +27,7 @@ type clientStoreSuite struct {
 
 func (cst *clientStoreSuite) SetupSuite() {
 	cst.db, cst.mock = getMockDB(cst.T())
-	cst.store = internal.NewStore(cst.db)
+	cst.store = internal.NewStore(cst.db, &redis.Client{})
 }
 
 func (cst *clientStoreSuite) TestCreateClientSuccess() {
@@ -38,7 +40,7 @@ func (cst *clientStoreSuite) TestCreateClientSuccess() {
 	cl, err := internal.NewClientBuilder().Name(name).AccessTokenTTL(accessTokenTTL).SessionTTL(sessionTTL).Build()
 	require.NoError(cst.T(), err)
 
-	_, err = cst.store.CreateClient(cl)
+	_, err = cst.store.CreateClient(context.Background(), cl)
 	require.NoError(cst.T(), err)
 
 	require.NoError(cst.T(), cst.mock.ExpectationsWereMet())
@@ -54,7 +56,7 @@ func (cst *clientStoreSuite) TestCreateClientFailure() {
 	cl, err := internal.NewClientBuilder().Name(name).AccessTokenTTL(accessTokenTTL).SessionTTL(sessionTTL).Build()
 	require.NoError(cst.T(), err)
 
-	_, err = cst.store.CreateClient(cl)
+	_, err = cst.store.CreateClient(context.Background(), cl)
 	require.Error(cst.T(), err)
 
 	require.NoError(cst.T(), cst.mock.ExpectationsWereMet())
@@ -67,7 +69,7 @@ func (cst *clientStoreSuite) TestRevokeClientSuccess() {
 		WithArgs(id).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	_, err := cst.store.RevokeClient(id)
+	_, err := cst.store.RevokeClient(context.Background(), id)
 	require.NoError(cst.T(), err)
 
 	require.NoError(cst.T(), cst.mock.ExpectationsWereMet())
@@ -80,7 +82,7 @@ func (cst *clientStoreSuite) TestRevokeClientFailure() {
 		WithArgs(id).
 		WillReturnError(errors.New("failed to revoke client"))
 
-	_, err := cst.store.RevokeClient(id)
+	_, err := cst.store.RevokeClient(context.Background(), id)
 	require.Error(cst.T(), err)
 
 	require.NoError(cst.T(), cst.mock.ExpectationsWereMet())
@@ -96,7 +98,7 @@ func (cst *clientStoreSuite) TestGetClientSuccess() {
 		WithArgs(name, secret).
 		WillReturnRows(rows)
 
-	_, err := cst.store.GetClient(name, secret)
+	_, err := cst.store.GetClient(context.Background(), name, secret)
 	require.NoError(cst.T(), err)
 
 	require.NoError(cst.T(), cst.mock.ExpectationsWereMet())
@@ -109,7 +111,7 @@ func (cst *clientStoreSuite) TestGetClientFailure() {
 		WithArgs(name, secret).
 		WillReturnError(errors.New("failed to get client"))
 
-	_, err := cst.store.GetClient(name, secret)
+	_, err := cst.store.GetClient(context.Background(), name, secret)
 	require.Error(cst.T(), err)
 
 	require.NoError(cst.T(), cst.mock.ExpectationsWereMet())

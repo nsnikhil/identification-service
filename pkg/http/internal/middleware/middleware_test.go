@@ -276,14 +276,14 @@ func TestWithRequestContext(t *testing.T) {
 
 func TestWithClientAuthenticationSuccess(t *testing.T) {
 	mockClientService := &client.MockService{}
-	mockClientService.On("ValidateClientCredentials", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil)
+	mockClientService.On("ValidateClientCredentials", mock.AnythingOfType("*context.emptyCtx"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil)
 
 	testWithClientAuthentication(t, http.StatusOK, mockClientService)
 }
 
 func TestWithClientAuthenticationFailure(t *testing.T) {
 	mockClientService := &client.MockService{}
-	mockClientService.On("ValidateClientCredentials", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(liberr.WithArgs(errors.New("client validation failed")))
+	mockClientService.On("ValidateClientCredentials", mock.AnythingOfType("*context.emptyCtx"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(liberr.WithArgs(errors.New("client validation failed")))
 
 	testWithClientAuthentication(t, http.StatusUnauthorized, mockClientService)
 }

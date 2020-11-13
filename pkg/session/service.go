@@ -1,6 +1,7 @@
 package session
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"identification-service/pkg/client"
@@ -8,15 +9,16 @@ import (
 	"identification-service/pkg/session/internal"
 	"identification-service/pkg/token"
 	"identification-service/pkg/user"
+	"time"
 )
 
 const invalidToken = "NA"
 
 //TODO: SHOULD CLIENT NAME AND SECRET BE PART OF CONTEXT ?
 type Service interface {
-	LoginUser(clientName, clientSecret, email, password string) (string, string, error)
-	LogoutUser(refreshToken string) error
-	RefreshToken(clientName, clientSecret, refreshToken string) (string, error)
+	LoginUser(ctx context.Context, clientName, clientSecret, email, password string) (string, string, error)
+	LogoutUser(ctx context.Context, refreshToken string) error
+	RefreshToken(ctx context.Context, clientName, clientSecret, refreshToken string) (string, error)
 }
 
 type sessionService struct {
@@ -26,12 +28,12 @@ type sessionService struct {
 	generator     token.Generator
 }
 
-func (ss *sessionService) LoginUser(clientName, clientSecret, email, password string) (string, string, error) {
+func (ss *sessionService) LoginUser(ctx context.Context, clientName, clientSecret, email, password string) (string, string, error) {
 	wrap := func(err error) (string, string, error) {
 		return invalidToken, invalidToken, liberr.WithOp("Service.LoginUser", err)
 	}
 
-	userID, err := ss.userService.GetUserID(email, password)
+	userID, err := ss.userService.GetUserID(ctx, email, password)
 	if err != nil {
 		return wrap(err)
 	}
@@ -46,12 +48,15 @@ func (ss *sessionService) LoginUser(clientName, clientSecret, email, password st
 		return wrap(err)
 	}
 
-	sessionID, err := ss.store.CreateSession(session)
+	ctxWt, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+
+	sessionID, err := ss.store.CreateSession(ctxWt, session)
 	if err != nil {
 		return wrap(err)
 	}
 
-	accessTokenTTL, _, err := ss.clientService.GetClientTTL(clientName, clientSecret)
+	accessTokenTTL, _, err := ss.clientService.GetClientTTL(ctx, clientName, clientSecret)
 	if err != nil {
 		return wrap(err)
 	}
@@ -64,8 +69,11 @@ func (ss *sessionService) LoginUser(clientName, clientSecret, email, password st
 	return accessToken, refreshToken, nil
 }
 
-func (ss *sessionService) LogoutUser(refreshToken string) error {
-	_, err := ss.store.RevokeSession(refreshToken)
+func (ss *sessionService) LogoutUser(ctx context.Context, refreshToken string) error {
+	ctx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+
+	_, err := ss.store.RevokeSession(ctx, refreshToken)
 	if err != nil {
 		return liberr.WithOp("Service.LogoutUser", err)
 	}
@@ -73,22 +81,25 @@ func (ss *sessionService) LogoutUser(refreshToken string) error {
 	return nil
 }
 
-func (ss *sessionService) RefreshToken(clientName, clientSecret, refreshToken string) (string, error) {
+func (ss *sessionService) RefreshToken(ctx context.Context, clientName, clientSecret, refreshToken string) (string, error) {
 	wrap := func(err error) (string, error) {
 		return invalidToken, liberr.WithOp("Service.RefreshToken", err)
 	}
 
-	session, err := ss.store.GetSession(refreshToken)
+	ctxWt, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+
+	session, err := ss.store.GetSession(ctxWt, refreshToken)
 	if err != nil {
 		return wrap(err)
 	}
 
-	accessTokenTTL, sessionTTL, err := ss.clientService.GetClientTTL(clientName, clientSecret)
+	accessTokenTTL, sessionTTL, err := ss.clientService.GetClientTTL(ctx, clientName, clientSecret)
 	if err != nil {
 		return wrap(err)
 	}
 
-	err = validateSession(sessionTTL, session, ss.store, refreshToken)
+	err = validateSession(ctxWt, sessionTTL, session, ss.store, refreshToken)
 	if err != nil {
 		return wrap(err)
 	}
@@ -102,13 +113,13 @@ func (ss *sessionService) RefreshToken(clientName, clientSecret, refreshToken st
 }
 
 //TODO: THIS FUNCTION IS NOT TESTED, FIND A WAY TO TEST IT
-func validateSession(sessionTTL int, session internal.Session, store internal.Store, refreshToken string) error {
+func validateSession(ctx context.Context, sessionTTL int, session internal.Session, store internal.Store, refreshToken string) error {
 	if !session.IsExpired(float64(sessionTTL)) {
 		return nil
 	}
 
 	//TODO: FIX THE LOGIC HERE
-	_, err := store.RevokeSession(refreshToken)
+	_, err := store.RevokeSession(ctx, refreshToken)
 	if err != nil {
 		return err
 	}

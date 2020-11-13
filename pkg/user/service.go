@@ -1,18 +1,20 @@
 package user
 
 import (
+	"context"
 	"database/sql"
 	"identification-service/pkg/liberr"
 	"identification-service/pkg/password"
 	"identification-service/pkg/queue"
 	"identification-service/pkg/user/internal"
+	"time"
 )
 
 //TODO: RENAME (APPEND USER IN THE NAME)
 type Service interface {
-	CreateUser(name, email, password string) (string, error)
-	UpdatePassword(email, oldPassword, newPassword string) error
-	GetUserID(email, password string) (string, error)
+	CreateUser(ctx context.Context, name, email, password string) (string, error)
+	UpdatePassword(ctx context.Context, email, oldPassword, newPassword string) error
+	GetUserID(ctx context.Context, email, password string) (string, error)
 }
 
 // TODO: RENAME
@@ -22,7 +24,7 @@ type userService struct {
 	queue   queue.Queue
 }
 
-func (us *userService) CreateUser(name, email, password string) (string, error) {
+func (us *userService) CreateUser(ctx context.Context, name, email, password string) (string, error) {
 	wrap := func(err error) error { return liberr.WithOp("Service.SignUp", err) }
 
 	user, err := internal.NewUser(us.encoder, name, email, password)
@@ -30,7 +32,10 @@ func (us *userService) CreateUser(name, email, password string) (string, error) 
 		return "", wrap(err)
 	}
 
-	userID, err := us.store.CreateUser(user)
+	ctx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+
+	userID, err := us.store.CreateUser(ctx, user)
 	if err != nil {
 		return "", wrap(err)
 	}
@@ -40,8 +45,11 @@ func (us *userService) CreateUser(name, email, password string) (string, error) 
 	return userID, nil
 }
 
-func (us *userService) GetUserID(email, password string) (string, error) {
-	user, err := us.store.GetUser(email)
+func (us *userService) GetUserID(ctx context.Context, email, password string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+
+	user, err := us.store.GetUser(ctx, email)
 	if err != nil {
 		return "", liberr.WithArgs(liberr.Operation("Service.GetUserID"), liberr.InvalidCredentialsError, err)
 	}
@@ -54,7 +62,7 @@ func (us *userService) GetUserID(email, password string) (string, error) {
 	return user.ID(), nil
 }
 
-func (us *userService) UpdatePassword(email, oldPassword, newPassword string) error {
+func (us *userService) UpdatePassword(ctx context.Context, email, oldPassword, newPassword string) error {
 	wrap := func(err error) error { return liberr.WithOp("Service.UpdatePassword", err) }
 
 	err := us.encoder.ValidatePassword(newPassword)
@@ -62,7 +70,7 @@ func (us *userService) UpdatePassword(email, oldPassword, newPassword string) er
 		return wrap(err)
 	}
 
-	id, err := us.GetUserID(email, oldPassword)
+	id, err := us.GetUserID(ctx, email, oldPassword)
 	if err != nil {
 		return wrap(err)
 	}
@@ -75,7 +83,10 @@ func (us *userService) UpdatePassword(email, oldPassword, newPassword string) er
 	key := us.encoder.GenerateKey(newPassword, salt)
 	hash := us.encoder.EncodeKey(key)
 
-	_, err = us.store.UpdatePassword(id, hash, salt)
+	ctx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+
+	_, err = us.store.UpdatePassword(ctx, id, hash, salt)
 	if err != nil {
 		return wrap(err)
 	}

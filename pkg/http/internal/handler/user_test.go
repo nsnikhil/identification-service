@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/magiconair/properties/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"identification-service/pkg/http/contract"
 	"identification-service/pkg/http/internal/handler"
@@ -28,7 +29,7 @@ const (
 
 func TestCreateUserSuccess(t *testing.T) {
 	service := &user.MockService{}
-	service.On("CreateUser", userName, userEmail, userPassword).Return(userID, nil)
+	service.On("CreateUser", mock.AnythingOfType("*context.emptyCtx"), userName, userEmail, userPassword).Return(userID, nil)
 
 	req := contract.CreateUserRequest{Name: userName, Email: userEmail, Password: userPassword}
 
@@ -56,7 +57,7 @@ func TestCreateUserFailure(t *testing.T) {
 		"test failure when service call fails fails": {
 			service: func() user.Service {
 				service := &user.MockService{}
-				service.On("CreateUser", userName, userEmail, userPassword).Return("", liberr.WithArgs(errors.New("failed to create new user")))
+				service.On("CreateUser", mock.AnythingOfType("*context.emptyCtx"), userName, userEmail, userPassword).Return("", liberr.WithArgs(errors.New("failed to create new user")))
 
 				return service
 			},
@@ -97,7 +98,7 @@ func testCreateUser(t *testing.T, expectedCode int, expectedBody string, body io
 
 func TestUpdatePasswordSuccess(t *testing.T) {
 	mockUserService := &user.MockService{}
-	mockUserService.On("UpdatePassword", userName, userPassword, userNewPassword).Return(nil)
+	mockUserService.On("UpdatePassword", mock.AnythingOfType("*context.emptyCtx"), userName, userPassword, userNewPassword).Return(nil)
 
 	req := contract.UpdatePasswordRequest{Email: userName, OldPassword: userPassword, NewPassword: userNewPassword}
 
@@ -111,7 +112,7 @@ func TestUpdatePasswordSuccess(t *testing.T) {
 
 func TestUpdatePasswordFailureWhenSvcCallFails(t *testing.T) {
 	mockUserService := &user.MockService{}
-	mockUserService.On("UpdatePassword", userName, userPassword, userNewPassword).Return(liberr.WithArgs(errors.New("failed to update password")))
+	mockUserService.On("UpdatePassword", mock.AnythingOfType("*context.emptyCtx"), userName, userPassword, userNewPassword).Return(liberr.WithArgs(errors.New("failed to update password")))
 
 	req := contract.UpdatePasswordRequest{Email: userName, OldPassword: userPassword, NewPassword: userNewPassword}
 

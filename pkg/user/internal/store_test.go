@@ -1,6 +1,7 @@
 package internal_test
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"github.com/DATA-DOG/go-sqlmock"
@@ -33,7 +34,7 @@ func (ust *userStoreSuite) TestCreateUserSuccess() {
 
 	currUser := getUser(ust.T(), name, email, userPassword)
 
-	_, err := ust.store.CreateUser(currUser)
+	_, err := ust.store.CreateUser(context.Background(), currUser)
 	require.NoError(ust.T(), err)
 
 	require.NoError(ust.T(), ust.mock.ExpectationsWereMet())
@@ -48,7 +49,7 @@ func (ust *userStoreSuite) TestCreateUserFailure() {
 
 	currUser := getUser(ust.T(), name, email, userPassword)
 
-	_, err := ust.store.CreateUser(currUser)
+	_, err := ust.store.CreateUser(context.Background(), currUser)
 	require.Error(ust.T(), err)
 
 	require.NoError(ust.T(), ust.mock.ExpectationsWereMet())
@@ -69,7 +70,7 @@ func (ust *userStoreSuite) TestGetUserSuccess() {
 
 	us := internal.NewStore(ust.db)
 
-	_, err := us.GetUser(email)
+	_, err := us.GetUser(context.Background(), email)
 	require.NoError(ust.T(), err)
 
 	require.NoError(ust.T(), ust.mock.ExpectationsWereMet())
@@ -84,7 +85,7 @@ func (ust *userStoreSuite) TestGetUserFailure() {
 
 	us := internal.NewStore(ust.db)
 
-	_, err := us.GetUser(email)
+	_, err := us.GetUser(context.Background(), email)
 	require.Error(ust.T(), err)
 
 	require.NoError(ust.T(), ust.mock.ExpectationsWereMet())
@@ -99,7 +100,7 @@ func (ust *userStoreSuite) TestUpdatePasswordSuccess() {
 
 	us := internal.NewStore(ust.db)
 
-	_, err := us.UpdatePassword(email, hash, salt)
+	_, err := us.UpdatePassword(context.Background(), email, hash, salt)
 	require.NoError(ust.T(), err)
 
 	require.NoError(ust.T(), ust.mock.ExpectationsWereMet())
@@ -114,7 +115,7 @@ func (ust *userStoreSuite) TestUpdatePasswordFailure() {
 
 	us := internal.NewStore(ust.db)
 
-	_, err := us.UpdatePassword(email, hash, salt)
+	_, err := us.UpdatePassword(context.Background(), email, hash, salt)
 	require.Error(ust.T(), err)
 
 	require.NoError(ust.T(), ust.mock.ExpectationsWereMet())

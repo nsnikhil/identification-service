@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"identification-service/pkg/client"
 	"identification-service/pkg/http/contract"
@@ -33,7 +34,7 @@ func TestClientHandlerCreateSuccess(t *testing.T) {
 	require.NoError(t, err)
 
 	mockClientService := &client.MockService{}
-	mockClientService.On("CreateClient", clientName, accessTokenTTL, sessionTTL).Return(clientSecret, nil)
+	mockClientService.On("CreateClient", mock.AnythingOfType("*context.emptyCtx"), clientName, accessTokenTTL, sessionTTL).Return(clientSecret, nil)
 
 	expectedBody := `{"data":{"secret":"ce36dc88-0a27-498a-aef4-5051a7fd6e7f"},"success":true}`
 
@@ -47,7 +48,7 @@ func TestClientHandlerCreateFailure(t *testing.T) {
 	require.NoError(t, err)
 
 	mockClientService := &client.MockService{}
-	mockClientService.On("CreateClient", clientName, accessTokenTTL, sessionTTL).Return("", liberr.WithArgs(errors.New("failed to create client")))
+	mockClientService.On("CreateClient", mock.AnythingOfType("*context.emptyCtx"), clientName, accessTokenTTL, sessionTTL).Return("", liberr.WithArgs(errors.New("failed to create client")))
 
 	expectedBody := `{"error":{"message":"internal server error"},"success":false}`
 
@@ -74,7 +75,7 @@ func TestClientRevokeSuccess(t *testing.T) {
 	require.NoError(t, err)
 
 	mockClientService := &client.MockService{}
-	mockClientService.On("RevokeClient", clientID).Return(nil)
+	mockClientService.On("RevokeClient", mock.AnythingOfType("*context.emptyCtx"), clientID).Return(nil)
 
 	expectedBody := `{"data":{"message":"client revoked successfully"},"success":true}`
 
@@ -88,7 +89,7 @@ func TestClientRevokeFailure(t *testing.T) {
 	require.NoError(t, err)
 
 	mockClientService := &client.MockService{}
-	mockClientService.On("RevokeClient", clientID).Return(liberr.WithArgs(errors.New("failed to revoke client")))
+	mockClientService.On("RevokeClient", mock.AnythingOfType("*context.emptyCtx"), clientID).Return(liberr.WithArgs(errors.New("failed to revoke client")))
 
 	expectedBody := `{"error":{"message":"internal server error"},"success":false}`
 

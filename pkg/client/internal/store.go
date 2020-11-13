@@ -6,19 +6,23 @@ import (
 	"fmt"
 	"github.com/go-redis/redis/v8"
 	"identification-service/pkg/liberr"
-	"time"
 )
 
 const (
 	createClient = `insert into clients (name, accesstokenttl, sessionttl) values ($1, $2, $3) returning secret`
 	revokeClient = `update clients set revoked=true where id=$1`
 	getClient    = `select id, revoked, accesstokenttl, sessionttl from clients where name=$1 and secret=$2`
+
+	secretKey         = `secret`
+	revokedKey        = "revoked"
+	accessTokenTTLKey = `accessTokenTTLKey`
+	sessionTTLKey     = `sessionTTLKey`
 )
 
 type Store interface {
-	CreateClient(client Client) (string, error)
-	RevokeClient(id string) (int64, error)
-	GetClient(name, secret string) (Client, error)
+	CreateClient(ctx context.Context, client Client) (string, error)
+	RevokeClient(ctx context.Context, id string) (int64, error)
+	GetClient(ctx context.Context, name, secret string) (Client, error)
 }
 
 type clientStore struct {
@@ -26,11 +30,11 @@ type clientStore struct {
 	cache *redis.Client
 }
 
-func (cs *clientStore) CreateClient(client Client) (string, error) {
+func (cs *clientStore) CreateClient(ctx context.Context, client Client) (string, error) {
 	var secret string
 
 	//TODO: RETURN DIFFERENT ERROR KIND FOR DUPLICATE RECORD
-	err := cs.db.QueryRow(createClient, client.name, client.accessTokenTTL, client.sessionTTL).Scan(&secret)
+	err := cs.db.QueryRowContext(ctx, createClient, client.name, client.accessTokenTTL, client.sessionTTL).Scan(&secret)
 	if err != nil {
 		return "", liberr.WithOp("Store.CreateClient", err)
 	}
@@ -38,10 +42,10 @@ func (cs *clientStore) CreateClient(client Client) (string, error) {
 	return secret, nil
 }
 
-func (cs *clientStore) RevokeClient(id string) (int64, error) {
+func (cs *clientStore) RevokeClient(ctx context.Context, id string) (int64, error) {
 	wrap := func(err error) error { return liberr.WithOp("Store.RevokeClient", err) }
 
-	res, err := cs.db.Exec(revokeClient, id)
+	res, err := cs.db.ExecContext(ctx, revokeClient, id)
 	if err != nil {
 		return 0, wrap(err)
 	}
@@ -58,10 +62,10 @@ func (cs *clientStore) RevokeClient(id string) (int64, error) {
 	return c, nil
 }
 
-func (cs *clientStore) GetClient(name, secret string) (Client, error) {
+func (cs *clientStore) GetClient(ctx context.Context, name, secret string) (Client, error) {
 	var client Client
 
-	row := cs.db.QueryRow(getClient, name, secret)
+	row := cs.db.QueryRowContext(ctx, getClient, name, secret)
 	if row.Err() != nil {
 		return client, liberr.WithOp("Store.GetClient", row.Err())
 	}
@@ -76,8 +80,8 @@ func (cs *clientStore) GetClient(name, secret string) (Client, error) {
 
 //TODO: PICK TTL FROM CONFIG
 //TODO: MOVE THIS LOGIC TO CACHE PACKAGE
-func saveClientToCache(redisClient *redis.Client, client Client) error {
-	res := redisClient.Set(context.Background(), client.name, client.secret, time.Hour)
+func saveClientToCache(ctx context.Context, redisClient *redis.Client, name, secret string, revoked bool, accessTokenTTL, sessionTTL int) error {
+	res := redisClient.HSet(ctx, name, secretKey, secret, revokedKey, revoked, accessTokenTTLKey, accessTokenTTL, sessionTTLKey, sessionTTL)
 	if res.Err() != nil {
 		return res.Err()
 	}
@@ -86,15 +90,18 @@ func saveClientToCache(redisClient *redis.Client, client Client) error {
 }
 
 //TODO: MOVE THIS LOGIC TO CACHE PACKAGE
-func getClientFromCache(redisClient *redis.Client, key string) (string, error) {
-	res := redisClient.Get(context.Background(), key)
+func getClientFromCache(ctx context.Context, redisClient *redis.Client, key string) (map[string]string, error) {
+	res := redisClient.HGetAll(ctx, key)
 	if res.Err() != nil {
-		return "", res.Err()
+		return nil, res.Err()
 	}
 
 	return res.Result()
 }
 
-func NewStore(db *sql.DB) Store {
-	return &clientStore{db: db}
+func NewStore(db *sql.DB, cache *redis.Client) Store {
+	return &clientStore{
+		db:    db,
+		cache: cache,
+	}
 }

@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"identification-service/pkg/liberr"
@@ -13,19 +14,19 @@ const (
 )
 
 type Store interface {
-	CreateSession(session Session) (string, error)
-	GetSession(refreshToken string) (Session, error)
-	RevokeSession(refreshToken string) (int64, error)
+	CreateSession(ctx context.Context, session Session) (string, error)
+	GetSession(ctx context.Context, refreshToken string) (Session, error)
+	RevokeSession(ctx context.Context, refreshToken string) (int64, error)
 }
 
 type sessionStore struct {
 	db *sql.DB
 }
 
-func (ss *sessionStore) CreateSession(session Session) (string, error) {
+func (ss *sessionStore) CreateSession(ctx context.Context, session Session) (string, error) {
 	var sessionID string
 
-	err := ss.db.QueryRow(createSession, session.userID, session.refreshToken).Scan(&sessionID)
+	err := ss.db.QueryRowContext(ctx, createSession, session.userID, session.refreshToken).Scan(&sessionID)
 	if err != nil {
 		return "", liberr.WithOp("Store.CreateSession", err)
 	}
@@ -33,10 +34,10 @@ func (ss *sessionStore) CreateSession(session Session) (string, error) {
 	return sessionID, nil
 }
 
-func (ss *sessionStore) GetSession(refreshToken string) (Session, error) {
+func (ss *sessionStore) GetSession(ctx context.Context, refreshToken string) (Session, error) {
 	var session Session
 
-	row := ss.db.QueryRow(getSession, refreshToken)
+	row := ss.db.QueryRowContext(ctx, getSession, refreshToken)
 	if row.Err() != nil {
 		return session, liberr.WithOp("Store.GetSession", row.Err())
 	}
@@ -49,8 +50,8 @@ func (ss *sessionStore) GetSession(refreshToken string) (Session, error) {
 	return session, nil
 }
 
-func (ss *sessionStore) RevokeSession(refreshToken string) (int64, error) {
-	res, err := ss.db.Exec(revokeSession, refreshToken)
+func (ss *sessionStore) RevokeSession(ctx context.Context, refreshToken string) (int64, error) {
+	res, err := ss.db.ExecContext(ctx, revokeSession, refreshToken)
 	if err != nil {
 		return 0, liberr.WithOp("Store.RevokeSession", err)
 	}

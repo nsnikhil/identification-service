@@ -19,7 +19,7 @@ func (uh *UserHandler) SignUp(resp http.ResponseWriter, req *http.Request) error
 	}
 
 	//TODO: THINK IF THE VALIDATION SHOULD BE DELEGATED TO SVC LAYER ?
-	_, err := uh.service.CreateUser(data.Name, data.Email, data.Password)
+	_, err := uh.service.CreateUser(req.Context(), data.Name, data.Email, data.Password)
 	if err != nil {
 		return liberr.WithArgs(liberr.Operation("UserHandler.SignUp"), err)
 	}
@@ -35,7 +35,7 @@ func (uh *UserHandler) UpdatePassword(resp http.ResponseWriter, req *http.Reques
 		return liberr.WithArgs(liberr.Operation("UserHandler.UpdatePassword"), err)
 	}
 
-	err := uh.service.UpdatePassword(data.Email, data.OldPassword, data.NewPassword)
+	err := uh.service.UpdatePassword(req.Context(), data.Email, data.OldPassword, data.NewPassword)
 	if err != nil {
 		return liberr.WithArgs(liberr.Operation("UserHandler.UpdatePassword"), err)
 	}

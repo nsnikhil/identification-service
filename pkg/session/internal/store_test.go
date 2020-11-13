@@ -1,6 +1,7 @@
 package internal_test
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"github.com/DATA-DOG/go-sqlmock"
@@ -34,7 +35,7 @@ func (st *sessionStoreSuite) TestCreateSessionSuccess() {
 	s, err := internal.NewSessionBuilder().UserID(userID).RefreshToken(refreshToken).Build()
 	require.NoError(st.T(), err)
 
-	_, err = st.store.CreateSession(s)
+	_, err = st.store.CreateSession(context.Background(), s)
 	require.NoError(st.T(), err)
 
 	require.NoError(st.T(), st.mock.ExpectationsWereMet())
@@ -50,7 +51,7 @@ func (st *sessionStoreSuite) TestCreateSessionFailure() {
 	s, err := internal.NewSessionBuilder().UserID(userID).RefreshToken(refreshToken).Build()
 	require.NoError(st.T(), err)
 
-	_, err = st.store.CreateSession(s)
+	_, err = st.store.CreateSession(context.Background(), s)
 	require.Error(st.T(), err)
 
 	require.NoError(st.T(), st.mock.ExpectationsWereMet())
@@ -66,7 +67,7 @@ func (st *sessionStoreSuite) TestGetSessionSuccess() {
 		WithArgs(refreshToken).
 		WillReturnRows(rows)
 
-	_, err := st.store.GetSession(refreshToken)
+	_, err := st.store.GetSession(context.Background(), refreshToken)
 	require.NoError(st.T(), err)
 
 	require.NoError(st.T(), st.mock.ExpectationsWereMet())
@@ -79,7 +80,7 @@ func (st *sessionStoreSuite) TestGetSessionFailure() {
 		WithArgs(refreshToken).
 		WillReturnError(errors.New("failed to get session"))
 
-	_, err := st.store.GetSession(refreshToken)
+	_, err := st.store.GetSession(context.Background(), refreshToken)
 	require.Error(st.T(), err)
 
 	require.NoError(st.T(), st.mock.ExpectationsWereMet())
@@ -92,7 +93,7 @@ func (st *sessionStoreSuite) TestRevokeSessionSuccess() {
 		WithArgs(refreshToken).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	_, err := st.store.RevokeSession(refreshToken)
+	_, err := st.store.RevokeSession(context.Background(), refreshToken)
 	require.NoError(st.T(), err)
 
 	require.NoError(st.T(), st.mock.ExpectationsWereMet())
@@ -105,7 +106,7 @@ func (st *sessionStoreSuite) TestRevokeSessionFailure() {
 		WithArgs(refreshToken).
 		WillReturnError(errors.New("failed to revoke session"))
 
-	_, err := st.store.RevokeSession(refreshToken)
+	_, err := st.store.RevokeSession(context.Background(), refreshToken)
 	require.Error(st.T(), err)
 
 	require.NoError(st.T(), st.mock.ExpectationsWereMet())

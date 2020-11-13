@@ -67,7 +67,7 @@ func WithClientAuth(service client.Service, handler http.HandlerFunc) http.Handl
 		name := req.Header.Get("CLIENT-ID")
 		secret := req.Header.Get("CLIENT-SECRET")
 
-		err := service.ValidateClientCredentials(name, secret)
+		err := service.ValidateClientCredentials(req.Context(), name, secret)
 		if err != nil {
 			util.WriteFailureResponse(resperr.MapError(liberr.WithArgs(liberr.Operation("WithClientAuth"), liberr.AuthenticationError, err)), resp)
 			return

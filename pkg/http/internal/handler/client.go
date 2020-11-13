@@ -18,7 +18,7 @@ func (ch *ClientHandler) Register(resp http.ResponseWriter, req *http.Request) e
 		return liberr.WithArgs(liberr.Operation("ClientHandler.Register"), err)
 	}
 
-	secret, err := ch.service.CreateClient(data.Name, data.AccessTokenTTL, data.SessionTTL)
+	secret, err := ch.service.CreateClient(req.Context(), data.Name, data.AccessTokenTTL, data.SessionTTL)
 	if err != nil {
 		return liberr.WithOp("ClientHandler.Register", err)
 	}
@@ -33,7 +33,7 @@ func (ch *ClientHandler) Revoke(resp http.ResponseWriter, req *http.Request) err
 		return liberr.WithArgs(liberr.Operation("ClientHandler.Revoke"), err)
 	}
 
-	err := ch.service.RevokeClient(data.ID)
+	err := ch.service.RevokeClient(req.Context(), data.ID)
 	if err != nil {
 		return liberr.WithOp("ClientHandler.Revoke", err)
 	}

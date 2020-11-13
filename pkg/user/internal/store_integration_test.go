@@ -3,6 +3,7 @@
 package internal_test
 
 import (
+	"context"
 	"database/sql"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -30,41 +31,41 @@ func (ust *userStoreIntegrationSuite) AfterTest(suiteName, testName string) {
 }
 
 func (ust *userStoreIntegrationSuite) TestCreateUserSuccess() {
-	_, err := ust.store.CreateUser(newUser(ust.T()))
+	_, err := ust.store.CreateUser(context.Background(), newUser(ust.T()))
 	require.NoError(ust.T(), err)
 }
 
 func (ust *userStoreIntegrationSuite) TestCreateUserFailureForDuplicateRecord() {
-	_, err := ust.store.CreateUser(newUser(ust.T()))
+	_, err := ust.store.CreateUser(context.Background(), newUser(ust.T()))
 	require.NoError(ust.T(), err)
 
-	_, err = ust.store.CreateUser(newUser(ust.T()))
+	_, err = ust.store.CreateUser(context.Background(), newUser(ust.T()))
 	require.Error(ust.T(), err)
 }
 
 func (ust *userStoreIntegrationSuite) TestGetUserSuccess() {
-	_, err := ust.store.CreateUser(newUser(ust.T()))
+	_, err := ust.store.CreateUser(context.Background(), newUser(ust.T()))
 	require.NoError(ust.T(), err)
 
-	_, err = ust.store.GetUser(email)
+	_, err = ust.store.GetUser(context.Background(), email)
 	require.NoError(ust.T(), err)
 }
 
 func (ust *userStoreIntegrationSuite) TestGetUserFailureWhenEmailIsNotPresent() {
-	_, err := ust.store.GetUser(email)
+	_, err := ust.store.GetUser(context.Background(), email)
 	require.Error(ust.T(), err)
 }
 
 func (ust *userStoreIntegrationSuite) TestUpdatePasswordSuccessWithDB() {
-	id, err := ust.store.CreateUser(newUser(ust.T()))
+	id, err := ust.store.CreateUser(context.Background(), newUser(ust.T()))
 	require.NoError(ust.T(), err)
 
-	_, err = ust.store.UpdatePassword(id, hash, salt)
+	_, err = ust.store.UpdatePassword(context.Background(), id, hash, salt)
 	require.NoError(ust.T(), err)
 }
 
 func (ust *userStoreIntegrationSuite) TestUpdatePasswordFailureWhenUserIsNotPresent() {
-	_, err := ust.store.UpdatePassword(email, hash, salt)
+	_, err := ust.store.UpdatePassword(context.Background(), email, hash, salt)
 	require.Error(ust.T(), err)
 }
 

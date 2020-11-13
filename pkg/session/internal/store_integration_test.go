@@ -1,6 +1,7 @@
 package internal_test
 
 import (
+	"context"
 	"database/sql"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -47,52 +48,52 @@ func (sst *sessionStoreIntegrationSuite) AfterTest(suiteName, testName string) {
 func (sst *sessionStoreIntegrationSuite) TestCreateSessionSuccess() {
 	userID := createUser(sst)
 
-	_, err := sst.store.CreateSession(newSession(sst.T(), userID, refreshToken))
+	_, err := sst.store.CreateSession(context.Background(), newSession(sst.T(), userID, refreshToken))
 	require.NoError(sst.T(), err)
 }
 
 func (sst *sessionStoreIntegrationSuite) TestCreateSessionFailureWhenUserIsNotPresent() {
-	_, err := sst.store.CreateSession(newSession(sst.T(), userID, refreshToken))
+	_, err := sst.store.CreateSession(context.Background(), newSession(sst.T(), userID, refreshToken))
 	require.Error(sst.T(), err)
 }
 
 func (sst *sessionStoreIntegrationSuite) TestCreateSessionFailureForDuplicateRefreshToken() {
 	userID := createUser(sst)
 
-	_, err := sst.store.CreateSession(newSession(sst.T(), userID, refreshToken))
+	_, err := sst.store.CreateSession(context.Background(), newSession(sst.T(), userID, refreshToken))
 	require.NoError(sst.T(), err)
 
-	_, err = sst.store.CreateSession(newSession(sst.T(), userID, refreshToken))
+	_, err = sst.store.CreateSession(context.Background(), newSession(sst.T(), userID, refreshToken))
 	require.Error(sst.T(), err)
 }
 
 func (sst *sessionStoreIntegrationSuite) TestGetSessionSuccess() {
 	userID := createUser(sst)
 
-	_, err := sst.store.CreateSession(newSession(sst.T(), userID, refreshToken))
+	_, err := sst.store.CreateSession(context.Background(), newSession(sst.T(), userID, refreshToken))
 	require.NoError(sst.T(), err)
 
-	_, err = sst.store.GetSession(refreshToken)
+	_, err = sst.store.GetSession(context.Background(), refreshToken)
 	require.NoError(sst.T(), err)
 }
 
 func (sst *sessionStoreIntegrationSuite) TestGetSessionFailure() {
-	_, err := sst.store.GetSession(refreshToken)
+	_, err := sst.store.GetSession(context.Background(), refreshToken)
 	require.Error(sst.T(), err)
 }
 
 func (sst *sessionStoreIntegrationSuite) TestRevokeSessionSuccess() {
 	userID := createUser(sst)
 
-	_, err := sst.store.CreateSession(newSession(sst.T(), userID, refreshToken))
+	_, err := sst.store.CreateSession(context.Background(), newSession(sst.T(), userID, refreshToken))
 	require.NoError(sst.T(), err)
 
-	_, err = sst.store.RevokeSession(refreshToken)
+	_, err = sst.store.RevokeSession(context.Background(), refreshToken)
 	require.NoError(sst.T(), err)
 }
 
 func (sst *sessionStoreIntegrationSuite) TestRevokeSessionFailure() {
-	_, err := sst.store.RevokeSession(refreshToken)
+	_, err := sst.store.RevokeSession(context.Background(), refreshToken)
 	require.Error(sst.T(), err)
 }
 
@@ -108,7 +109,7 @@ func TestStoreIntegration(t *testing.T) {
 }
 
 func createUser(sst *sessionStoreIntegrationSuite) string {
-	userID, err := sst.userService.CreateUser(name, email, userPassword)
+	userID, err := sst.userService.CreateUser(context.Background(), name, email, userPassword)
 	require.NoError(sst.T(), err)
 
 	return userID
