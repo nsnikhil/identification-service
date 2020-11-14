@@ -62,7 +62,7 @@ func testClientHandlerCreate(t *testing.T, expectedCode int, expectedBody string
 
 	ch := handler.NewClientHandler(service)
 
-	mdl.WithError(reporters.NewLogger("dev", "debug"), ch.Register)(w, r)
+	mdl.WithErrorHandler(reporters.NewLogger("dev", "debug"), ch.Register)(w, r)
 
 	assert.Equal(t, expectedCode, w.Code)
 	assert.Equal(t, expectedBody, w.Body.String())
@@ -103,7 +103,7 @@ func testClientHandlerRevoke(t *testing.T, expectedCode int, expectedBody string
 
 	ch := handler.NewClientHandler(service)
 
-	mdl.WithError(reporters.NewLogger("dev", "debug"), ch.Revoke)(w, r)
+	mdl.WithErrorHandler(reporters.NewLogger("dev", "debug"), ch.Revoke)(w, r)
 
 	assert.Equal(t, expectedCode, w.Code)
 	assert.Equal(t, expectedBody, w.Body.String())

@@ -16,62 +16,118 @@ import (
 	"net/http"
 )
 
-func NewRouter(cfg config.Config, lgr *zap.Logger, prometheus reporters.Prometheus, clientService client.Service, userService user.Service, sessionService session.Service) http.Handler {
-	return getChiRouter(cfg, lgr, prometheus, userService, sessionService, clientService)
+func NewRouter(cfg config.Config, lgr *zap.Logger, pr reporters.Prometheus, cs client.Service, us user.Service, ss session.Service) http.Handler {
+	return getChiRouter(cfg, lgr, pr, cs, us, ss)
 }
 
-func getChiRouter(cfg config.Config, lgr *zap.Logger, pr reporters.Prometheus, userService user.Service, sessionService session.Service, clientService client.Service) *chi.Mux {
+//TODO: FIX MIDDLEWARE REPETITION CODE
+func getChiRouter(cfg config.Config, lgr *zap.Logger, pr reporters.Prometheus, cs client.Service, us user.Service, ss session.Service) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.Recoverer)
 
-	r.Get("/ping", handler.PingHandler())
+	r.Get("/ping", mdl.WithResponseHeaders(handler.PingHandler()))
 	r.Handle("/metrics", promhttp.Handler())
 
-	registerUserRoutes(r, lgr, pr, clientService, userService)
-	registerSessionRoutes(r, lgr, pr, clientService, sessionService)
-	registerClientRoutes(r, cfg.AuthConfig(), lgr, pr, clientService)
+	registerUserRoutes(r, lgr, pr, cs, us)
+	registerSessionRoutes(r, lgr, pr, cs, ss)
+	registerClientRoutes(r, cfg.AuthConfig(), lgr, pr, cs)
 
 	return r
 }
 
-func registerUserRoutes(r chi.Router, lgr *zap.Logger, prometheus reporters.Prometheus, clientService client.Service, userService user.Service) {
-	uh := handler.NewUserHandler(userService)
+func registerUserRoutes(r chi.Router, lgr *zap.Logger, pr reporters.Prometheus, cs client.Service, us user.Service) {
+	uh := handler.NewUserHandler(us)
+
+	signUpHandler := mdl.WithReqRespLog(lgr,
+		mdl.WithResponseHeaders(
+			mdl.WithPrometheus(pr, apiFunc("user", "sign-up"),
+				mdl.WithClientAuth(lgr, cs,
+					mdl.WithErrorHandler(lgr, uh.SignUp)),
+			),
+		),
+	)
+
+	updatePasswordHandler := mdl.WithReqRespLog(lgr,
+		mdl.WithResponseHeaders(
+			mdl.WithPrometheus(pr, apiFunc("user", "update-password"),
+				mdl.WithClientAuth(lgr, cs,
+					mdl.WithErrorHandler(lgr, uh.UpdatePassword)),
+			),
+		),
+	)
 
 	r.Route("/user", func(r chi.Router) {
-		r.Post("/sign-up", withMiddlewares(lgr, prometheus, apiFunc("user", "sign-up"), mdl.WithClientAuth(clientService, mdl.WithError(lgr, uh.SignUp))))
-		r.Post("/update-password", withMiddlewares(lgr, prometheus, apiFunc("user", "update-password"), mdl.WithClientAuth(clientService, mdl.WithError(lgr, uh.UpdatePassword))))
+		r.Post("/sign-up", signUpHandler)
+		r.Post("/update-password", updatePasswordHandler)
 	})
 }
 
-func registerSessionRoutes(r chi.Router, lgr *zap.Logger, prometheus reporters.Prometheus, clientService client.Service, sessionService session.Service) {
-	sh := handler.NewSessionHandler(sessionService)
+func registerSessionRoutes(r chi.Router, lgr *zap.Logger, pr reporters.Prometheus, cs client.Service, ss session.Service) {
+	sh := handler.NewSessionHandler(ss)
+
+	loginHandler := mdl.WithReqRespLog(lgr,
+		mdl.WithResponseHeaders(
+			mdl.WithPrometheus(pr, apiFunc("session", "login"),
+				mdl.WithClientAuth(lgr, cs,
+					mdl.WithErrorHandler(lgr, sh.Login)),
+			),
+		),
+	)
+
+	refreshTokenHandler := mdl.WithReqRespLog(lgr,
+		mdl.WithResponseHeaders(
+			mdl.WithPrometheus(pr, apiFunc("session", "refresh-token"),
+				mdl.WithClientAuth(lgr, cs,
+					mdl.WithErrorHandler(lgr, sh.RefreshToken)),
+			),
+		),
+	)
+
+	logoutHandler := mdl.WithReqRespLog(lgr,
+		mdl.WithResponseHeaders(
+			mdl.WithPrometheus(pr, apiFunc("session", "logout"),
+				mdl.WithClientAuth(lgr, cs,
+					mdl.WithErrorHandler(lgr, sh.Logout)),
+			),
+		),
+	)
 
 	r.Route("/session", func(r chi.Router) {
-		r.Post("/login", withMiddlewares(lgr, prometheus, apiFunc("session", "login"), mdl.WithClientAuth(clientService, mdl.WithError(lgr, sh.Login))))
-		r.Post("/refresh-token", withMiddlewares(lgr, prometheus, apiFunc("session", "refresh-token"), mdl.WithClientAuth(clientService, mdl.WithError(lgr, sh.RefreshToken))))
-		r.Post("/logout", withMiddlewares(lgr, prometheus, apiFunc("session", "logout"), mdl.WithClientAuth(clientService, mdl.WithError(lgr, sh.Logout))))
+		r.Post("/login", loginHandler)
+		r.Post("/refresh-token", refreshTokenHandler)
+		r.Post("/logout", logoutHandler)
 	})
 }
 
-func registerClientRoutes(r chi.Router, cfg config.AuthConfig, lgr *zap.Logger, prometheus reporters.Prometheus, clientService client.Service) {
-	ch := handler.NewClientHandler(clientService)
+func registerClientRoutes(r chi.Router, cfg config.AuthConfig, lgr *zap.Logger, pr reporters.Prometheus, ss client.Service) {
+	ch := handler.NewClientHandler(ss)
+
+	cred := map[string]string{cfg.UserName(): cfg.Password()}
+
+	registerHandler := mdl.WithReqRespLog(lgr,
+		mdl.WithResponseHeaders(
+			mdl.WithPrometheus(pr, apiFunc("client", "register"),
+				mdl.WithBasicAuth(cred, lgr, "client",
+					mdl.WithErrorHandler(lgr, ch.Register)),
+			),
+		),
+	)
+
+	revokeHandler := mdl.WithReqRespLog(lgr,
+		mdl.WithResponseHeaders(
+			mdl.WithPrometheus(pr, apiFunc("client", "revoke"),
+				mdl.WithBasicAuth(cred, lgr, "client",
+					mdl.WithErrorHandler(lgr, ch.Revoke)),
+			),
+		),
+	)
 
 	r.Route("/client", func(r chi.Router) {
-		r.Use(middleware.BasicAuth("client", map[string]string{cfg.UserName(): cfg.Password()}))
-		r.Post("/register", withMiddlewares(lgr, prometheus, apiFunc("client", "create"), mdl.WithError(lgr, ch.Register)))
-		r.Post("/revoke", withMiddlewares(lgr, prometheus, apiFunc("client", "revoke"), mdl.WithError(lgr, ch.Revoke)))
+		r.Post("/register", registerHandler)
+		r.Post("/revoke", revokeHandler)
 	})
 }
 
 func apiFunc(api, path string) string {
 	return fmt.Sprintf("%s_%s", api, path)
-}
-
-//TODO: FIX THE WAY MIDDLEWARE ARE APPLIED
-func withMiddlewares(lgr *zap.Logger, prometheus reporters.Prometheus, api string, handler func(resp http.ResponseWriter, req *http.Request)) http.HandlerFunc {
-	return mdl.WithReqRespLog(lgr,
-		mdl.WithResponseHeaders(
-			mdl.WithPrometheus(prometheus, api, handler),
-		),
-	)
 }

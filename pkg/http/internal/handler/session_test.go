@@ -58,7 +58,7 @@ func testLogin(t *testing.T, expectedCode int, expectedBody string, sessionServi
 	sh := handler.NewSessionHandler(sessionService)
 
 	lgr := reporters.NewLogger("dev", "debug")
-	mdl.WithError(lgr, sh.Login)(w, r)
+	mdl.WithErrorHandler(lgr, sh.Login)(w, r)
 
 	require.Equal(t, expectedCode, w.Code)
 
@@ -101,7 +101,7 @@ func testRefreshToken(t *testing.T, expectedCode int, expectedBody string, sessi
 	sh := handler.NewSessionHandler(sessionService)
 
 	lgr := reporters.NewLogger("dev", "debug")
-	mdl.WithError(lgr, sh.RefreshToken)(w, r)
+	mdl.WithErrorHandler(lgr, sh.RefreshToken)(w, r)
 
 	require.Equal(t, expectedCode, w.Code)
 	require.Equal(t, expectedBody, w.Body.String())
@@ -140,7 +140,7 @@ func testLogout(t *testing.T, expectedCode int, expectedBody string, sessionServ
 	sh := handler.NewSessionHandler(sessionService)
 
 	lgr := reporters.NewLogger("dev", "debug")
-	mdl.WithError(lgr, sh.Logout)(w, r)
+	mdl.WithErrorHandler(lgr, sh.Logout)(w, r)
 
 	require.Equal(t, expectedCode, w.Code)
 	require.Equal(t, expectedBody, w.Body.String())

@@ -90,7 +90,7 @@ func testCreateUser(t *testing.T, expectedCode int, expectedBody string, body io
 
 	r := httptest.NewRequest(http.MethodPost, "/user/create", body)
 
-	mdl.WithError(lgr, uh.SignUp)(w, r)
+	mdl.WithErrorHandler(lgr, uh.SignUp)(w, r)
 
 	assert.Equal(t, expectedCode, w.Code)
 	assert.Equal(t, expectedBody, w.Body.String())
@@ -133,7 +133,7 @@ func testUpdatePassword(t *testing.T, expectedCode int, expectedBody string, bod
 
 	r := httptest.NewRequest(http.MethodPost, "/user/update-password", body)
 
-	mdl.WithError(lgr, uh.UpdatePassword)(w, r)
+	mdl.WithErrorHandler(lgr, uh.UpdatePassword)(w, r)
 
 	assert.Equal(t, expectedCode, w.Code)
 	assert.Equal(t, expectedBody, w.Body.String())

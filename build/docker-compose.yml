@@ -1,0 +1,116 @@
+version: '3.7'
+
+networks:
+  idnetwork:
+    driver: bridge
+
+services:
+
+  db:
+    image: postgres:alpine
+    restart: always
+    environment:
+      POSTGRES_DB: id_db
+      POSTGRES_USER: id_user
+      POSTGRES_PASSWORD: id_password
+    networks:
+      - idnetwork
+    ports:
+      - 8432:5432
+    volumes:
+      - ../pkg/database/migrations/:/docker-entrypoint-initdb.d/
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    networks:
+      - idnetwork
+    ports:
+      - 8672:5672
+      - 18672:15672
+    environment:
+      - RABBITMQ_USERNAME=guest
+      - RABBITMQ_PASSWORD=guest
+
+  redis:
+    image: redis:alpine
+    networks:
+      - idnetwork
+    ports:
+      - 8379:6379
+
+  prometheus:
+    image: prom/prometheus:latest
+    restart: always
+    ports:
+      - 9090:9090
+    networks:
+      - idnetwork
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: always
+    networks:
+      - idnetwork
+    ports:
+      - 4040:3000
+    depends_on:
+      - prometheus
+
+  identification-service:
+    image: nsnikhil/identification-service:0.1
+    restart: always
+    ports:
+      - 8080:8080
+    env_file:
+      - docker.env
+    networks:
+      - idnetwork
+    logging:
+      driver: fluentd
+      options:
+        tag: docker-id
+    depends_on:
+      - db
+      - rabbitmq
+      - redis
+      - grafana
+      - fluent-bit
+
+  fluent-bit:
+    image: fluent/fluent-bit
+    volumes:
+      - ./fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
+    depends_on:
+      - elasticsearch
+    links:
+      - "elasticsearch"
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+    networks:
+      - idnetwork
+
+  elasticsearch:
+    image: elasticsearch:7.9.2
+    expose:
+      - 9200
+    ports:
+      - "9200:9200"
+    environment:
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - discovery.type=single-node
+    networks:
+      - idnetwork
+
+  kibana:
+    image: kibana:7.9.2
+    links:
+      - "elasticsearch"
+    ports:
+      - "5601:5601"
+    networks:
+      - idnetwork

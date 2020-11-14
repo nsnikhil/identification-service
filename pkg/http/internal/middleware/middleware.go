@@ -2,6 +2,8 @@ package middleware
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"go.uber.org/zap"
 	"identification-service/pkg/client"
 	"identification-service/pkg/http/internal/resperr"
@@ -12,21 +14,14 @@ import (
 	"time"
 )
 
-func WithError(lgr *zap.Logger, handler func(resp http.ResponseWriter, req *http.Request) error) http.HandlerFunc {
+func WithErrorHandler(lgr *zap.Logger, handler func(resp http.ResponseWriter, req *http.Request) error) http.HandlerFunc {
 	return func(resp http.ResponseWriter, req *http.Request) {
 		err := handler(resp, req)
 		if err == nil {
 			return
 		}
 
-		t, ok := err.(*liberr.Error)
-		if ok {
-			lgr.Error(t.EncodedStack())
-		} else {
-			lgr.Error(err.Error())
-		}
-
-		util.WriteFailureResponse(resperr.MapError(err), resp)
+		logAndWriteError(lgr, resp, err)
 	}
 }
 
@@ -50,7 +45,6 @@ func WithResponseHeaders(handler http.HandlerFunc) http.HandlerFunc {
 			"Content-Type":              "application/json",
 			"Strict-Transport-Security": "max-age=31536000; includeSubDomains",
 			"X-Frame-Options":           "deny",
-			"X-XSS-Protection":          "1; mode=block", // DEPRECATED USE CSF
 			"X-Content-Type-Options":    "nosniff",
 		}
 
@@ -62,19 +56,63 @@ func WithResponseHeaders(handler http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func WithClientAuth(service client.Service, handler http.HandlerFunc) http.HandlerFunc {
+func WithBasicAuth(cred map[string]string, lgr *zap.Logger, realm string, handler http.HandlerFunc) http.HandlerFunc {
+	return func(resp http.ResponseWriter, req *http.Request) {
+
+		authFailed := func(resp http.ResponseWriter, realm string) {
+			resp.Header().Set("WWW-Authenticate", fmt.Sprintf(`Basic realm="%s"`, realm))
+
+			logAndWriteError(lgr, resp, liberr.WithArgs(
+				liberr.Operation("WithBasicAuth"),
+				liberr.AuthenticationError,
+				errors.New("basic auth failed"),
+			))
+		}
+
+		userName, password, ok := req.BasicAuth()
+		if !ok {
+			authFailed(resp, realm)
+			return
+		}
+
+		credPass, credUserOk := cred[userName]
+		if !credUserOk || password != credPass {
+			authFailed(resp, realm)
+			return
+		}
+
+		handler(resp, req)
+	}
+}
+
+func WithClientAuth(lgr *zap.Logger, service client.Service, handler http.HandlerFunc) http.HandlerFunc {
 	return func(resp http.ResponseWriter, req *http.Request) {
 		name := req.Header.Get("CLIENT-ID")
 		secret := req.Header.Get("CLIENT-SECRET")
 
 		err := service.ValidateClientCredentials(req.Context(), name, secret)
 		if err != nil {
-			util.WriteFailureResponse(resperr.MapError(liberr.WithArgs(liberr.Operation("WithClientAuth"), liberr.AuthenticationError, err)), resp)
+			logAndWriteError(lgr, resp, liberr.WithArgs(
+				liberr.Operation("WithClientAuth"),
+				liberr.AuthenticationError,
+				err,
+			))
 			return
 		}
 
 		handler(resp, req)
 	}
+}
+
+func logAndWriteError(lgr *zap.Logger, resp http.ResponseWriter, err error) {
+	t, ok := err.(*liberr.Error)
+	if ok {
+		lgr.Error(t.EncodedStack())
+	} else {
+		lgr.Error(err.Error())
+	}
+
+	util.WriteFailureResponse(resperr.MapError(err), resp)
 }
 
 func WithRequestContext(handler http.HandlerFunc) http.HandlerFunc {

@@ -95,7 +95,7 @@ func testWithError(t *testing.T, expectedCode int, expectedBody, expectedLog str
 
 	lgr := reporters.NewLogger("dev", "debug", buf)
 
-	middleware.WithError(lgr, h)(w, r)
+	middleware.WithErrorHandler(lgr, h)(w, r)
 
 	assert.Equal(t, expectedCode, w.Code)
 	assert.Equal(t, expectedBody, w.Body.String())
@@ -274,21 +274,80 @@ func TestWithRequestContext(t *testing.T) {
 	middleware.WithRequestContext(th)(w, r)
 }
 
+func TestWithBasicAuthSuccess(t *testing.T) {
+	testWithBasicAuth(t, http.StatusOK, "user", "password")
+}
+
+func TestWithBasicAuthFailure(t *testing.T) {
+	testCases := map[string]struct {
+		username, password string
+	}{
+		"test failure when username is in correct": {
+			username: "otherUser",
+			password: "password",
+		},
+
+		"test failure when password is in correct": {
+			username: "user",
+			password: "otherPassword",
+		},
+	}
+
+	for name, testCase := range testCases {
+		t.Run(name, func(t *testing.T) {
+			testWithBasicAuth(t, http.StatusUnauthorized, testCase.username, testCase.password)
+		})
+	}
+}
+
+func testWithBasicAuth(t *testing.T, expectedCode int, user, password string) {
+	cred := map[string]string{"user": "password"}
+
+	buf := new(bytes.Buffer)
+	lgr := reporters.NewLogger("dev", "debug", buf)
+
+	w := httptest.NewRecorder()
+	r, err := http.NewRequest(http.MethodGet, "/random", nil)
+	require.NoError(t, err)
+
+	r.SetBasicAuth(user, password)
+
+	th := func(resp http.ResponseWriter, req *http.Request) {
+		resp.WriteHeader(http.StatusOK)
+	}
+
+	middleware.WithBasicAuth(cred, lgr, "random", th)(w, r)
+
+	assert.Equal(t, expectedCode, w.Code)
+}
+
 func TestWithClientAuthenticationSuccess(t *testing.T) {
 	mockClientService := &client.MockService{}
-	mockClientService.On("ValidateClientCredentials", mock.AnythingOfType("*context.emptyCtx"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil)
+	mockClientService.On("ValidateClientCredentials",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.AnythingOfType("string"),
+		mock.AnythingOfType("string"),
+	).Return(nil)
 
 	testWithClientAuthentication(t, http.StatusOK, mockClientService)
 }
 
 func TestWithClientAuthenticationFailure(t *testing.T) {
 	mockClientService := &client.MockService{}
-	mockClientService.On("ValidateClientCredentials", mock.AnythingOfType("*context.emptyCtx"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(liberr.WithArgs(errors.New("client validation failed")))
+
+	mockClientService.On("ValidateClientCredentials",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.AnythingOfType("string"),
+		mock.AnythingOfType("string"),
+	).Return(liberr.WithArgs(errors.New("client validation failed")))
 
 	testWithClientAuthentication(t, http.StatusUnauthorized, mockClientService)
 }
 
 func testWithClientAuthentication(t *testing.T, expectedCode int, service client.Service) {
+	buf := new(bytes.Buffer)
+	lgr := reporters.NewLogger("dev", "debug", buf)
+
 	w := httptest.NewRecorder()
 	r, err := http.NewRequest(http.MethodGet, "/random", nil)
 	require.NoError(t, err)
@@ -303,7 +362,7 @@ func testWithClientAuthentication(t *testing.T, expectedCode int, service client
 		resp.WriteHeader(http.StatusOK)
 	}
 
-	middleware.WithClientAuth(service, th)(w, r)
+	middleware.WithClientAuth(lgr, service, th)(w, r)
 
 	assert.Equal(t, expectedCode, w.Code)
 }

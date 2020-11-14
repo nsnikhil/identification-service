@@ -13,7 +13,6 @@ import (
 	"identification-service/pkg/config"
 	"identification-service/pkg/database"
 	"testing"
-	"time"
 )
 
 type clientStoreIntegrationSuite struct {
@@ -33,12 +32,10 @@ func (cst *clientStoreIntegrationSuite) SetupSuite() {
 	cc, err := cache.NewHandler(cfg.CacheConfig()).GetCache()
 	require.NoError(cst.T(), err)
 
-	ctx, _ := context.WithTimeout(context.Background(), time.Second)
-
 	cst.db = db
 	cst.cache = cc
 	cst.store = internal.NewStore(cst.db, cst.cache)
-	cst.ctx = ctx
+	cst.ctx = context.Background()
 }
 
 func (cst *clientStoreIntegrationSuite) AfterTest(suiteName, testName string) {
