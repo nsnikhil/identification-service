@@ -1,4 +1,4 @@
-package internal_test
+package session_test
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"identification-service/pkg/session/internal"
+	"identification-service/pkg/session"
 	"regexp"
 	"testing"
 	"time"
@@ -17,22 +17,22 @@ type sessionStoreSuite struct {
 	suite.Suite
 	mock  sqlmock.Sqlmock
 	db    *sql.DB
-	store internal.Store
+	store session.Store
 }
 
 func (st *sessionStoreSuite) SetupSuite() {
 	st.db, st.mock = getMockDB(st.T())
-	st.store = internal.NewStore(st.db)
+	st.store = session.NewStore(st.db)
 }
 
 func (st *sessionStoreSuite) TestCreateSessionSuccess() {
-	query := `insert into sessions (userid, refreshtoken) values ($1, $2) returning id`
+	query := `insert into sessions (user_id, refresh_token) values ($1, $2) returning id`
 
 	st.mock.ExpectQuery(regexp.QuoteMeta(query)).
 		WithArgs(userID, refreshToken).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(sessionID))
 
-	s, err := internal.NewSessionBuilder().UserID(userID).RefreshToken(refreshToken).Build()
+	s, err := session.NewSessionBuilder().UserID(userID).RefreshToken(refreshToken).Build()
 	require.NoError(st.T(), err)
 
 	_, err = st.store.CreateSession(context.Background(), s)
@@ -42,13 +42,13 @@ func (st *sessionStoreSuite) TestCreateSessionSuccess() {
 }
 
 func (st *sessionStoreSuite) TestCreateSessionFailure() {
-	query := `insert into sessions (userid, refreshtoken) values ($1, $2) returning id`
+	query := `insert into sessions (user_id, refresh_token) values ($1, $2) returning id`
 
 	st.mock.ExpectQuery(regexp.QuoteMeta(query)).
 		WithArgs(userID, refreshToken).
 		WillReturnError(errors.New("failed to create session"))
 
-	s, err := internal.NewSessionBuilder().UserID(userID).RefreshToken(refreshToken).Build()
+	s, err := session.NewSessionBuilder().UserID(userID).RefreshToken(refreshToken).Build()
 	require.NoError(st.T(), err)
 
 	_, err = st.store.CreateSession(context.Background(), s)
@@ -58,7 +58,7 @@ func (st *sessionStoreSuite) TestCreateSessionFailure() {
 }
 
 func (st *sessionStoreSuite) TestGetSessionSuccess() {
-	query := `select id, userid, revoked, createdat, updatedat from sessions where refreshtoken=$1`
+	query := `select id, user_id, revoked, created_at, updated_at from sessions where refresh_token=$1`
 
 	rows := sqlmock.NewRows([]string{"id", "userid", "revoked", "createdat", "updatedat"}).
 		AddRow(sessionID, userID, false, time.Time{}, time.Time{})
@@ -74,7 +74,7 @@ func (st *sessionStoreSuite) TestGetSessionSuccess() {
 }
 
 func (st *sessionStoreSuite) TestGetSessionFailure() {
-	query := `select id, userid, revoked, createdat, updatedat from sessions where refreshtoken=$1`
+	query := `select id, user_id, revoked, created_at, updated_at from sessions where refresh_token=$1`
 
 	st.mock.ExpectQuery(regexp.QuoteMeta(query)).
 		WithArgs(refreshToken).
@@ -87,7 +87,7 @@ func (st *sessionStoreSuite) TestGetSessionFailure() {
 }
 
 func (st *sessionStoreSuite) TestRevokeSessionSuccess() {
-	query := `update sessions set revoked=true where refreshtoken=$1`
+	query := `update sessions set revoked=true where refresh_token=$1`
 
 	st.mock.ExpectExec(regexp.QuoteMeta(query)).
 		WithArgs(refreshToken).
@@ -100,7 +100,7 @@ func (st *sessionStoreSuite) TestRevokeSessionSuccess() {
 }
 
 func (st *sessionStoreSuite) TestRevokeSessionFailure() {
-	query := `update sessions set revoked=true where refreshtoken=$1`
+	query := `update sessions set revoked=true where refresh_token=$1`
 
 	st.mock.ExpectExec(regexp.QuoteMeta(query)).
 		WithArgs(refreshToken).

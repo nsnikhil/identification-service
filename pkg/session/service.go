@@ -2,11 +2,9 @@ package session
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"identification-service/pkg/client"
 	"identification-service/pkg/liberr"
-	"identification-service/pkg/session/internal"
 	"identification-service/pkg/token"
 	"identification-service/pkg/user"
 	"time"
@@ -22,7 +20,7 @@ type Service interface {
 }
 
 type sessionService struct {
-	store         internal.Store
+	store         Store
 	userService   user.Service
 	clientService client.Service
 	generator     token.Generator
@@ -43,7 +41,7 @@ func (ss *sessionService) LoginUser(ctx context.Context, clientName, clientSecre
 		return wrap(err)
 	}
 
-	session, err := internal.NewSessionBuilder().UserID(userID).RefreshToken(refreshToken).Build()
+	session, err := NewSessionBuilder().UserID(userID).RefreshToken(refreshToken).Build()
 	if err != nil {
 		return wrap(err)
 	}
@@ -61,7 +59,11 @@ func (ss *sessionService) LoginUser(ctx context.Context, clientName, clientSecre
 		return wrap(err)
 	}
 
-	accessToken, err := ss.generator.GenerateAccessToken(accessTokenTTL, userID, map[string]string{"session_id": sessionID})
+	accessToken, err := ss.generator.GenerateAccessToken(
+		accessTokenTTL,
+		userID, map[string]string{"session_id": sessionID},
+	)
+
 	if err != nil {
 		return wrap(err)
 	}
@@ -104,7 +106,11 @@ func (ss *sessionService) RefreshToken(ctx context.Context, clientName, clientSe
 		return wrap(err)
 	}
 
-	accessToken, err := ss.generator.GenerateAccessToken(accessTokenTTL, session.UserID(), map[string]string{"session_id": session.ID()})
+	accessToken, err := ss.generator.GenerateAccessToken(
+		accessTokenTTL,
+		session.UserID(),
+		map[string]string{"session_id": session.ID()},
+	)
 	if err != nil {
 		return wrap(err)
 	}
@@ -113,7 +119,7 @@ func (ss *sessionService) RefreshToken(ctx context.Context, clientName, clientSe
 }
 
 //TODO: THIS FUNCTION IS NOT TESTED, FIND A WAY TO TEST IT
-func validateSession(ctx context.Context, sessionTTL int, session internal.Session, store internal.Store, refreshToken string) error {
+func validateSession(ctx context.Context, sessionTTL int, session Session, store Store, refreshToken string) error {
 	if !session.IsExpired(float64(sessionTTL)) {
 		return nil
 	}
@@ -127,18 +133,9 @@ func validateSession(ctx context.Context, sessionTTL int, session internal.Sessi
 	return fmt.Errorf("session expired for %s", refreshToken)
 }
 
-func NewInternalService(store internal.Store, userService user.Service, clientService client.Service, generator token.Generator) Service {
+func NewService(store Store, userService user.Service, clientService client.Service, generator token.Generator) Service {
 	return &sessionService{
 		store:         store,
-		userService:   userService,
-		clientService: clientService,
-		generator:     generator,
-	}
-}
-
-func NewService(db *sql.DB, userService user.Service, clientService client.Service, generator token.Generator) Service {
-	return &sessionService{
-		store:         internal.NewStore(db),
 		userService:   userService,
 		clientService: clientService,
 		generator:     generator,

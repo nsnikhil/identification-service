@@ -18,6 +18,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 )
@@ -40,6 +41,8 @@ type componentTestSuite struct {
 }
 
 func (cst *componentTestSuite) SetupSuite() {
+	require.NoError(cst.T(), os.Setenv("ENV", "test"))
+
 	configFile := "../../local.env"
 	startApp(configFile)
 
@@ -64,6 +67,13 @@ func (cst *componentTestSuite) AfterTest(suiteName, testName string) {
 	truncateTables(cst.T(), cst.db)
 }
 
+func (cst *componentTestSuite) TearDownSuite() {
+	cst.cl.CloseIdleConnections()
+	require.NoError(cst.T(), os.Unsetenv("ENV"))
+	require.NoError(cst.T(), cst.ch.Close())
+	require.NoError(cst.T(), cst.db.Close())
+}
+
 func (cst *componentTestSuite) TestPing() {
 	req := newRequest(cst.T(), http.MethodGet, "ping", nil)
 	resp := execRequest(cst.T(), cst.cl, req)
@@ -75,9 +85,15 @@ func (cst *componentTestSuite) TestPing() {
 }
 
 func (cst *componentTestSuite) TestRegisterClientSuccess() {
-	reqBody := contract.CreateClientRequest{Name: "clientOne", AccessTokenTTL: 10, SessionTTL: 86400}
+	reqBody := contract.CreateClientRequest{
+		Name:              "clientOne",
+		AccessTokenTTL:    10,
+		SessionTTL:        86400,
+		MaxActiveSessions: 2,
+	}
 
-	testRegisterClient(cst,
+	testRegisterClient(
+		cst,
 		http.StatusCreated,
 		contract.APIResponse{Success: true},
 		reqBody,
@@ -90,26 +106,51 @@ func (cst *componentTestSuite) TestRegisterClientFailureForValidation() {
 		expectedError string
 	}{
 		"test failure when name is empty": {
-			reqBody:       contract.CreateClientRequest{Name: "", AccessTokenTTL: 10, SessionTTL: 86400},
+			reqBody: contract.CreateClientRequest{
+				Name:              "",
+				AccessTokenTTL:    10,
+				SessionTTL:        86400,
+				MaxActiveSessions: 2,
+			},
 			expectedError: "name cannot be empty",
 		},
 		"test failure when access token ttl is less than 1": {
-			reqBody:       contract.CreateClientRequest{Name: "clientOne", AccessTokenTTL: 0, SessionTTL: 86400},
+			reqBody: contract.CreateClientRequest{
+				Name:              "clientOne",
+				AccessTokenTTL:    0,
+				SessionTTL:        86400,
+				MaxActiveSessions: 2,
+			},
 			expectedError: "access token ttl cannot be less than one",
 		},
 		"test failure when session ttl is less than 1": {
-			reqBody:       contract.CreateClientRequest{Name: "clientOne", AccessTokenTTL: 10, SessionTTL: 0},
+			reqBody: contract.CreateClientRequest{
+				Name:              "clientOne",
+				AccessTokenTTL:    10,
+				SessionTTL:        0,
+				MaxActiveSessions: 2,
+			},
 			expectedError: "session ttl cannot be less than one",
 		},
 		"test failure when session ttl is less than access token ttl": {
-			reqBody:       contract.CreateClientRequest{Name: "clientOne", AccessTokenTTL: 20, SessionTTL: 10},
+			reqBody: contract.CreateClientRequest{
+				Name:              "clientOne",
+				AccessTokenTTL:    20,
+				SessionTTL:        10,
+				MaxActiveSessions: 2,
+			},
 			expectedError: "session ttl cannot be less than access token ttl",
+		},
+		"test failure when max active session is less than 1": {
+			reqBody:       contract.CreateClientRequest{Name: "clientOne", AccessTokenTTL: 20, SessionTTL: 10, MaxActiveSessions: 0},
+			expectedError: "max active sessions cannot be less than one",
 		},
 	}
 
 	for name, testCase := range testCases {
 		cst.T().Run(name, func(t *testing.T) {
-			testRegisterClient(cst,
+			testRegisterClient(
+				cst,
 				http.StatusBadRequest,
 				contract.APIResponse{Success: false, Error: &contract.Error{Message: testCase.expectedError}},
 				testCase.reqBody,
@@ -119,15 +160,22 @@ func (cst *componentTestSuite) TestRegisterClientFailureForValidation() {
 }
 
 func (cst *componentTestSuite) TestRegisterClientFailureForDuplicateRecord() {
-	reqBody := contract.CreateClientRequest{Name: "clientOne", AccessTokenTTL: 10, SessionTTL: 86400}
+	reqBody := contract.CreateClientRequest{
+		Name:              "clientOne",
+		AccessTokenTTL:    10,
+		SessionTTL:        86400,
+		MaxActiveSessions: 2,
+	}
 
-	testRegisterClient(cst,
+	testRegisterClient(
+		cst,
 		http.StatusCreated,
 		contract.APIResponse{Success: true},
 		reqBody,
 	)
 
-	testRegisterClient(cst,
+	testRegisterClient(
+		cst,
 		http.StatusInternalServerError,
 		contract.APIResponse{Success: false, Error: &contract.Error{Message: "internal server error"}},
 		reqBody,
@@ -151,15 +199,22 @@ func testCreateClient(cst *componentTestSuite, expectedCode int, reqBody contrac
 	require.NoError(cst.T(), err)
 
 	req := newRequest(cst.T(), http.MethodPost, "client/register", bytes.NewBuffer(b))
+
 	ac := cst.cfg.AuthConfig()
 	req.SetBasicAuth(ac.UserName(), ac.Password())
+
 	resp := execRequest(cst.T(), cst.cl, req)
 
 	return getData(cst.T(), expectedCode, resp)
 }
 
 func (cst *componentTestSuite) TestRevokeClientSuccess() {
-	regReqBody := contract.CreateClientRequest{Name: "clientOne", AccessTokenTTL: 10, SessionTTL: 86400}
+	regReqBody := contract.CreateClientRequest{
+		Name:              "clientOne",
+		AccessTokenTTL:    10,
+		SessionTTL:        86400,
+		MaxActiveSessions: 2,
+	}
 
 	testRegisterClient(cst, http.StatusCreated, contract.APIResponse{Success: true}, regReqBody)
 
@@ -211,7 +266,13 @@ func testRevokeClient(cst *componentTestSuite, expectedCode int, expectedRespDat
 }
 
 func createAndGetClientCredentials(cst *componentTestSuite) map[string]string {
-	clientReqBody := contract.CreateClientRequest{Name: "clientOne", AccessTokenTTL: 10, SessionTTL: 87601}
+	clientReqBody := contract.CreateClientRequest{
+		Name:              "clientOne",
+		AccessTokenTTL:    10,
+		SessionTTL:        87601,
+		MaxActiveSessions: 2,
+	}
+
 	clientResp := testCreateClient(cst, http.StatusCreated, clientReqBody)
 	require.True(cst.T(), clientResp.Success)
 
@@ -226,7 +287,10 @@ func createUser(cst *componentTestSuite, consumeMessage bool) map[string]string 
 
 	reqBody := contract.CreateUserRequest{Name: userName, Email: userEmail, Password: userPassword}
 
-	expectedRespData := contract.APIResponse{Success: true, Data: map[string]interface{}{"message": "user created successfully"}}
+	expectedRespData := contract.APIResponse{
+		Success: true,
+		Data:    map[string]interface{}{"message": "user created successfully"},
+	}
 
 	testSignUpUser(cst, http.StatusCreated, expectedRespData, headers, reqBody)
 	if consumeMessage {
@@ -297,7 +361,14 @@ func (cst *componentTestSuite) TestSignUpUserFailureForDuplicateRecord() {
 	testSignUpUser(cst, http.StatusInternalServerError, expectedRespData, headers, reqBody)
 }
 
-func testSignUpUser(cst *componentTestSuite, expectedCode int, expectedRespData contract.APIResponse, reqHeaders map[string]string, reqBody contract.CreateUserRequest) {
+func testSignUpUser(
+	cst *componentTestSuite,
+	expectedCode int,
+	expectedRespData contract.APIResponse,
+	reqHeaders map[string]string,
+	reqBody contract.CreateUserRequest,
+) {
+
 	b, err := json.Marshal(&reqBody)
 	require.NoError(cst.T(), err)
 
@@ -379,7 +450,14 @@ func (cst *componentTestSuite) TestUpdatePasswordFailure() {
 	}
 }
 
-func testUpdatePassword(cst *componentTestSuite, expectedCode int, expectedRespData contract.APIResponse, reqHeader map[string]string, reqBody contract.UpdatePasswordRequest) {
+func testUpdatePassword(
+	cst *componentTestSuite,
+	expectedCode int,
+	expectedRespData contract.APIResponse,
+	reqHeader map[string]string,
+	reqBody contract.UpdatePasswordRequest,
+) {
+
 	b, err := json.Marshal(&reqBody)
 	require.NoError(cst.T(), err)
 
@@ -442,7 +520,14 @@ func (cst *componentTestSuite) TestCreateSessionFailureWhenCredentialAreIncorrec
 
 }
 
-func testCreateSessionSuccess(cst *componentTestSuite, expectedCode int, expectedRespData contract.APIResponse, reqHeader map[string]string, reqBody contract.LoginRequest) {
+func testCreateSessionSuccess(
+	cst *componentTestSuite,
+	expectedCode int,
+	expectedRespData contract.APIResponse,
+	reqHeader map[string]string,
+	reqBody contract.LoginRequest,
+) {
+
 	b, err := json.Marshal(&reqBody)
 	require.NoError(cst.T(), err)
 
@@ -472,7 +557,7 @@ func (cst *componentTestSuite) TestRefreshTokenSuccess() {
 	require.NoError(cst.T(), err)
 
 	var refreshToken string
-	err = cst.db.QueryRow("select refreshtoken from sessions where userid = $1", userID).Scan(&refreshToken)
+	err = cst.db.QueryRow("select refresh_token from sessions where user_id = $1", userID).Scan(&refreshToken)
 	require.NoError(cst.T(), err)
 
 	reqBody := contract.RefreshTokenRequest{RefreshToken: refreshToken}
@@ -505,11 +590,11 @@ func (cst *componentTestSuite) TestRefreshTokenFailureWhenSessionExpires() {
 	require.NoError(cst.T(), err)
 
 	prev := time.Now().AddDate(0, -2, -5)
-	_, err = cst.db.Exec("update sessions set createdat=$1, updatedat=$2", prev, prev)
+	_, err = cst.db.Exec("update sessions set created_at=$1, updated_at=$2", prev, prev)
 	require.NoError(cst.T(), err)
 
 	var refreshToken string
-	err = cst.db.QueryRow("select refreshtoken from sessions where userid = $1", userID).Scan(&refreshToken)
+	err = cst.db.QueryRow("select refresh_token from sessions where user_id = $1", userID).Scan(&refreshToken)
 	require.NoError(cst.T(), err)
 
 	reqBody := contract.RefreshTokenRequest{RefreshToken: refreshToken}
@@ -522,7 +607,14 @@ func (cst *componentTestSuite) TestRefreshTokenFailureWhenSessionExpires() {
 	testRefreshToken(cst, http.StatusInternalServerError, expectedRespData, header, reqBody)
 }
 
-func testRefreshToken(cst *componentTestSuite, expectedCode int, expectedRespData contract.APIResponse, reqHeader map[string]string, reqBody contract.RefreshTokenRequest) {
+func testRefreshToken(
+	cst *componentTestSuite,
+	expectedCode int,
+	expectedRespData contract.APIResponse,
+	reqHeader map[string]string,
+	reqBody contract.RefreshTokenRequest,
+) {
+
 	b, err := json.Marshal(&reqBody)
 	require.NoError(cst.T(), err)
 
@@ -552,7 +644,7 @@ func (cst *componentTestSuite) TestLogoutUserSuccess() {
 	require.NoError(cst.T(), err)
 
 	var refreshToken string
-	err = cst.db.QueryRow("select refreshtoken from sessions where userid = $1", userID).Scan(&refreshToken)
+	err = cst.db.QueryRow("select refresh_token from sessions where user_id = $1", userID).Scan(&refreshToken)
 	require.NoError(cst.T(), err)
 
 	reqBody := contract.LogoutRequest{RefreshToken: refreshToken}
@@ -578,7 +670,13 @@ func (cst *componentTestSuite) TestLogoutUserFailureForIncorrectRefreshToken() {
 	testLogoutUser(cst, http.StatusInternalServerError, expectedRespData, header, reqBody)
 }
 
-func testLogoutUser(cst *componentTestSuite, expectedCode int, expectedRespData contract.APIResponse, reqHeader map[string]string, reqBody contract.LogoutRequest) {
+func testLogoutUser(cst *componentTestSuite,
+	expectedCode int,
+	expectedRespData contract.APIResponse,
+	reqHeader map[string]string,
+	reqBody contract.LogoutRequest,
+) {
+
 	b, err := json.Marshal(&reqBody)
 	require.NoError(cst.T(), err)
 
@@ -651,7 +749,16 @@ func startApp(configFile string) {
 }
 
 func testMessageConsume(t *testing.T, cfg config.AMPQConfig, ch *amqp.Channel) {
-	delivery, err := ch.Consume(cfg.QueueName(), "component-test-consumer", true, true, false, false, nil)
+	delivery, err := ch.Consume(
+		cfg.QueueName(),
+		"component-test-consumer",
+		true,
+		true,
+		false,
+		false,
+		nil,
+	)
+
 	require.NoError(t, err)
 
 	for {

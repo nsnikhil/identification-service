@@ -2,9 +2,8 @@ package client
 
 import (
 	"context"
-	"database/sql"
-	"github.com/go-redis/redis/v8"
-	"identification-service/pkg/client/internal"
+	"encoding/base64"
+	"identification-service/pkg/libcrypto"
 	"identification-service/pkg/liberr"
 	"time"
 )
@@ -12,20 +11,33 @@ import (
 const invalidTTL = -1
 
 type Service interface {
-	CreateClient(ctx context.Context, name string, accessTokenTTL int, sessionTTL int) (string, error)
+	CreateClient(ctx context.Context, name string, accessTokenTTL, sessionTTL, maxActiveSessions int) (string, string, error)
 	RevokeClient(ctx context.Context, id string) error
 	GetClientTTL(ctx context.Context, name, secret string) (int, int, error)
 	ValidateClientCredentials(ctx context.Context, name, secret string) error
 }
 
 type clientService struct {
-	store internal.Store
+	keyGenerator libcrypto.Ed25519Generator
+	store        Store
 }
 
-func (cs *clientService) CreateClient(ctx context.Context, name string, accessTokenTTL int, sessionTTL int) (string, error) {
-	cl, err := internal.NewClientBuilder().Name(name).AccessTokenTTL(accessTokenTTL).SessionTTL(sessionTTL).Build()
+func (cs *clientService) CreateClient(ctx context.Context, name string, accessTokenTTL, sessionTTL, maxActiveSessions int) (string, string, error) {
+	pubKey, priKey, err := cs.keyGenerator.Generate()
 	if err != nil {
-		return "", liberr.WithOp("Service.CreateClient", err)
+		return "", "", liberr.WithOp("Service.CreateClient", err)
+	}
+
+	cl, err := NewClientBuilder().
+		Name(name).
+		AccessTokenTTL(accessTokenTTL).
+		SessionTTL(sessionTTL).
+		MaxActiveSessions(maxActiveSessions).
+		PrivateKey(priKey).
+		Build()
+
+	if err != nil {
+		return "", "", liberr.WithOp("Service.CreateClient", err)
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, time.Second)
@@ -33,10 +45,11 @@ func (cs *clientService) CreateClient(ctx context.Context, name string, accessTo
 
 	id, err := cs.store.CreateClient(ctx, cl)
 	if err != nil {
-		return "", liberr.WithOp("Service.CreateClient", err)
+		return "", "", liberr.WithOp("Service.CreateClient", err)
 	}
 
-	return id, nil
+	//TODO: PULL ENCODING IN SEPARATE PACKAGE
+	return base64.RawStdEncoding.EncodeToString(pubKey), id, nil
 }
 
 //TODO: SHOULD IT RETURN THE UPDATE COUNT ?
@@ -76,15 +89,9 @@ func (cs *clientService) ValidateClientCredentials(ctx context.Context, name, se
 	return nil
 }
 
-//TODO: FIGURE OUT A WAY TO REMOVE THIS AS IT IS ONLY NEEDED FOR TEST
-func NewInternalService(store internal.Store) Service {
+func NewService(store Store, keyGenerator libcrypto.Ed25519Generator) Service {
 	return &clientService{
-		store: store,
-	}
-}
-
-func NewService(db *sql.DB, cache *redis.Client) Service {
-	return &clientService{
-		store: internal.NewStore(db, cache),
+		keyGenerator: keyGenerator,
+		store:        store,
 	}
 }

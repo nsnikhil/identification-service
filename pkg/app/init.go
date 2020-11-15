@@ -1,6 +1,8 @@
 package app
 
 import (
+	"database/sql"
+	"github.com/go-redis/redis/v8"
 	"go.uber.org/zap"
 	"identification-service/pkg/cache"
 	"identification-service/pkg/client"
@@ -8,6 +10,7 @@ import (
 	"identification-service/pkg/database"
 	"identification-service/pkg/http/router"
 	"identification-service/pkg/http/server"
+	"identification-service/pkg/libcrypto"
 	"identification-service/pkg/liberr"
 	"identification-service/pkg/password"
 	"identification-service/pkg/queue"
@@ -49,16 +52,33 @@ func initServices(cfg config.Config) (client.Service, user.Service, session.Serv
 	//TODO: PASS PROPER LOGGER OR REMOVE LOGGER
 	qu := queue.NewQueue(cfg.AMPQConfig().QueueName(), cfg.AMPQConfig().Address(), zap.NewNop())
 
-	ec := password.NewEncoder(cfg.PasswordConfig())
+	en := password.NewEncoder(cfg.PasswordConfig())
 
-	gn, err := token.NewGenerator(cfg.TokenConfig())
+	kg := libcrypto.NewKeyGenerator()
+
+	tg, err := token.NewGenerator(cfg.TokenConfig(), kg)
 	logError(err)
 
-	cs := client.NewService(db, cc)
-	us := user.NewService(db, ec, qu)
-	ss := session.NewService(db, us, cs, gn)
+	cs := initClientService(db, cc, kg)
+	us := initUserService(db, en, qu)
+	ss := initSessionService(db, us, cs, tg)
 
 	return cs, us, ss
+}
+
+func initClientService(db *sql.DB, cc *redis.Client, kg libcrypto.Ed25519Generator) client.Service {
+	st := client.NewStore(db, cc)
+	return client.NewService(st, kg)
+}
+
+func initUserService(db *sql.DB, en password.Encoder, qu queue.Queue) user.Service {
+	st := user.NewStore(db)
+	return user.NewService(st, en, qu)
+}
+
+func initSessionService(db *sql.DB, us user.Service, cs client.Service, tg token.Generator) session.Service {
+	st := session.NewStore(db)
+	return session.NewService(st, us, cs, tg)
 }
 
 func initLogger(cfg config.Config) *zap.Logger {

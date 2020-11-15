@@ -1,4 +1,4 @@
-package internal
+package session
 
 import (
 	"context"
@@ -8,9 +8,9 @@ import (
 )
 
 const (
-	createSession = `insert into sessions (userid, refreshtoken) values ($1, $2) returning id`
-	getSession    = `select id, userid, revoked, createdat, updatedat from sessions where refreshtoken=$1`
-	revokeSession = `update sessions set revoked=true where refreshtoken=$1`
+	createSession = `insert into sessions (user_id, refresh_token) values ($1, $2) returning id`
+	getSession    = `select id, user_id, revoked, created_at, updated_at from sessions where refresh_token=$1`
+	revokeSession = `update sessions set revoked=true where refresh_token=$1`
 )
 
 type Store interface {
@@ -62,7 +62,10 @@ func (ss *sessionStore) RevokeSession(ctx context.Context, refreshToken string) 
 	}
 
 	if c == 0 {
-		return 0, liberr.WithOp("Store.RevokeSession", fmt.Errorf("no seesion found for refresh token %s", refreshToken))
+		return 0, liberr.WithOp(
+			"Store.RevokeSession",
+			fmt.Errorf("no session found for refresh token %s", refreshToken),
+		)
 	}
 
 	return c, nil

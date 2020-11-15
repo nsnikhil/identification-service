@@ -1,4 +1,4 @@
-package internal_test
+package user_test
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"identification-service/pkg/password"
-	"identification-service/pkg/user/internal"
+	"identification-service/pkg/user"
 	"regexp"
 	"testing"
 )
@@ -17,16 +17,16 @@ type userStoreSuite struct {
 	suite.Suite
 	db    *sql.DB
 	mock  sqlmock.Sqlmock
-	store internal.Store
+	store user.Store
 }
 
 func (ust *userStoreSuite) SetupSuite() {
 	ust.db, ust.mock = getMockDB(ust.T())
-	ust.store = internal.NewStore(ust.db)
+	ust.store = user.NewStore(ust.db)
 }
 
 func (ust *userStoreSuite) TestCreateUserSuccess() {
-	query := `insert into users (name, email, passwordhash, passwordsalt) values ($1, $2, $3, $4) returning id`
+	query := `insert into users (name, email, password_hash, password_salt) values ($1, $2, $3, $4) returning id`
 
 	ust.mock.ExpectQuery(regexp.QuoteMeta(query)).
 		WithArgs(name, email, hash, salt).
@@ -41,7 +41,7 @@ func (ust *userStoreSuite) TestCreateUserSuccess() {
 }
 
 func (ust *userStoreSuite) TestCreateUserFailure() {
-	query := `insert into users (name, email, passwordhash, passwordsalt) values ($1, $2, $3, $4) returning id`
+	query := `insert into users (name, email, password_hash, password_salt) values ($1, $2, $3, $4) returning id`
 
 	ust.mock.ExpectQuery(regexp.QuoteMeta(query)).
 		WithArgs(name, email, hash, salt).
@@ -56,7 +56,7 @@ func (ust *userStoreSuite) TestCreateUserFailure() {
 }
 
 func (ust *userStoreSuite) TestGetUserSuccess() {
-	query := `select id, name, email, passwordhash, passwordsalt from users where email = $1`
+	query := `select id, name, email, password_hash, password_salt from users where email = $1`
 
 	rows := sqlmock.NewRows(
 		[]string{
@@ -68,7 +68,7 @@ func (ust *userStoreSuite) TestGetUserSuccess() {
 		WithArgs(email).
 		WillReturnRows(rows.AddRow("", "", "", "", ""))
 
-	us := internal.NewStore(ust.db)
+	us := user.NewStore(ust.db)
 
 	_, err := us.GetUser(context.Background(), email)
 	require.NoError(ust.T(), err)
@@ -77,13 +77,13 @@ func (ust *userStoreSuite) TestGetUserSuccess() {
 }
 
 func (ust *userStoreSuite) TestGetUserFailure() {
-	query := `select id, name, email, passwordhash, passwordsalt from users where email = $1`
+	query := `select id, name, email, password_hash, password_salt from users where email = $1`
 
 	ust.mock.ExpectQuery(regexp.QuoteMeta(query)).
 		WithArgs(email).
 		WillReturnError(errors.New("failed to get data"))
 
-	us := internal.NewStore(ust.db)
+	us := user.NewStore(ust.db)
 
 	_, err := us.GetUser(context.Background(), email)
 	require.Error(ust.T(), err)
@@ -92,13 +92,13 @@ func (ust *userStoreSuite) TestGetUserFailure() {
 }
 
 func (ust *userStoreSuite) TestUpdatePasswordSuccess() {
-	query := `update users set passwordhash=$1, passwordsalt=$2 where id=$3`
+	query := `update users set password_hash=$1, password_salt=$2 where id=$3`
 
 	ust.mock.ExpectExec(regexp.QuoteMeta(query)).
 		WithArgs(hash, salt, email).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	us := internal.NewStore(ust.db)
+	us := user.NewStore(ust.db)
 
 	_, err := us.UpdatePassword(context.Background(), email, hash, salt)
 	require.NoError(ust.T(), err)
@@ -107,13 +107,13 @@ func (ust *userStoreSuite) TestUpdatePasswordSuccess() {
 }
 
 func (ust *userStoreSuite) TestUpdatePasswordFailure() {
-	query := `update users set passwordhash=$1, passwordsalt=$2 where id=$3`
+	query := `update users set password_hash=$1, password_salt=$2 where id=$3`
 
 	ust.mock.ExpectExec(regexp.QuoteMeta(query)).
 		WithArgs(hash, salt, email).
 		WillReturnError(errors.New("failed to update password"))
 
-	us := internal.NewStore(ust.db)
+	us := user.NewStore(ust.db)
 
 	_, err := us.UpdatePassword(context.Background(), email, hash, salt)
 	require.Error(ust.T(), err)
@@ -125,14 +125,14 @@ func TestStore(t *testing.T) {
 	suite.Run(t, new(userStoreSuite))
 }
 
-func getUser(t *testing.T, name, email, userPassword string) internal.User {
+func getUser(t *testing.T, name, email, userPassword string) user.User {
 	mockEncoder := &password.MockEncoder{}
 	mockEncoder.On("GenerateSalt").Return(salt, nil)
 	mockEncoder.On("GenerateKey", userPassword, salt).Return(key)
 	mockEncoder.On("EncodeKey", key).Return(hash)
 	mockEncoder.On("ValidatePassword", userPassword).Return(nil)
 
-	user, err := internal.NewUser(mockEncoder, name, email, userPassword)
+	user, err := user.NewUser(mockEncoder, name, email, userPassword)
 	require.NoError(t, err)
 
 	return user

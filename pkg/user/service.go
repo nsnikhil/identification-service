@@ -2,11 +2,9 @@ package user
 
 import (
 	"context"
-	"database/sql"
 	"identification-service/pkg/liberr"
 	"identification-service/pkg/password"
 	"identification-service/pkg/queue"
-	"identification-service/pkg/user/internal"
 	"time"
 )
 
@@ -19,7 +17,7 @@ type Service interface {
 
 // TODO: RENAME
 type userService struct {
-	store   internal.Store
+	store   Store
 	encoder password.Encoder
 	queue   queue.Queue
 }
@@ -27,7 +25,7 @@ type userService struct {
 func (us *userService) CreateUser(ctx context.Context, name, email, password string) (string, error) {
 	wrap := func(err error) error { return liberr.WithOp("Service.SignUp", err) }
 
-	user, err := internal.NewUser(us.encoder, name, email, password)
+	user, err := NewUser(us.encoder, name, email, password)
 	if err != nil {
 		return "", wrap(err)
 	}
@@ -94,18 +92,9 @@ func (us *userService) UpdatePassword(ctx context.Context, email, oldPassword, n
 	return nil
 }
 
-//TODO: ONLY USED IN TESTS
-func NewInternalService(store internal.Store, encoder password.Encoder, queue queue.Queue) Service {
+func NewService(store Store, encoder password.Encoder, queue queue.Queue) Service {
 	return &userService{
 		store:   store,
-		encoder: encoder,
-		queue:   queue,
-	}
-}
-
-func NewService(db *sql.DB, encoder password.Encoder, queue queue.Queue) Service {
-	return &userService{
-		store:   internal.NewStore(db),
 		encoder: encoder,
 		queue:   queue,
 	}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/go-chi/cors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 	"identification-service/pkg/client"
@@ -24,6 +25,7 @@ func NewRouter(cfg config.Config, lgr *zap.Logger, pr reporters.Prometheus, cs c
 func getChiRouter(cfg config.Config, lgr *zap.Logger, pr reporters.Prometheus, cs client.Service, us user.Service, ss session.Service) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.Recoverer)
+	r.Use(cors.Handler(getCorsOptions(cfg.Env())))
 
 	r.Get("/ping", mdl.WithResponseHeaders(handler.PingHandler()))
 	r.Handle("/metrics", promhttp.Handler())
@@ -33,6 +35,23 @@ func getChiRouter(cfg config.Config, lgr *zap.Logger, pr reporters.Prometheus, c
 	registerClientRoutes(r, cfg.AuthConfig(), lgr, pr, cs)
 
 	return r
+}
+
+//TODO: PARAMETERIZE THIS
+func getCorsOptions(env string) cors.Options {
+	if env == "test" {
+		return cors.Options{}
+	}
+
+	return cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Content-Type", "Content-Length", "Accept-Encoding", "X-CSRF-Token", "Authorization", "Client-Id", "Client-Secret"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: false,
+		MaxAge:           86400,
+		Debug:            true,
+	}
 }
 
 func registerUserRoutes(r chi.Router, lgr *zap.Logger, pr reporters.Prometheus, cs client.Service, us user.Service) {

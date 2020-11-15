@@ -20,35 +20,61 @@ import (
 )
 
 const (
-	clientName     = "clientOne"
-	accessTokenTTL = 10
-	sessionTTL     = 14440
-	clientSecret   = "ce36dc88-0a27-498a-aef4-5051a7fd6e7f"
-	clientID       = "f14abb31-ec1a-4ff6-a937-c2e930ca34ef"
+	clientName       = "clientOne"
+	accessTokenTTL   = 10
+	sessionTTL       = 14440
+	maxActiveSession = 2
+	clientSecret     = "ce36dc88-0a27-498a-aef4-5051a7fd6e7f"
+	clientID         = "f14abb31-ec1a-4ff6-a937-c2e930ca34ef"
+	encodedPublicKey = "8lchzCKRbdXEHsG/hJNMjMqdJLbIvAvDoViJtlcwWWo"
 )
 
 func TestClientHandlerCreateSuccess(t *testing.T) {
-	req := contract.CreateClientRequest{Name: clientName, AccessTokenTTL: accessTokenTTL, SessionTTL: sessionTTL}
+	req := contract.CreateClientRequest{
+		Name:              clientName,
+		AccessTokenTTL:    accessTokenTTL,
+		SessionTTL:        sessionTTL,
+		MaxActiveSessions: maxActiveSession,
+	}
 
 	body, err := json.Marshal(&req)
 	require.NoError(t, err)
 
 	mockClientService := &client.MockService{}
-	mockClientService.On("CreateClient", mock.AnythingOfType("*context.emptyCtx"), clientName, accessTokenTTL, sessionTTL).Return(clientSecret, nil)
+	mockClientService.On(
+		"CreateClient",
+		mock.AnythingOfType("*context.emptyCtx"),
+		clientName,
+		accessTokenTTL,
+		sessionTTL,
+		maxActiveSession,
+	).Return(encodedPublicKey, clientSecret, nil)
 
-	expectedBody := `{"data":{"secret":"ce36dc88-0a27-498a-aef4-5051a7fd6e7f"},"success":true}`
+	expectedBody := `{"data":{"public_key":"8lchzCKRbdXEHsG/hJNMjMqdJLbIvAvDoViJtlcwWWo","secret":"ce36dc88-0a27-498a-aef4-5051a7fd6e7f"},"success":true}`
 
 	testClientHandlerCreate(t, http.StatusCreated, expectedBody, bytes.NewBuffer(body), mockClientService)
 }
 
 func TestClientHandlerCreateFailure(t *testing.T) {
-	req := contract.CreateClientRequest{Name: clientName, AccessTokenTTL: accessTokenTTL, SessionTTL: sessionTTL}
+	req := contract.CreateClientRequest{
+		Name:              clientName,
+		AccessTokenTTL:    accessTokenTTL,
+		SessionTTL:        sessionTTL,
+		MaxActiveSessions: maxActiveSession,
+	}
 
 	body, err := json.Marshal(&req)
 	require.NoError(t, err)
 
 	mockClientService := &client.MockService{}
-	mockClientService.On("CreateClient", mock.AnythingOfType("*context.emptyCtx"), clientName, accessTokenTTL, sessionTTL).Return("", liberr.WithArgs(errors.New("failed to create client")))
+	mockClientService.On(
+		"CreateClient",
+		mock.AnythingOfType("*context.emptyCtx"),
+		clientName,
+		accessTokenTTL,
+		sessionTTL,
+		maxActiveSession,
+	).Return("", "", liberr.WithArgs(errors.New("failed to create client")))
 
 	expectedBody := `{"error":{"message":"internal server error"},"success":false}`
 
@@ -75,7 +101,11 @@ func TestClientRevokeSuccess(t *testing.T) {
 	require.NoError(t, err)
 
 	mockClientService := &client.MockService{}
-	mockClientService.On("RevokeClient", mock.AnythingOfType("*context.emptyCtx"), clientID).Return(nil)
+	mockClientService.On(
+		"RevokeClient",
+		mock.AnythingOfType("*context.emptyCtx"),
+		clientID,
+	).Return(nil)
 
 	expectedBody := `{"data":{"message":"client revoked successfully"},"success":true}`
 
@@ -89,7 +119,11 @@ func TestClientRevokeFailure(t *testing.T) {
 	require.NoError(t, err)
 
 	mockClientService := &client.MockService{}
-	mockClientService.On("RevokeClient", mock.AnythingOfType("*context.emptyCtx"), clientID).Return(liberr.WithArgs(errors.New("failed to revoke client")))
+	mockClientService.On(
+		"RevokeClient",
+		mock.AnythingOfType("*context.emptyCtx"),
+		clientID,
+	).Return(liberr.WithArgs(errors.New("failed to revoke client")))
 
 	expectedBody := `{"error":{"message":"internal server error"},"success":false}`
 

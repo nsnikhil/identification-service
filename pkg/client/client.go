@@ -1,4 +1,4 @@
-package internal
+package client
 
 import (
 	"errors"
@@ -9,14 +9,16 @@ import (
 )
 
 type Client struct {
-	id             string
-	name           string
-	secret         string
-	revoked        bool
-	accessTokenTTL int
-	sessionTTL     int
-	createdAt      time.Time
-	updatedAt      time.Time
+	id                string
+	name              string
+	secret            string
+	revoked           bool
+	accessTokenTTL    int
+	sessionTTL        int
+	maxActiveSessions int
+	privateKey        []byte
+	createdAt         time.Time
+	updatedAt         time.Time
 }
 
 func (c Client) AccessTokenTTL() int {
@@ -28,14 +30,16 @@ func (c Client) SessionTTL() int {
 }
 
 type ClientBuilder struct {
-	id             string
-	name           string
-	secret         string
-	revoked        bool
-	accessTokenTTL int
-	sessionTTL     int
-	createdAt      time.Time
-	updatedAt      time.Time
+	id                string
+	name              string
+	secret            string
+	revoked           bool
+	accessTokenTTL    int
+	sessionTTL        int
+	maxActiveSessions int
+	privateKey        []byte
+	createdAt         time.Time
+	updatedAt         time.Time
 
 	err error
 }
@@ -109,6 +113,33 @@ func (cb *ClientBuilder) SessionTTL(sessionTTL int) *ClientBuilder {
 	cb.sessionTTL = sessionTTL
 	return cb
 }
+func (cb *ClientBuilder) MaxActiveSessions(maxActiveSessions int) *ClientBuilder {
+	if cb.err != nil {
+		return cb
+	}
+
+	if maxActiveSessions < 1 {
+		cb.err = errors.New("max active sessions cannot be less than one")
+		return cb
+	}
+
+	cb.maxActiveSessions = maxActiveSessions
+	return cb
+}
+
+func (cb *ClientBuilder) PrivateKey(privateKey []byte) *ClientBuilder {
+	if cb.err != nil {
+		return cb
+	}
+
+	if len(privateKey) == 0 {
+		cb.err = errors.New("private key cannot be empty")
+		return cb
+	}
+
+	cb.privateKey = privateKey
+	return cb
+}
 
 func (cb *ClientBuilder) CreatedAt(createdAt time.Time) *ClientBuilder {
 	if cb.err != nil {
@@ -138,13 +169,15 @@ func (cb *ClientBuilder) Build() (Client, error) {
 	}
 
 	return Client{
-		id:             cb.id,
-		name:           cb.name,
-		secret:         cb.secret,
-		accessTokenTTL: cb.accessTokenTTL,
-		sessionTTL:     cb.sessionTTL,
-		createdAt:      cb.createdAt,
-		updatedAt:      cb.updatedAt,
+		id:                cb.id,
+		name:              cb.name,
+		secret:            cb.secret,
+		accessTokenTTL:    cb.accessTokenTTL,
+		sessionTTL:        cb.sessionTTL,
+		maxActiveSessions: cb.maxActiveSessions,
+		privateKey:        cb.privateKey,
+		createdAt:         cb.createdAt,
+		updatedAt:         cb.updatedAt,
 	}, nil
 }
 

@@ -1,4 +1,4 @@
-package internal
+package user
 
 import (
 	"context"
@@ -8,9 +8,9 @@ import (
 )
 
 const (
-	insertUser     = `insert into users (name, email, passwordhash, passwordsalt) values ($1, $2, $3, $4) returning id`
-	getUserByEmail = `select id, name, email, passwordhash, passwordsalt from users where email = $1`
-	updatePassword = `update users set passwordhash=$1, passwordsalt=$2 where id=$3`
+	insertUser     = `insert into users (name, email, password_hash, password_salt) values ($1, $2, $3, $4) returning id`
+	getUserByEmail = `select id, name, email, password_hash, password_salt from users where email = $1`
+	updatePassword = `update users set password_hash=$1, password_salt=$2 where id=$3`
 )
 
 type Store interface {
@@ -28,7 +28,7 @@ func (us *userStore) CreateUser(ctx context.Context, user User) (string, error) 
 	var id string
 
 	//TODO: RETURN DIFFERENT ERROR KIND FOR DUPLICATE RECORD
-	err := us.db.QueryRow(insertUser, user.name, user.email, user.passwordHash, user.passwordSalt).Scan(&id)
+	err := us.db.QueryRowContext(ctx, insertUser, user.name, user.email, user.passwordHash, user.passwordSalt).Scan(&id)
 	if err != nil {
 		return "", liberr.WithOp("Store.CreateUser", err)
 	}

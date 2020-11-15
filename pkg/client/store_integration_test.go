@@ -1,6 +1,6 @@
 // build integration_test
 
-package internal_test
+package client_test
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"identification-service/pkg/cache"
-	"identification-service/pkg/client/internal"
+	"identification-service/pkg/client"
 	"identification-service/pkg/config"
 	"identification-service/pkg/database"
 	"testing"
@@ -19,12 +19,12 @@ type clientStoreIntegrationSuite struct {
 	suite.Suite
 	db    *sql.DB
 	cache *redis.Client
-	store internal.Store
+	store client.Store
 	ctx   context.Context
 }
 
 func (cst *clientStoreIntegrationSuite) SetupSuite() {
-	cfg := config.NewConfig("../../../local.env")
+	cfg := config.NewConfig("../../local.env")
 
 	db, err := database.NewHandler(cfg.DatabaseConfig()).GetDB()
 	require.NoError(cst.T(), err)
@@ -34,7 +34,7 @@ func (cst *clientStoreIntegrationSuite) SetupSuite() {
 
 	cst.db = db
 	cst.cache = cc
-	cst.store = internal.NewStore(cst.db, cst.cache)
+	cst.store = client.NewStore(cst.db, cst.cache)
 	cst.ctx = context.Background()
 }
 
@@ -43,21 +43,19 @@ func (cst *clientStoreIntegrationSuite) AfterTest(suiteName, testName string) {
 }
 
 func (cst *clientStoreIntegrationSuite) TestCreateClientSuccess() {
-	cl, err := internal.NewClientBuilder().Name(name).AccessTokenTTL(accessTokenTTL).SessionTTL(sessionTTL).Build()
-	require.NoError(cst.T(), err)
+	cl := createNewClient(cst.T())
 
-	_, err = cst.store.CreateClient(cst.ctx, cl)
+	_, err := cst.store.CreateClient(cst.ctx, cl)
 	require.NoError(cst.T(), err)
 }
 
 func (cst *clientStoreIntegrationSuite) TestCreateClientFailureWhenRecordsAreDuplicate() {
-	cl, err := internal.NewClientBuilder().Name(name).AccessTokenTTL(accessTokenTTL).SessionTTL(sessionTTL).Build()
+	cl := createNewClient(cst.T())
+
+	_, err := cst.store.CreateClient(cst.ctx, cl)
 	require.NoError(cst.T(), err)
 
-	_, err = cst.store.CreateClient(cst.ctx, cl)
-	require.NoError(cst.T(), err)
-
-	cl, err = internal.NewClientBuilder().Name(name).AccessTokenTTL(accessTokenTTL).SessionTTL(sessionTTL).Build()
+	cl, err = client.NewClientBuilder().Name(name).AccessTokenTTL(accessTokenTTL).SessionTTL(sessionTTL).Build()
 	require.NoError(cst.T(), err)
 
 	_, err = cst.store.CreateClient(cst.ctx, cl)
@@ -65,8 +63,7 @@ func (cst *clientStoreIntegrationSuite) TestCreateClientFailureWhenRecordsAreDup
 }
 
 func (cst *clientStoreIntegrationSuite) TestRevokeClientSuccess() {
-	cl, err := internal.NewClientBuilder().Name(name).AccessTokenTTL(accessTokenTTL).SessionTTL(sessionTTL).Build()
-	require.NoError(cst.T(), err)
+	cl := createNewClient(cst.T())
 
 	secret, err := cst.store.CreateClient(cst.ctx, cl)
 	require.NoError(cst.T(), err)
@@ -85,27 +82,12 @@ func (cst *clientStoreIntegrationSuite) TestRevokeClientFailure() {
 }
 
 func (cst *clientStoreIntegrationSuite) TestGetClientSuccess() {
-	cl, err := internal.NewClientBuilder().Name(name).AccessTokenTTL(accessTokenTTL).SessionTTL(sessionTTL).Build()
-	require.NoError(cst.T(), err)
+	cl := createNewClient(cst.T())
 
 	secret, err := cst.store.CreateClient(cst.ctx, cl)
 	require.NoError(cst.T(), err)
 
 	_, err = cst.store.GetClient(cst.ctx, name, secret)
-	require.NoError(cst.T(), err)
-}
-
-func (cst *clientStoreIntegrationSuite) TestGetClientSuccessFromCache() {
-	cl, err := internal.NewClientBuilder().Name("abc").AccessTokenTTL(accessTokenTTL).SessionTTL(sessionTTL).Build()
-	require.NoError(cst.T(), err)
-
-	secret, err := cst.store.CreateClient(cst.ctx, cl)
-	require.NoError(cst.T(), err)
-
-	_, err = cst.store.GetClient(cst.ctx, "abc", secret)
-	require.NoError(cst.T(), err)
-
-	_, err = cst.store.GetClient(cst.ctx, "abc", secret)
 	require.NoError(cst.T(), err)
 }
 

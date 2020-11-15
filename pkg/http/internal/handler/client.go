@@ -13,32 +13,43 @@ type ClientHandler struct {
 }
 
 func (ch *ClientHandler) Register(resp http.ResponseWriter, req *http.Request) error {
-	var data contract.CreateClientRequest
-	if err := util.ParseRequest(req, &data); err != nil {
+	var reqBody contract.CreateClientRequest
+	if err := util.ParseRequest(req, &reqBody); err != nil {
 		return liberr.WithArgs(liberr.Operation("ClientHandler.Register"), err)
 	}
 
-	secret, err := ch.service.CreateClient(req.Context(), data.Name, data.AccessTokenTTL, data.SessionTTL)
+	publicKey, secret, err := ch.service.CreateClient(
+		req.Context(),
+		reqBody.Name,
+		reqBody.AccessTokenTTL,
+		reqBody.SessionTTL,
+		reqBody.MaxActiveSessions,
+	)
+
 	if err != nil {
 		return liberr.WithOp("ClientHandler.Register", err)
 	}
 
-	util.WriteSuccessResponse(http.StatusCreated, contract.CreateClientResponse{Secret: secret}, resp)
+	respBody := contract.CreateClientResponse{PublicKey: publicKey, Secret: secret}
+
+	util.WriteSuccessResponse(http.StatusCreated, respBody, resp)
 	return nil
 }
 
 func (ch *ClientHandler) Revoke(resp http.ResponseWriter, req *http.Request) error {
-	var data contract.ClientRevokeRequest
-	if err := util.ParseRequest(req, &data); err != nil {
+	var reqBody contract.ClientRevokeRequest
+	if err := util.ParseRequest(req, &reqBody); err != nil {
 		return liberr.WithArgs(liberr.Operation("ClientHandler.Revoke"), err)
 	}
 
-	err := ch.service.RevokeClient(req.Context(), data.ID)
+	err := ch.service.RevokeClient(req.Context(), reqBody.ID)
 	if err != nil {
 		return liberr.WithOp("ClientHandler.Revoke", err)
 	}
 
-	util.WriteSuccessResponse(http.StatusOK, contract.ClientRevokeResponse{Message: contract.ClientRevokeSuccessful}, resp)
+	respBody := contract.ClientRevokeResponse{Message: contract.ClientRevokeSuccessful}
+
+	util.WriteSuccessResponse(http.StatusOK, respBody, resp)
 	return nil
 }
 

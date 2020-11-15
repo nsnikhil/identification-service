@@ -1,4 +1,4 @@
-package internal_test
+package user_test
 
 import (
 	"errors"
@@ -6,14 +6,16 @@ import (
 	"github.com/stretchr/testify/mock"
 	"identification-service/pkg/liberr"
 	"identification-service/pkg/password"
-	"identification-service/pkg/user/internal"
+	"identification-service/pkg/user"
 	"testing"
 )
 
 const (
-	name         = "Test Name"
-	email        = "test@test.com"
-	userPassword = "Password@1234"
+	name               = "Test Name"
+	email              = "test@test.com"
+	userPassword       = "Password@1234"
+	newPassword        = "NewPassword@1234"
+	invalidPasswordOne = "password@1234"
 
 	emptyString = ""
 
@@ -32,7 +34,7 @@ func TestCreateNewUserSuccess(t *testing.T) {
 	mockEncoder.On("EncodeKey", key).Return(hash)
 	mockEncoder.On("ValidatePassword", userPassword).Return(nil)
 
-	_, err := internal.NewUser(mockEncoder, name, email, userPassword)
+	_, err := user.NewUser(mockEncoder, name, email, userPassword)
 	assert.Equal(t, nil, err)
 }
 
@@ -66,7 +68,7 @@ func TestCreateNewUserValidationFailure(t *testing.T) {
 	for name, testCase := range testCases {
 		t.Run(name, func(t *testing.T) {
 			name, email, userPassword := testCase.input()
-			_, err := internal.NewUser(&password.MockEncoder{}, name, email, userPassword)
+			_, err := user.NewUser(&password.MockEncoder{}, name, email, userPassword)
 			assert.Error(t, err)
 		})
 	}
@@ -74,8 +76,11 @@ func TestCreateNewUserValidationFailure(t *testing.T) {
 
 func TestCreateNewUserFailureForInvalidPassword(t *testing.T) {
 	mockEncoder := &password.MockEncoder{}
-	mockEncoder.On("ValidatePassword", mock.AnythingOfType("string")).Return(liberr.WithArgs(errors.New("invalid password")))
+	mockEncoder.On(
+		"ValidatePassword",
+		mock.AnythingOfType("string"),
+	).Return(liberr.WithArgs(errors.New("invalid password")))
 
-	_, err := internal.NewUser(mockEncoder, name, email, invalidPassword)
+	_, err := user.NewUser(mockEncoder, name, email, invalidPassword)
 	assert.Error(t, err)
 }

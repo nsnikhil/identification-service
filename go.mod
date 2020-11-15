@@ -4,8 +4,8 @@ go 1.15
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.0
-	github.com/alicebob/miniredis/v2 v2.14.1
 	github.com/go-chi/chi v4.1.2+incompatible
+	github.com/go-chi/cors v1.1.1
 	github.com/go-redis/redis/v8 v8.3.3
 	github.com/golang-migrate/migrate/v4 v4.13.0
 	github.com/google/uuid v1.1.2
