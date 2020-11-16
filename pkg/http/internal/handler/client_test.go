@@ -13,28 +13,19 @@ import (
 	mdl "identification-service/pkg/http/internal/middleware"
 	"identification-service/pkg/liberr"
 	reporters "identification-service/pkg/reporting"
+	"identification-service/pkg/test"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
 
-const (
-	clientName       = "clientOne"
-	accessTokenTTL   = 10
-	sessionTTL       = 14440
-	maxActiveSession = 2
-	clientSecret     = "ce36dc88-0a27-498a-aef4-5051a7fd6e7f"
-	clientID         = "f14abb31-ec1a-4ff6-a937-c2e930ca34ef"
-	encodedPublicKey = "8lchzCKRbdXEHsG/hJNMjMqdJLbIvAvDoViJtlcwWWo"
-)
-
 func TestClientHandlerCreateSuccess(t *testing.T) {
 	req := contract.CreateClientRequest{
-		Name:              clientName,
-		AccessTokenTTL:    accessTokenTTL,
-		SessionTTL:        sessionTTL,
-		MaxActiveSessions: maxActiveSession,
+		Name:              test.ClientName,
+		AccessTokenTTL:    test.ClientAccessTokenTTL,
+		SessionTTL:        test.ClientSessionTTL,
+		MaxActiveSessions: test.ClientMaxActiveSessions,
 	}
 
 	body, err := json.Marshal(&req)
@@ -44,23 +35,23 @@ func TestClientHandlerCreateSuccess(t *testing.T) {
 	mockClientService.On(
 		"CreateClient",
 		mock.AnythingOfType("*context.emptyCtx"),
-		clientName,
-		accessTokenTTL,
-		sessionTTL,
-		maxActiveSession,
-	).Return(encodedPublicKey, clientSecret, nil)
+		test.ClientName,
+		test.ClientAccessTokenTTL,
+		test.ClientSessionTTL,
+		test.ClientMaxActiveSessions,
+	).Return(test.ClientEncodedPublicKey, test.ClientSecret, nil)
 
-	expectedBody := `{"data":{"public_key":"8lchzCKRbdXEHsG/hJNMjMqdJLbIvAvDoViJtlcwWWo","secret":"ce36dc88-0a27-498a-aef4-5051a7fd6e7f"},"success":true}`
+	expectedBody := `{"data":{"public_key":"8lchzCKRbdXEHsG/hJNMjMqdJLbIvAvDoViJtlcwWWo","secret":"86d690dd-92a0-40ac-ad48-110c951e3cb8"},"success":true}`
 
 	testClientHandlerCreate(t, http.StatusCreated, expectedBody, bytes.NewBuffer(body), mockClientService)
 }
 
 func TestClientHandlerCreateFailure(t *testing.T) {
 	req := contract.CreateClientRequest{
-		Name:              clientName,
-		AccessTokenTTL:    accessTokenTTL,
-		SessionTTL:        sessionTTL,
-		MaxActiveSessions: maxActiveSession,
+		Name:              test.ClientName,
+		AccessTokenTTL:    test.ClientAccessTokenTTL,
+		SessionTTL:        test.ClientSessionTTL,
+		MaxActiveSessions: test.ClientMaxActiveSessions,
 	}
 
 	body, err := json.Marshal(&req)
@@ -70,10 +61,10 @@ func TestClientHandlerCreateFailure(t *testing.T) {
 	mockClientService.On(
 		"CreateClient",
 		mock.AnythingOfType("*context.emptyCtx"),
-		clientName,
-		accessTokenTTL,
-		sessionTTL,
-		maxActiveSession,
+		test.ClientName,
+		test.ClientAccessTokenTTL,
+		test.ClientSessionTTL,
+		test.ClientMaxActiveSessions,
 	).Return("", "", liberr.WithArgs(errors.New("failed to create client")))
 
 	expectedBody := `{"error":{"message":"internal server error"},"success":false}`
@@ -95,7 +86,7 @@ func testClientHandlerCreate(t *testing.T, expectedCode int, expectedBody string
 }
 
 func TestClientRevokeSuccess(t *testing.T) {
-	req := contract.ClientRevokeRequest{ID: clientID}
+	req := contract.ClientRevokeRequest{ID: test.ClientID}
 
 	body, err := json.Marshal(&req)
 	require.NoError(t, err)
@@ -104,7 +95,7 @@ func TestClientRevokeSuccess(t *testing.T) {
 	mockClientService.On(
 		"RevokeClient",
 		mock.AnythingOfType("*context.emptyCtx"),
-		clientID,
+		test.ClientID,
 	).Return(nil)
 
 	expectedBody := `{"data":{"message":"client revoked successfully"},"success":true}`
@@ -113,7 +104,7 @@ func TestClientRevokeSuccess(t *testing.T) {
 }
 
 func TestClientRevokeFailure(t *testing.T) {
-	req := contract.ClientRevokeRequest{ID: clientID}
+	req := contract.ClientRevokeRequest{ID: test.ClientID}
 
 	body, err := json.Marshal(&req)
 	require.NoError(t, err)
@@ -122,7 +113,7 @@ func TestClientRevokeFailure(t *testing.T) {
 	mockClientService.On(
 		"RevokeClient",
 		mock.AnythingOfType("*context.emptyCtx"),
-		clientID,
+		test.ClientID,
 	).Return(liberr.WithArgs(errors.New("failed to revoke client")))
 
 	expectedBody := `{"error":{"message":"internal server error"},"success":false}`

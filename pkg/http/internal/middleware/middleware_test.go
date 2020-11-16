@@ -11,6 +11,7 @@ import (
 	"identification-service/pkg/http/internal/middleware"
 	"identification-service/pkg/liberr"
 	reporters "identification-service/pkg/reporting"
+	"identification-service/pkg/test"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -322,24 +323,57 @@ func testWithBasicAuth(t *testing.T, expectedCode int, user, password string) {
 }
 
 func TestWithClientAuthenticationSuccess(t *testing.T) {
+	cl, err := client.NewClientBuilder().
+		Name(test.ClientName).
+		AccessTokenTTL(test.ClientAccessTokenTTL).
+		SessionTTL(test.ClientSessionTTL).
+		MaxActiveSessions(test.ClientMaxActiveSessions).
+		PrivateKey(test.ClientPriKey).
+		Build()
+
+	require.NoError(t, err)
+
 	mockClientService := &client.MockService{}
-	mockClientService.On("ValidateClientCredentials",
+	mockClientService.On("GetClient",
 		mock.AnythingOfType("*context.emptyCtx"),
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
-	).Return(nil)
+	).Return(cl, nil)
 
 	testWithClientAuthentication(t, http.StatusOK, mockClientService)
 }
 
-func TestWithClientAuthenticationFailure(t *testing.T) {
+func TestWithClientAuthenticationFailureWhenSvcCallFails(t *testing.T) {
 	mockClientService := &client.MockService{}
 
-	mockClientService.On("ValidateClientCredentials",
+	mockClientService.On("GetClient",
 		mock.AnythingOfType("*context.emptyCtx"),
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
-	).Return(liberr.WithArgs(errors.New("client validation failed")))
+	).Return(client.Client{}, liberr.WithArgs(errors.New("client validation failed")))
+
+	testWithClientAuthentication(t, http.StatusUnauthorized, mockClientService)
+}
+
+func TestWithClientAuthenticationFailureWhenClientIsRevoked(t *testing.T) {
+	cl, err := client.NewClientBuilder().
+		Name(test.ClientName).
+		AccessTokenTTL(test.ClientAccessTokenTTL).
+		SessionTTL(test.ClientSessionTTL).
+		MaxActiveSessions(test.ClientMaxActiveSessions).
+		PrivateKey(test.ClientPriKey).
+		Revoked(true).
+		Build()
+
+	require.NoError(t, err)
+
+	mockClientService := &client.MockService{}
+
+	mockClientService.On("GetClient",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.AnythingOfType("string"),
+		mock.AnythingOfType("string"),
+	).Return(cl, nil)
 
 	testWithClientAuthentication(t, http.StatusUnauthorized, mockClientService)
 }
@@ -359,6 +393,12 @@ func testWithClientAuthentication(t *testing.T, expectedCode int, service client
 	r.Header.Set("CLIENT-SECRET", secret)
 
 	th := func(resp http.ResponseWriter, req *http.Request) {
+		cl, err := client.FromContext(req.Context())
+		assert.Nil(t, err)
+
+		assert.Equal(t, test.ClientAccessTokenTTL, cl.AccessTokenTTL())
+		assert.Equal(t, test.ClientSessionTTL, cl.SessionTTL())
+
 		resp.WriteHeader(http.StatusOK)
 	}
 

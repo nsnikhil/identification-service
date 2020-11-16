@@ -12,23 +12,26 @@ import (
 
 const invalidToken = "NA"
 
-//TODO: SHOULD CLIENT NAME AND SECRET BE PART OF CONTEXT ?
 type Service interface {
-	LoginUser(ctx context.Context, clientName, clientSecret, email, password string) (string, string, error)
+	LoginUser(ctx context.Context, email, password string) (string, string, error)
 	LogoutUser(ctx context.Context, refreshToken string) error
-	RefreshToken(ctx context.Context, clientName, clientSecret, refreshToken string) (string, error)
+	RefreshToken(ctx context.Context, refreshToken string) (string, error)
 }
 
 type sessionService struct {
-	store         Store
-	userService   user.Service
-	clientService client.Service
-	generator     token.Generator
+	store       Store
+	userService user.Service
+	generator   token.Generator
 }
 
-func (ss *sessionService) LoginUser(ctx context.Context, clientName, clientSecret, email, password string) (string, string, error) {
+func (ss *sessionService) LoginUser(ctx context.Context, email, password string) (string, string, error) {
 	wrap := func(err error) (string, string, error) {
 		return invalidToken, invalidToken, liberr.WithOp("Service.LoginUser", err)
+	}
+
+	cl, err := client.FromContext(ctx)
+	if err != nil {
+		return wrap(err)
 	}
 
 	userID, err := ss.userService.GetUserID(ctx, email, password)
@@ -54,13 +57,8 @@ func (ss *sessionService) LoginUser(ctx context.Context, clientName, clientSecre
 		return wrap(err)
 	}
 
-	accessTokenTTL, _, err := ss.clientService.GetClientTTL(ctx, clientName, clientSecret)
-	if err != nil {
-		return wrap(err)
-	}
-
 	accessToken, err := ss.generator.GenerateAccessToken(
-		accessTokenTTL,
+		cl.AccessTokenTTL(),
 		userID, map[string]string{"session_id": sessionID},
 	)
 
@@ -83,9 +81,14 @@ func (ss *sessionService) LogoutUser(ctx context.Context, refreshToken string) e
 	return nil
 }
 
-func (ss *sessionService) RefreshToken(ctx context.Context, clientName, clientSecret, refreshToken string) (string, error) {
+func (ss *sessionService) RefreshToken(ctx context.Context, refreshToken string) (string, error) {
 	wrap := func(err error) (string, error) {
 		return invalidToken, liberr.WithOp("Service.RefreshToken", err)
+	}
+
+	cl, err := client.FromContext(ctx)
+	if err != nil {
+		return wrap(err)
 	}
 
 	ctxWt, cancel := context.WithTimeout(ctx, time.Second)
@@ -96,18 +99,13 @@ func (ss *sessionService) RefreshToken(ctx context.Context, clientName, clientSe
 		return wrap(err)
 	}
 
-	accessTokenTTL, sessionTTL, err := ss.clientService.GetClientTTL(ctx, clientName, clientSecret)
-	if err != nil {
-		return wrap(err)
-	}
-
-	err = validateSession(ctxWt, sessionTTL, session, ss.store, refreshToken)
+	err = validateSession(ctxWt, cl.SessionTTL(), session, ss.store, refreshToken)
 	if err != nil {
 		return wrap(err)
 	}
 
 	accessToken, err := ss.generator.GenerateAccessToken(
-		accessTokenTTL,
+		cl.AccessTokenTTL(),
 		session.userID,
 		map[string]string{"session_id": session.id},
 	)
@@ -133,11 +131,10 @@ func validateSession(ctx context.Context, sessionTTL int, session Session, store
 	return fmt.Errorf("session expired for %s", refreshToken)
 }
 
-func NewService(store Store, userService user.Service, clientService client.Service, generator token.Generator) Service {
+func NewService(store Store, userService user.Service, generator token.Generator) Service {
 	return &sessionService{
-		store:         store,
-		userService:   userService,
-		clientService: clientService,
-		generator:     generator,
+		store:       store,
+		userService: userService,
+		generator:   generator,
 	}
 }

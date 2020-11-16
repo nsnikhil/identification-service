@@ -9,19 +9,20 @@ import (
 	"identification-service/pkg/client"
 	"identification-service/pkg/libcrypto"
 	"identification-service/pkg/liberr"
+	"identification-service/pkg/test"
 	"testing"
 )
 
 func TestCreateNewClientSuccess(t *testing.T) {
 	mockKeyGenerator := &libcrypto.MockEd25519Generator{}
-	mockKeyGenerator.On("Generate").Return(pubKey, priKey, nil)
+	mockKeyGenerator.On("Generate").Return(test.ClientPubKey, test.ClientPriKey, nil)
 
 	mockStore := &client.MockStore{}
-	mockStore.On("CreateClient", mock.AnythingOfType("*context.timerCtx"), mock.AnythingOfType("Client")).Return(id, nil)
+	mockStore.On("CreateClient", mock.AnythingOfType("*context.timerCtx"), mock.AnythingOfType("Client")).Return(test.ClientID, nil)
 
 	svc := client.NewService(mockStore, mockKeyGenerator)
 
-	_, _, err := svc.CreateClient(context.Background(), name, accessTokenTTL, sessionTTL, maxActiveSessions)
+	_, _, err := svc.CreateClient(context.Background(), test.ClientName, test.ClientAccessTokenTTL, test.ClientSessionTTL, test.ClientMaxActiveSessions)
 	require.NoError(t, err)
 }
 
@@ -31,79 +32,59 @@ func TestCreateNewClientFailureWhenKeyGenerationFails(t *testing.T) {
 
 	svc := client.NewService(&client.MockStore{}, mockKeyGenerator)
 
-	_, _, err := svc.CreateClient(context.Background(), name, accessTokenTTL, sessionTTL, maxActiveSessions)
+	_, _, err := svc.CreateClient(context.Background(), test.ClientName, test.ClientAccessTokenTTL, test.ClientSessionTTL, test.ClientMaxActiveSessions)
 	require.Error(t, err)
 }
 
 func TestCreateNewClientFailureWhenStoreReturnFailure(t *testing.T) {
 	mockKeyGenerator := &libcrypto.MockEd25519Generator{}
-	mockKeyGenerator.On("Generate").Return(pubKey, priKey, nil)
+	mockKeyGenerator.On("Generate").Return(test.ClientPubKey, test.ClientPriKey, nil)
 
 	mockStore := &client.MockStore{}
 	mockStore.On("CreateClient", mock.AnythingOfType("*context.timerCtx"), mock.AnythingOfType("Client")).Return("", liberr.WithArgs(errors.New("failed to create client")))
 
 	svc := client.NewService(mockStore, mockKeyGenerator)
 
-	_, _, err := svc.CreateClient(context.Background(), name, accessTokenTTL, sessionTTL, maxActiveSessions)
+	_, _, err := svc.CreateClient(context.Background(), test.ClientName, test.ClientAccessTokenTTL, test.ClientSessionTTL, test.ClientMaxActiveSessions)
 	require.Error(t, err)
 }
 
 func TestRevokeClientSuccess(t *testing.T) {
 	mockStore := &client.MockStore{}
-	mockStore.On("RevokeClient", mock.AnythingOfType("*context.timerCtx"), id).Return(int64(1), nil)
+	mockStore.On("RevokeClient", mock.AnythingOfType("*context.timerCtx"), test.ClientID).Return(int64(1), nil)
 
 	svc := client.NewService(mockStore, &libcrypto.MockEd25519Generator{})
 
-	err := svc.RevokeClient(context.Background(), id)
+	err := svc.RevokeClient(context.Background(), test.ClientID)
 	require.NoError(t, err)
 }
 
 func TestRevokeClientFailure(t *testing.T) {
 	mockStore := &client.MockStore{}
-	mockStore.On("RevokeClient", mock.AnythingOfType("*context.timerCtx"), id).Return(int64(0), liberr.WithArgs(errors.New("failed to revoke client")))
+	mockStore.On("RevokeClient", mock.AnythingOfType("*context.timerCtx"), test.ClientID).Return(int64(0), liberr.WithArgs(errors.New("failed to revoke client")))
 
 	svc := client.NewService(mockStore, &libcrypto.MockEd25519Generator{})
 
-	err := svc.RevokeClient(context.Background(), id)
+	err := svc.RevokeClient(context.Background(), test.ClientID)
 	require.Error(t, err)
 }
 
-func TestGetClientTTLSuccess(t *testing.T) {
+func TestGetClientSuccess(t *testing.T) {
 	mockStore := &client.MockStore{}
-	mockStore.On("GetClient", mock.AnythingOfType("*context.timerCtx"), name, secret).Return(client.Client{}, nil)
+	mockStore.On("GetClient", mock.AnythingOfType("*context.timerCtx"), test.ClientName, test.ClientSecret).Return(client.Client{}, nil)
 
 	svc := client.NewService(mockStore, &libcrypto.MockEd25519Generator{})
 
-	_, _, err := svc.GetClientTTL(context.Background(), name, secret)
+	_, err := svc.GetClient(context.Background(), test.ClientName, test.ClientSecret)
 	require.NoError(t, err)
 }
 
-func TestGetClientTTLFailure(t *testing.T) {
+func TestGetClientFailure(t *testing.T) {
 	mockStore := &client.MockStore{}
-	mockStore.On("GetClient", mock.AnythingOfType("*context.timerCtx"), name, secret).Return(client.Client{}, liberr.WithArgs(errors.New("failed to get client")))
+	mockStore.On("GetClient", mock.AnythingOfType("*context.timerCtx"), test.ClientName, test.ClientSecret).Return(client.Client{}, liberr.WithArgs(errors.New("failed to get client")))
 
 	svc := client.NewService(mockStore, &libcrypto.MockEd25519Generator{})
 
-	_, _, err := svc.GetClientTTL(context.Background(), name, secret)
-	require.Error(t, err)
-}
-
-func TestValidateClientSuccess(t *testing.T) {
-	mockStore := &client.MockStore{}
-	mockStore.On("GetClient", mock.AnythingOfType("*context.timerCtx"), name, secret).Return(client.Client{}, nil)
-
-	svc := client.NewService(mockStore, &libcrypto.MockEd25519Generator{})
-
-	err := svc.ValidateClientCredentials(context.Background(), name, secret)
-	require.NoError(t, err)
-}
-
-func TestValidateClientFailure(t *testing.T) {
-	mockStore := &client.MockStore{}
-	mockStore.On("GetClient", mock.AnythingOfType("*context.timerCtx"), name, secret).Return(client.Client{}, liberr.WithArgs(errors.New("failed to get client")))
-
-	svc := client.NewService(mockStore, &libcrypto.MockEd25519Generator{})
-
-	err := svc.ValidateClientCredentials(context.Background(), name, secret)
+	_, err := svc.GetClient(context.Background(), test.ClientName, test.ClientSecret)
 	require.Error(t, err)
 }

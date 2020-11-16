@@ -90,7 +90,7 @@ func WithClientAuth(lgr *zap.Logger, service client.Service, handler http.Handle
 		name := req.Header.Get("CLIENT-ID")
 		secret := req.Header.Get("CLIENT-SECRET")
 
-		err := service.ValidateClientCredentials(req.Context(), name, secret)
+		cl, err := service.GetClient(req.Context(), name, secret)
 		if err != nil {
 			logAndWriteError(lgr, resp, liberr.WithArgs(
 				liberr.Operation("WithClientAuth"),
@@ -100,7 +100,22 @@ func WithClientAuth(lgr *zap.Logger, service client.Service, handler http.Handle
 			return
 		}
 
-		handler(resp, req)
+		if cl.IsRevoked() {
+			logAndWriteError(lgr, resp, liberr.WithArgs(
+				liberr.Operation("WithClientAuth"),
+				liberr.AuthenticationError,
+				errors.New("client revoked"),
+			))
+			return
+		}
+
+		ctx, err := client.WithContext(req.Context(), cl)
+		if err != nil {
+			logAndWriteError(lgr, resp, liberr.WithOp("WithClientAuth", err))
+			return
+		}
+
+		handler(resp, req.WithContext(ctx))
 	}
 }
 

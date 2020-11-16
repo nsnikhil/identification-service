@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"identification-service/pkg/client"
+	"identification-service/pkg/test"
 	"regexp"
 	"testing"
 )
@@ -29,15 +30,15 @@ func (cst *clientStoreSuite) TestCreateClientSuccess() {
 	query := `insert into clients (name, access_token_ttl, session_ttl, max_active_sessions, private_key) values ($1, $2, $3, $4, $5) returning secret`
 
 	cst.mock.ExpectQuery(regexp.QuoteMeta(query)).
-		WithArgs(name, accessTokenTTL, sessionTTL, maxActiveSessions, priKey).
-		WillReturnRows(sqlmock.NewRows([]string{"secret"}).AddRow(secret))
+		WithArgs(test.ClientName, test.ClientAccessTokenTTL, test.ClientSessionTTL, test.ClientMaxActiveSessions, test.ClientPriKey).
+		WillReturnRows(sqlmock.NewRows([]string{"secret"}).AddRow(test.ClientSecret))
 
 	cl, err := client.NewClientBuilder().
-		Name(name).
-		AccessTokenTTL(accessTokenTTL).
-		SessionTTL(sessionTTL).
-		MaxActiveSessions(maxActiveSessions).
-		PrivateKey(priKey).
+		Name(test.ClientName).
+		AccessTokenTTL(test.ClientAccessTokenTTL).
+		SessionTTL(test.ClientSessionTTL).
+		MaxActiveSessions(test.ClientMaxActiveSessions).
+		PrivateKey(test.ClientPriKey).
 		Build()
 
 	require.NoError(cst.T(), err)
@@ -52,15 +53,15 @@ func (cst *clientStoreSuite) TestCreateClientFailure() {
 	query := `insert into clients (name, access_token_ttl, session_ttl, max_active_sessions, private_key) values ($1, $2, $3, $4, $5) returning secret`
 
 	cst.mock.ExpectQuery(regexp.QuoteMeta(query)).
-		WithArgs(name, accessTokenTTL, sessionTTL, maxActiveSessions, priKey).
+		WithArgs(test.ClientName, test.ClientAccessTokenTTL, test.ClientSessionTTL, test.ClientMaxActiveSessions, test.ClientPriKey).
 		WillReturnError(errors.New("failed to create client"))
 
 	cl, err := client.NewClientBuilder().
-		Name(name).
-		AccessTokenTTL(accessTokenTTL).
-		SessionTTL(sessionTTL).
-		MaxActiveSessions(maxActiveSessions).
-		PrivateKey(priKey).
+		Name(test.ClientName).
+		AccessTokenTTL(test.ClientAccessTokenTTL).
+		SessionTTL(test.ClientSessionTTL).
+		MaxActiveSessions(test.ClientMaxActiveSessions).
+		PrivateKey(test.ClientPriKey).
 		Build()
 
 	require.NoError(cst.T(), err)
@@ -75,10 +76,10 @@ func (cst *clientStoreSuite) TestRevokeClientSuccess() {
 	query := `update clients set revoked=true where id=$1`
 
 	cst.mock.ExpectExec(regexp.QuoteMeta(query)).
-		WithArgs(id).
+		WithArgs(test.ClientID).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	_, err := cst.store.RevokeClient(context.Background(), id)
+	_, err := cst.store.RevokeClient(context.Background(), test.ClientID)
 	require.NoError(cst.T(), err)
 
 	require.NoError(cst.T(), cst.mock.ExpectationsWereMet())
@@ -88,10 +89,10 @@ func (cst *clientStoreSuite) TestRevokeClientFailure() {
 	query := `update clients set revoked=true where id=$1`
 
 	cst.mock.ExpectExec(regexp.QuoteMeta(query)).
-		WithArgs(id).
+		WithArgs(test.ClientID).
 		WillReturnError(errors.New("failed to revoke client"))
 
-	_, err := cst.store.RevokeClient(context.Background(), id)
+	_, err := cst.store.RevokeClient(context.Background(), test.ClientID)
 	require.Error(cst.T(), err)
 
 	require.NoError(cst.T(), cst.mock.ExpectationsWereMet())
@@ -102,13 +103,13 @@ func (cst *clientStoreSuite) TestGetClientSuccess() {
 
 	rows := sqlmock.NewRows(
 		[]string{"id", "revoked", "access_token_ttl", "session_ttl", "max_active_sessions", "private_key"},
-	).AddRow(id, false, accessTokenTTL, sessionTTL, maxActiveSessions, priKey)
+	).AddRow(test.ClientID, false, test.ClientAccessTokenTTL, test.ClientSessionTTL, test.ClientMaxActiveSessions, test.ClientPriKey)
 
 	cst.mock.ExpectQuery(regexp.QuoteMeta(query)).
-		WithArgs(name, secret).
+		WithArgs(test.ClientName, test.ClientSecret).
 		WillReturnRows(rows)
 
-	_, err := cst.store.GetClient(context.Background(), name, secret)
+	_, err := cst.store.GetClient(context.Background(), test.ClientName, test.ClientSecret)
 	require.NoError(cst.T(), err)
 
 	require.NoError(cst.T(), cst.mock.ExpectationsWereMet())
@@ -118,10 +119,10 @@ func (cst *clientStoreSuite) TestGetClientFailure() {
 	query := `select id, revoked, access_token_ttl, session_ttl, max_active_sessions, private_key from clients where name=$1 and secret=$2`
 
 	cst.mock.ExpectQuery(regexp.QuoteMeta(query)).
-		WithArgs(name, secret).
+		WithArgs(test.ClientName, test.ClientSecret).
 		WillReturnError(errors.New("failed to get client"))
 
-	_, err := cst.store.GetClient(context.Background(), name, secret)
+	_, err := cst.store.GetClient(context.Background(), test.ClientName, test.ClientSecret)
 	require.Error(cst.T(), err)
 
 	require.NoError(cst.T(), cst.mock.ExpectationsWereMet())

@@ -89,6 +89,10 @@ func (cs *clientStore) GetClient(ctx context.Context, name, secret string) (Clie
 		return client, liberr.WithOp("Store.GetClient", err)
 	}
 
+	//TODO: REFACTOR THIS
+	client.name = name
+	client.secret = secret
+
 	return client, nil
 }
 

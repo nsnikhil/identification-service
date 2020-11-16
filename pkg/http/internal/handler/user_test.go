@@ -12,6 +12,7 @@ import (
 	mdl "identification-service/pkg/http/internal/middleware"
 	"identification-service/pkg/liberr"
 	reporters "identification-service/pkg/reporting"
+	"identification-service/pkg/test"
 	"identification-service/pkg/user"
 	"io"
 	"net/http"
@@ -19,19 +20,11 @@ import (
 	"testing"
 )
 
-const (
-	userName        = "Nikhil Soni"
-	userEmail       = "n.nikhil.ns65@gmail.com"
-	userPassword    = "Password@1234"
-	userNewPassword = "NewPassword@1234"
-	userID          = "86d690dd-92a0-40ac-ad48-110c951e3cb8"
-)
-
 func TestCreateUserSuccess(t *testing.T) {
 	service := &user.MockService{}
-	service.On("CreateUser", mock.AnythingOfType("*context.emptyCtx"), userName, userEmail, userPassword).Return(userID, nil)
+	service.On("CreateUser", mock.AnythingOfType("*context.emptyCtx"), test.UserName, test.UserEmail, test.UserPassword).Return(test.UserID, nil)
 
-	req := contract.CreateUserRequest{Name: userName, Email: userEmail, Password: userPassword}
+	req := contract.CreateUserRequest{Name: test.UserName, Email: test.UserEmail, Password: test.UserPassword}
 
 	b, err := json.Marshal(req)
 	require.NoError(t, err)
@@ -57,12 +50,12 @@ func TestCreateUserFailure(t *testing.T) {
 		"test failure when service call fails fails": {
 			service: func() user.Service {
 				service := &user.MockService{}
-				service.On("CreateUser", mock.AnythingOfType("*context.emptyCtx"), userName, userEmail, userPassword).Return("", liberr.WithArgs(errors.New("failed to create new user")))
+				service.On("CreateUser", mock.AnythingOfType("*context.emptyCtx"), test.UserName, test.UserEmail, test.UserPassword).Return("", liberr.WithArgs(errors.New("failed to create new user")))
 
 				return service
 			},
 			body: func() io.Reader {
-				req := contract.CreateUserRequest{Name: userName, Email: userEmail, Password: userPassword}
+				req := contract.CreateUserRequest{Name: test.UserName, Email: test.UserEmail, Password: test.UserPassword}
 
 				b, err := json.Marshal(req)
 				require.NoError(t, err)
@@ -98,9 +91,9 @@ func testCreateUser(t *testing.T, expectedCode int, expectedBody string, body io
 
 func TestUpdatePasswordSuccess(t *testing.T) {
 	mockUserService := &user.MockService{}
-	mockUserService.On("UpdatePassword", mock.AnythingOfType("*context.emptyCtx"), userName, userPassword, userNewPassword).Return(nil)
+	mockUserService.On("UpdatePassword", mock.AnythingOfType("*context.emptyCtx"), test.UserName, test.UserPassword, test.UserPasswordNew).Return(nil)
 
-	req := contract.UpdatePasswordRequest{Email: userName, OldPassword: userPassword, NewPassword: userNewPassword}
+	req := contract.UpdatePasswordRequest{Email: test.UserName, OldPassword: test.UserPassword, NewPassword: test.UserPasswordNew}
 
 	b, err := json.Marshal(req)
 	require.NoError(t, err)
@@ -112,9 +105,9 @@ func TestUpdatePasswordSuccess(t *testing.T) {
 
 func TestUpdatePasswordFailureWhenSvcCallFails(t *testing.T) {
 	mockUserService := &user.MockService{}
-	mockUserService.On("UpdatePassword", mock.AnythingOfType("*context.emptyCtx"), userName, userPassword, userNewPassword).Return(liberr.WithArgs(errors.New("failed to update password")))
+	mockUserService.On("UpdatePassword", mock.AnythingOfType("*context.emptyCtx"), test.UserName, test.UserPassword, test.UserPasswordNew).Return(liberr.WithArgs(errors.New("failed to update password")))
 
-	req := contract.UpdatePasswordRequest{Email: userName, OldPassword: userPassword, NewPassword: userNewPassword}
+	req := contract.UpdatePasswordRequest{Email: test.UserName, OldPassword: test.UserPassword, NewPassword: test.UserPasswordNew}
 
 	b, err := json.Marshal(req)
 	require.NoError(t, err)

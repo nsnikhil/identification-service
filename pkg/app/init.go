@@ -61,7 +61,7 @@ func initServices(cfg config.Config) (client.Service, user.Service, session.Serv
 
 	cs := initClientService(db, cc, kg)
 	us := initUserService(db, en, qu)
-	ss := initSessionService(db, us, cs, tg)
+	ss := initSessionService(db, us, tg)
 
 	return cs, us, ss
 }
@@ -76,9 +76,9 @@ func initUserService(db *sql.DB, en password.Encoder, qu queue.Queue) user.Servi
 	return user.NewService(st, en, qu)
 }
 
-func initSessionService(db *sql.DB, us user.Service, cs client.Service, tg token.Generator) session.Service {
+func initSessionService(db *sql.DB, us user.Service, tg token.Generator) session.Service {
 	st := session.NewStore(db)
-	return session.NewService(st, us, cs, tg)
+	return session.NewService(st, us, tg)
 }
 
 func initLogger(cfg config.Config) *zap.Logger {

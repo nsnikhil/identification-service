@@ -12,6 +12,7 @@ import (
 	"identification-service/pkg/client"
 	"identification-service/pkg/config"
 	"identification-service/pkg/database"
+	"identification-service/pkg/test"
 	"testing"
 )
 
@@ -56,11 +57,11 @@ func (cst *clientStoreIntegrationSuite) TestCreateClientFailureWhenRecordsAreDup
 	require.NoError(cst.T(), err)
 
 	cl, err = client.NewClientBuilder().
-		Name(name).
-		AccessTokenTTL(accessTokenTTL).
-		SessionTTL(sessionTTL).
-		MaxActiveSessions(maxActiveSessions).
-		PrivateKey(priKey).
+		Name(test.ClientName).
+		AccessTokenTTL(test.ClientAccessTokenTTL).
+		SessionTTL(test.ClientSessionTTL).
+		MaxActiveSessions(test.ClientMaxActiveSessions).
+		PrivateKey(test.ClientPriKey).
 		Build()
 
 	require.NoError(cst.T(), err)
@@ -84,7 +85,7 @@ func (cst *clientStoreIntegrationSuite) TestRevokeClientSuccess() {
 }
 
 func (cst *clientStoreIntegrationSuite) TestRevokeClientFailure() {
-	_, err := cst.store.RevokeClient(cst.ctx, id)
+	_, err := cst.store.RevokeClient(cst.ctx, test.ClientID)
 	require.Error(cst.T(), err)
 }
 
@@ -94,12 +95,12 @@ func (cst *clientStoreIntegrationSuite) TestGetClientSuccess() {
 	secret, err := cst.store.CreateClient(cst.ctx, cl)
 	require.NoError(cst.T(), err)
 
-	_, err = cst.store.GetClient(cst.ctx, name, secret)
+	_, err = cst.store.GetClient(cst.ctx, test.ClientName, secret)
 	require.NoError(cst.T(), err)
 }
 
 func (cst *clientStoreIntegrationSuite) TestGetClientFailureWhenRecordIsNotPresent() {
-	_, err := cst.store.GetClient(cst.ctx, name, secret)
+	_, err := cst.store.GetClient(cst.ctx, test.ClientName, test.ClientSecret)
 	require.Error(cst.T(), err)
 }
 

@@ -18,12 +18,7 @@ func (sh *SessionHandler) Login(resp http.ResponseWriter, req *http.Request) err
 		return liberr.WithArgs(liberr.Operation("UserHandler.LoginUser"), err)
 	}
 
-	accessToken, refreshToken, err := sh.service.LoginUser(
-		req.Context(),
-		req.Header.Get("CLIENT-ID"), req.Header.Get("CLIENT-SECRET"),
-		data.Email, data.Password,
-	)
-
+	accessToken, refreshToken, err := sh.service.LoginUser(req.Context(), data.Email, data.Password)
 	if err != nil {
 		return liberr.WithOp("SessionHandler.Login", err)
 	}
@@ -43,12 +38,7 @@ func (sh *SessionHandler) RefreshToken(resp http.ResponseWriter, req *http.Reque
 		return liberr.WithArgs(liberr.Operation("UserHandler.RefreshToken"), err)
 	}
 
-	accessToken, err := sh.service.RefreshToken(
-		req.Context(),
-		req.Header.Get("CLIENT-ID"), req.Header.Get("CLIENT-SECRET"),
-		data.RefreshToken,
-	)
-
+	accessToken, err := sh.service.RefreshToken(req.Context(), data.RefreshToken)
 	if err != nil {
 		return liberr.WithOp("SessionHandler.RefreshToken", err)
 	}

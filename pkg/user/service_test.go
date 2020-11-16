@@ -10,6 +10,7 @@ import (
 	"identification-service/pkg/liberr"
 	"identification-service/pkg/password"
 	"identification-service/pkg/queue"
+	"identification-service/pkg/test"
 	"identification-service/pkg/user"
 	"testing"
 )
@@ -22,9 +23,9 @@ type createUserSuite struct {
 
 func (cst *createUserSuite) SetupSuite() {
 	mockEncoder := &password.MockEncoder{}
-	mockEncoder.On("GenerateSalt").Return(salt, nil)
-	mockEncoder.On("GenerateKey", userPassword, salt).Return(key)
-	mockEncoder.On("EncodeKey", key).Return(hash)
+	mockEncoder.On("GenerateSalt").Return(test.UserPasswordSalt, nil)
+	mockEncoder.On("GenerateKey", test.UserPassword, test.UserPasswordSalt).Return(test.UserPasswordKey)
+	mockEncoder.On("EncodeKey", test.UserPasswordKey).Return(test.UserPasswordHash)
 
 	mockQueue := &queue.MockQueue{}
 	mockQueue.On("UnsafePush", mock.AnythingOfType("[]uint8")).Return(nil)
@@ -39,13 +40,13 @@ func (cst *createUserSuite) TestCreateUserSuccess() {
 		"CreateUser",
 		mock.AnythingOfType("*context.timerCtx"),
 		mock.AnythingOfType("User"),
-	).Return(userID, nil)
+	).Return(test.UserID, nil)
 
-	cst.encoder.(*password.MockEncoder).On("ValidatePassword", userPassword).Return(nil)
+	cst.encoder.(*password.MockEncoder).On("ValidatePassword", test.UserPassword).Return(nil)
 
 	service := user.NewService(mockStore, cst.encoder, cst.queue)
 
-	_, err := service.CreateUser(context.Background(), name, email, userPassword)
+	_, err := service.CreateUser(context.Background(), test.UserName, test.UserEmail, test.UserPassword)
 	assert.Nil(cst.T(), err)
 }
 
@@ -57,11 +58,11 @@ func (cst *createUserSuite) TestCreateFailureWhenStoreCallFails() {
 		mock.AnythingOfType("User"),
 	).Return("", liberr.WithArgs(errors.New("failed to save new user")))
 
-	cst.encoder.(*password.MockEncoder).On("ValidatePassword", userPassword).Return(nil)
+	cst.encoder.(*password.MockEncoder).On("ValidatePassword", test.UserPassword).Return(nil)
 
 	service := user.NewService(mockStore, cst.encoder, cst.queue)
 
-	_, err := service.CreateUser(context.Background(), name, email, userPassword)
+	_, err := service.CreateUser(context.Background(), test.UserName, test.UserEmail, test.UserPassword)
 	assert.NotNil(cst.T(), err)
 }
 
@@ -72,19 +73,19 @@ func (cst *createUserSuite) TestCreateFailureWhenInputIsInvalid() {
 	}{
 		"test failure when name is empty": {
 			input: func() (string, string, string) {
-				return "", email, userPassword
+				return test.EmptyString, test.UserEmail, test.UserPassword
 			},
 			err: errors.New("name cannot be empty"),
 		},
 		"test failure when email is empty": {
 			input: func() (string, string, string) {
-				return name, "", userPassword
+				return test.UserName, test.EmptyString, test.UserPassword
 			},
 			err: errors.New("email cannot be empty"),
 		},
 		"test failure when pass is empty": {
 			input: func() (string, string, string) {
-				return name, email, ""
+				return test.UserName, test.UserEmail, test.EmptyString
 			},
 			err: errors.New("password cannot be empty"),
 		},
@@ -92,9 +93,9 @@ func (cst *createUserSuite) TestCreateFailureWhenInputIsInvalid() {
 			input: func() (string, string, string) {
 				cst.encoder.(*password.MockEncoder).On(
 					"ValidatePassword",
-					invalidPasswordOne,
+					test.UserPasswordInvalid,
 				).Return(liberr.WithArgs(errors.New("invalid password")))
-				return name, email, invalidPasswordOne
+				return test.UserName, test.UserEmail, test.UserPasswordInvalid
 			},
 			err: errors.New("invalid password"),
 		},
@@ -118,19 +119,19 @@ func TestCreateUser(t *testing.T) {
 
 func TestGetUserIDSuccess(t *testing.T) {
 	mockStore := &user.MockStore{}
-	mockStore.On("GetUser", mock.AnythingOfType("*context.timerCtx"), email).Return(user.User{}, nil)
+	mockStore.On("GetUser", mock.AnythingOfType("*context.timerCtx"), test.UserEmail).Return(user.User{}, nil)
 
 	mockEncoder := &password.MockEncoder{}
 	mockEncoder.On(
 		"VerifyPassword",
-		userPassword,
+		test.UserPassword,
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("[]uint8"),
 	).Return(nil)
 
 	service := user.NewService(mockStore, mockEncoder, &queue.MockQueue{})
 
-	_, err := service.GetUserID(context.Background(), email, userPassword)
+	_, err := service.GetUserID(context.Background(), test.UserEmail, test.UserPassword)
 	require.NoError(t, err)
 }
 
@@ -139,12 +140,12 @@ func TestGetUserIDFailureWhenStoreCallsFails(t *testing.T) {
 	mockStore.On(
 		"GetUser",
 		mock.AnythingOfType("*context.timerCtx"),
-		email,
+		test.UserEmail,
 	).Return(user.User{}, liberr.WithArgs(errors.New("failed to get user")))
 
 	service := user.NewService(mockStore, &password.MockEncoder{}, &queue.MockQueue{})
 
-	_, err := service.GetUserID(context.Background(), email, userPassword)
+	_, err := service.GetUserID(context.Background(), test.UserEmail, test.UserPassword)
 	require.Error(t, err)
 }
 
@@ -153,46 +154,46 @@ func TestGetUserIDFailureWhenPasswordVerificationFails(t *testing.T) {
 	mockStore.On(
 		"GetUser",
 		mock.AnythingOfType("*context.timerCtx"),
-		email,
+		test.UserEmail,
 	).Return(user.User{}, nil)
 
 	mockEncoder := &password.MockEncoder{}
 	mockEncoder.On(
 		"VerifyPassword",
-		userPassword,
+		test.UserPassword,
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("[]uint8"),
 	).Return(liberr.WithArgs(errors.New("invalid credentials")))
 
 	service := user.NewService(mockStore, mockEncoder, &queue.MockQueue{})
 
-	_, err := service.GetUserID(context.Background(), email, userPassword)
+	_, err := service.GetUserID(context.Background(), test.UserEmail, test.UserPassword)
 	require.Error(t, err)
 }
 
 func TestUpdatePasswordSuccess(t *testing.T) {
 	mockStore := &user.MockStore{}
-	mockStore.On("GetUser", mock.AnythingOfType("*context.timerCtx"), email).Return(user.User{}, nil)
+	mockStore.On("GetUser", mock.AnythingOfType("*context.timerCtx"), test.UserEmail).Return(user.User{}, nil)
 	mockStore.On(
 		"UpdatePassword",
 		mock.AnythingOfType("*context.timerCtx"),
-		mock.AnythingOfType("string"), hash, salt,
+		mock.AnythingOfType("string"), test.UserPasswordHash, test.UserPasswordSalt,
 	).Return(int64(1), nil)
 
 	mockEncoder := &password.MockEncoder{}
-	mockEncoder.On("GenerateSalt").Return(salt, nil)
-	mockEncoder.On("GenerateKey", newPassword, salt).Return(key)
-	mockEncoder.On("EncodeKey", key).Return(hash)
+	mockEncoder.On("GenerateSalt").Return(test.UserPasswordSalt, nil)
+	mockEncoder.On("GenerateKey", test.UserPasswordNew, test.UserPasswordSalt).Return(test.UserPasswordKey)
+	mockEncoder.On("EncodeKey", test.UserPasswordKey).Return(test.UserPasswordHash)
 	mockEncoder.On("VerifyPassword",
-		userPassword,
+		test.UserPassword,
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("[]uint8"),
 	).Return(nil)
-	mockEncoder.On("ValidatePassword", newPassword).Return(nil)
+	mockEncoder.On("ValidatePassword", test.UserPasswordNew).Return(nil)
 
 	service := user.NewService(mockStore, mockEncoder, &queue.MockQueue{})
 
-	err := service.UpdatePassword(context.Background(), email, userPassword, newPassword)
+	err := service.UpdatePassword(context.Background(), test.UserEmail, test.UserPassword, test.UserPasswordNew)
 	require.NoError(t, err)
 }
 
@@ -207,7 +208,7 @@ func TestUpdatePasswordFailure(t *testing.T) {
 				mockStore.On(
 					"GetUser",
 					mock.AnythingOfType("*context.timerCtx"),
-					email,
+					test.UserEmail,
 				).Return(user.User{}, liberr.WithArgs(errors.New("failed to get user")))
 
 				return mockStore
@@ -216,7 +217,7 @@ func TestUpdatePasswordFailure(t *testing.T) {
 				mockEncoder := &password.MockEncoder{}
 				mockEncoder.On(
 					"ValidatePassword",
-					newPassword,
+					test.UserPasswordNew,
 				).Return(liberr.WithArgs(errors.New("invalid password")))
 
 				return mockEncoder
@@ -228,14 +229,14 @@ func TestUpdatePasswordFailure(t *testing.T) {
 				mockStore.On(
 					"GetUser",
 					mock.AnythingOfType("*context.timerCtx"),
-					email,
+					test.UserEmail,
 				).Return(user.User{}, liberr.WithArgs(errors.New("failed to get user")))
 
 				return mockStore
 			},
 			encoder: func() password.Encoder {
 				mockEncoder := &password.MockEncoder{}
-				mockEncoder.On("ValidatePassword", newPassword).Return(nil)
+				mockEncoder.On("ValidatePassword", test.UserPasswordNew).Return(nil)
 
 				return mockEncoder
 			},
@@ -246,17 +247,17 @@ func TestUpdatePasswordFailure(t *testing.T) {
 				mockStore.On(
 					"GetUser",
 					mock.AnythingOfType("*context.timerCtx"),
-					email,
+					test.UserEmail,
 				).Return(user.User{}, nil)
 
 				return mockStore
 			},
 			encoder: func() password.Encoder {
 				mockEncoder := &password.MockEncoder{}
-				mockEncoder.On("ValidatePassword", newPassword).Return(nil)
+				mockEncoder.On("ValidatePassword", test.UserPasswordNew).Return(nil)
 				mockEncoder.On(
 					"VerifyPassword",
-					userPassword,
+					test.UserPassword,
 					mock.AnythingOfType("string"),
 					mock.AnythingOfType("[]uint8"),
 				).Return(liberr.WithArgs(errors.New("invalid credentials")))
@@ -270,23 +271,23 @@ func TestUpdatePasswordFailure(t *testing.T) {
 				mockStore.On(
 					"GetUser",
 					mock.AnythingOfType("*context.timerCtx"),
-					email,
+					test.UserEmail,
 				).Return(user.User{}, nil)
 
 				return mockStore
 			},
 			encoder: func() password.Encoder {
 				mockEncoder := &password.MockEncoder{}
-				mockEncoder.On("ValidatePassword", newPassword).Return(nil)
+				mockEncoder.On("ValidatePassword", test.UserPasswordNew).Return(nil)
 				mockEncoder.On(
 					"VerifyPassword",
-					userPassword,
+					test.UserPassword,
 					mock.AnythingOfType("string"),
 					mock.AnythingOfType("[]uint8"),
 				).Return(nil)
 
 				mockEncoder.On("GenerateSalt").Return(
-					salt,
+					test.UserPasswordSalt,
 					liberr.WithArgs(errors.New("failed to generate salt")),
 				)
 
@@ -299,27 +300,27 @@ func TestUpdatePasswordFailure(t *testing.T) {
 				mockStore.On(
 					"GetUser",
 					mock.AnythingOfType("*context.timerCtx"),
-					email,
+					test.UserEmail,
 				).Return(user.User{}, nil)
 				mockStore.On(
 					"UpdatePassword",
 					mock.AnythingOfType("*context.timerCtx"),
 					mock.AnythingOfType("string"),
-					hash,
-					salt,
+					test.UserPasswordHash,
+					test.UserPasswordSalt,
 				).Return(int64(0), liberr.WithArgs(errors.New("failed to update password")))
 
 				return mockStore
 			},
 			encoder: func() password.Encoder {
 				mockEncoder := &password.MockEncoder{}
-				mockEncoder.On("ValidatePassword", newPassword).Return(nil)
-				mockEncoder.On("GenerateSalt").Return(salt, nil)
-				mockEncoder.On("GenerateKey", newPassword, salt).Return(key)
-				mockEncoder.On("EncodeKey", key).Return(hash)
+				mockEncoder.On("ValidatePassword", test.UserPasswordNew).Return(nil)
+				mockEncoder.On("GenerateSalt").Return(test.UserPasswordSalt, nil)
+				mockEncoder.On("GenerateKey", test.UserPasswordNew, test.UserPasswordSalt).Return(test.UserPasswordKey)
+				mockEncoder.On("EncodeKey", test.UserPasswordKey).Return(test.UserPasswordHash)
 				mockEncoder.On(
 					"VerifyPassword",
-					userPassword,
+					test.UserPassword,
 					mock.AnythingOfType("string"),
 					mock.AnythingOfType("[]uint8"),
 				).Return(nil)
@@ -333,7 +334,7 @@ func TestUpdatePasswordFailure(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			service := user.NewService(testCase.store(), testCase.encoder(), &queue.MockQueue{})
 
-			err := service.UpdatePassword(context.Background(), email, userPassword, newPassword)
+			err := service.UpdatePassword(context.Background(), test.UserEmail, test.UserPassword, test.UserPasswordNew)
 			require.Error(t, err)
 		})
 	}

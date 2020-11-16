@@ -13,34 +13,30 @@ import (
 	"identification-service/pkg/liberr"
 	reporters "identification-service/pkg/reporting"
 	"identification-service/pkg/session"
+	"identification-service/pkg/test"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
 
-const (
-	accessToken  = "v2.public.eyJhdWQiOiJ1c2VyIiwiZXhwIjoiMjAyMC0xMS0wN1QxMDozNjowNyswNTozMCIsImlhdCI6IjIwMjAtMTEtMDdUMTA6MjY6MDcrMDU6MzAiLCJpc3MiOiJpZGVudGlmaWNhdGlvbi1zZXJ2aWNlIiwianRpIjoiMTEwMTI0NjUtMDNhNC00OWI2LTgwODEtY2RmYzczMDlhY2MwIiwibmJmIjoiMjAyMC0xMS0wN1QxMDoyNjowNyswNTozMCJ9PrXViH5779NxXHK_PxnwW-FdFV0klU07umd8X7F0A9irFLX7GTS3AczNm_hmb_yfYOX0o4DJri89AWeCb0qTAg.bnVsbA"
-	refreshToken = "5df8159e-fd51-4e6c-9849-a9b1f070a403"
-)
-
 func TestLoginSuccess(t *testing.T) {
-	reqBody := contract.LoginRequest{Email: userEmail, Password: userPassword}
+	reqBody := contract.LoginRequest{Email: test.UserEmail, Password: test.UserPassword}
 
 	expectedBody := `{"data":{"access_token":"v2.public.eyJhdWQiOiJ1c2VyIiwiZXhwIjoiMjAyMC0xMS0wN1QxMDozNjowNyswNTozMCIsImlhdCI6IjIwMjAtMTEtMDdUMTA6MjY6MDcrMDU6MzAiLCJpc3MiOiJpZGVudGlmaWNhdGlvbi1zZXJ2aWNlIiwianRpIjoiMTEwMTI0NjUtMDNhNC00OWI2LTgwODEtY2RmYzczMDlhY2MwIiwibmJmIjoiMjAyMC0xMS0wN1QxMDoyNjowNyswNTozMCJ9PrXViH5779NxXHK_PxnwW-FdFV0klU07umd8X7F0A9irFLX7GTS3AczNm_hmb_yfYOX0o4DJri89AWeCb0qTAg.bnVsbA","refresh_token":"5df8159e-fd51-4e6c-9849-a9b1f070a403"},"success":true}`
 
 	mockSessionService := &session.MockService{}
-	mockSessionService.On("LoginUser", mock.AnythingOfType("*context.emptyCtx"), clientID, clientSecret, userEmail, userPassword).Return(accessToken, refreshToken, nil)
+	mockSessionService.On("LoginUser", mock.AnythingOfType("*context.emptyCtx"), test.UserEmail, test.UserPassword).Return(test.SessionAccessToken, test.SessionRefreshToken, nil)
 
 	testLogin(t, http.StatusCreated, expectedBody, mockSessionService, reqBody)
 }
 
 func TestLoginFailure(t *testing.T) {
-	reqBody := contract.LoginRequest{Email: userEmail, Password: userPassword}
+	reqBody := contract.LoginRequest{Email: test.UserEmail, Password: test.UserPassword}
 
 	expectedBody := `{"error":{"message":"internal server error"},"success":false}`
 
 	mockSessionService := &session.MockService{}
-	mockSessionService.On("LoginUser", mock.AnythingOfType("*context.emptyCtx"), clientID, clientSecret, userEmail, userPassword).Return("", "", liberr.WithArgs(errors.New("failed to login")))
+	mockSessionService.On("LoginUser", mock.AnythingOfType("*context.emptyCtx"), test.UserEmail, test.UserPassword).Return("", "", liberr.WithArgs(errors.New("failed to login")))
 
 	testLogin(t, http.StatusInternalServerError, expectedBody, mockSessionService, reqBody)
 }
@@ -50,9 +46,6 @@ func testLogin(t *testing.T, expectedCode int, expectedBody string, sessionServi
 
 	r, err := http.NewRequest(http.MethodPost, "/session/login", bytes.NewBuffer(b))
 	require.NoError(t, err)
-
-	r.Header.Set("CLIENT-ID", clientID)
-	r.Header.Set("CLIENT-SECRET", clientSecret)
 
 	w := httptest.NewRecorder()
 	sh := handler.NewSessionHandler(sessionService)
@@ -66,10 +59,10 @@ func testLogin(t *testing.T, expectedCode int, expectedBody string, sessionServi
 }
 
 func TestRefreshTokenSuccess(t *testing.T) {
-	reqBody := contract.RefreshTokenRequest{RefreshToken: refreshToken}
+	reqBody := contract.RefreshTokenRequest{RefreshToken: test.SessionRefreshToken}
 
 	mockSessionService := &session.MockService{}
-	mockSessionService.On("RefreshToken", mock.AnythingOfType("*context.emptyCtx"), clientID, clientSecret, refreshToken).Return(accessToken, nil)
+	mockSessionService.On("RefreshToken", mock.AnythingOfType("*context.emptyCtx"), test.SessionRefreshToken).Return(test.SessionAccessToken, nil)
 
 	expectedBody := `{"data":{"access_token":"v2.public.eyJhdWQiOiJ1c2VyIiwiZXhwIjoiMjAyMC0xMS0wN1QxMDozNjowNyswNTozMCIsImlhdCI6IjIwMjAtMTEtMDdUMTA6MjY6MDcrMDU6MzAiLCJpc3MiOiJpZGVudGlmaWNhdGlvbi1zZXJ2aWNlIiwianRpIjoiMTEwMTI0NjUtMDNhNC00OWI2LTgwODEtY2RmYzczMDlhY2MwIiwibmJmIjoiMjAyMC0xMS0wN1QxMDoyNjowNyswNTozMCJ9PrXViH5779NxXHK_PxnwW-FdFV0klU07umd8X7F0A9irFLX7GTS3AczNm_hmb_yfYOX0o4DJri89AWeCb0qTAg.bnVsbA"},"success":true}`
 
@@ -77,10 +70,10 @@ func TestRefreshTokenSuccess(t *testing.T) {
 }
 
 func TestRefreshTokenFailure(t *testing.T) {
-	reqBody := contract.RefreshTokenRequest{RefreshToken: refreshToken}
+	reqBody := contract.RefreshTokenRequest{RefreshToken: test.SessionRefreshToken}
 
 	mockSessionService := &session.MockService{}
-	mockSessionService.On("RefreshToken", mock.AnythingOfType("*context.emptyCtx"), clientID, clientSecret, refreshToken).Return("", liberr.WithArgs(errors.New("failed to refresh token")))
+	mockSessionService.On("RefreshToken", mock.AnythingOfType("*context.emptyCtx"), test.SessionRefreshToken).Return("", liberr.WithArgs(errors.New("failed to refresh token")))
 
 	expectedBody := `{"error":{"message":"internal server error"},"success":false}`
 
@@ -92,9 +85,6 @@ func testRefreshToken(t *testing.T, expectedCode int, expectedBody string, sessi
 
 	r, err := http.NewRequest(http.MethodPost, "/session/refresh-token", bytes.NewBuffer(b))
 	require.NoError(t, err)
-
-	r.Header.Set("CLIENT-ID", clientID)
-	r.Header.Set("CLIENT-SECRET", clientSecret)
 
 	w := httptest.NewRecorder()
 
@@ -108,10 +98,10 @@ func testRefreshToken(t *testing.T, expectedCode int, expectedBody string, sessi
 }
 
 func TestLogoutSuccess(t *testing.T) {
-	reqBody := contract.LogoutRequest{RefreshToken: refreshToken}
+	reqBody := contract.LogoutRequest{RefreshToken: test.SessionRefreshToken}
 
 	mockSessionService := &session.MockService{}
-	mockSessionService.On("LogoutUser", mock.AnythingOfType("*context.emptyCtx"), refreshToken).Return(nil)
+	mockSessionService.On("LogoutUser", mock.AnythingOfType("*context.emptyCtx"), test.SessionRefreshToken).Return(nil)
 
 	expectedBody := `{"data":{"message":"Logout Successful"},"success":true}`
 
@@ -119,10 +109,10 @@ func TestLogoutSuccess(t *testing.T) {
 }
 
 func TestLogoutFailure(t *testing.T) {
-	reqBody := contract.LogoutRequest{RefreshToken: refreshToken}
+	reqBody := contract.LogoutRequest{RefreshToken: test.SessionRefreshToken}
 
 	mockSessionService := &session.MockService{}
-	mockSessionService.On("LogoutUser", mock.AnythingOfType("*context.emptyCtx"), refreshToken).Return(liberr.WithArgs(errors.New("failed to logout user")))
+	mockSessionService.On("LogoutUser", mock.AnythingOfType("*context.emptyCtx"), test.SessionRefreshToken).Return(liberr.WithArgs(errors.New("failed to logout user")))
 
 	expectedBody := `{"error":{"message":"internal server error"},"success":false}`
 

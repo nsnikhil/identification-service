@@ -13,8 +13,7 @@ const invalidTTL = -1
 type Service interface {
 	CreateClient(ctx context.Context, name string, accessTokenTTL, sessionTTL, maxActiveSessions int) (string, string, error)
 	RevokeClient(ctx context.Context, id string) error
-	GetClientTTL(ctx context.Context, name, secret string) (int, int, error)
-	ValidateClientCredentials(ctx context.Context, name, secret string) error
+	GetClient(ctx context.Context, name, secret string) (Client, error)
 }
 
 type clientService struct {
@@ -65,28 +64,16 @@ func (cs *clientService) RevokeClient(ctx context.Context, id string) error {
 	return nil
 }
 
-func (cs *clientService) GetClientTTL(ctx context.Context, name, secret string) (int, int, error) {
+func (cs *clientService) GetClient(ctx context.Context, name, secret string) (Client, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second)
 	defer cancel()
 
 	client, err := cs.store.GetClient(ctx, name, secret)
 	if err != nil {
-		return invalidTTL, invalidTTL, liberr.WithOp("Service.GetClientTTL", err)
+		return Client{}, liberr.WithOp("Service.GetClientTTL", err)
 	}
 
-	return client.accessTokenTTL, client.sessionTTL, nil
-}
-
-func (cs *clientService) ValidateClientCredentials(ctx context.Context, name, secret string) error {
-	ctx, cancel := context.WithTimeout(ctx, time.Second)
-	defer cancel()
-
-	_, err := cs.store.GetClient(ctx, name, secret)
-	if err != nil {
-		return liberr.WithOp("Service.ValidateClientCredentials", err)
-	}
-
-	return nil
+	return client, nil
 }
 
 func NewService(store Store, keyGenerator libcrypto.Ed25519Generator) Service {
