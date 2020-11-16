@@ -3,7 +3,7 @@ package session
 import (
 	"fmt"
 	"identification-service/pkg/liberr"
-	"regexp"
+	"identification-service/pkg/util"
 	"time"
 )
 
@@ -17,16 +17,6 @@ type Session struct {
 
 	createdAt time.Time
 	updatedAt time.Time
-}
-
-//TODO: REMOVE GETTER
-func (s Session) ID() string {
-	return s.id
-}
-
-//TODO: REMOVE GETTER
-func (s Session) UserID() string {
-	return s.userID
 }
 
 func (s Session) IsExpired(ttl float64) bool {
@@ -52,7 +42,7 @@ func (b *Builder) ID(id string) *Builder {
 		return b
 	}
 
-	if !isValidUUID(id) {
+	if !util.IsValidUUID(id) {
 		b.err = fmt.Errorf("invalid id %s", id)
 		return b
 	}
@@ -66,7 +56,7 @@ func (b *Builder) UserID(userID string) *Builder {
 		return b
 	}
 
-	if !isValidUUID(userID) {
+	if !util.IsValidUUID(userID) {
 		b.err = fmt.Errorf("invalid user id %s", userID)
 		return b
 	}
@@ -80,7 +70,7 @@ func (b *Builder) RefreshToken(refreshToken string) *Builder {
 		return b
 	}
 
-	if !isValidUUID(refreshToken) {
+	if !util.IsValidUUID(refreshToken) {
 		b.err = fmt.Errorf("invalid id %s", refreshToken)
 		return b
 	}
@@ -129,11 +119,6 @@ func (b *Builder) Build() (Session, error) {
 		createdAt:    b.createdAt,
 		updatedAt:    b.updatedAt,
 	}, nil
-}
-
-func isValidUUID(uuid string) bool {
-	r := regexp.MustCompile("^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-4[a-fA-F0-9]{3}-[8|9|aA|bB][a-fA-F0-9]{3}-[a-fA-F0-9]{12}$")
-	return r.MatchString(uuid)
 }
 
 func NewSessionBuilder() *Builder {

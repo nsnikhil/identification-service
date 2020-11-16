@@ -21,15 +21,7 @@ type Client struct {
 	updatedAt         time.Time
 }
 
-func (c Client) AccessTokenTTL() int {
-	return c.accessTokenTTL
-}
-
-func (c Client) SessionTTL() int {
-	return c.sessionTTL
-}
-
-type ClientBuilder struct {
+type Builder struct {
 	id                string
 	name              string
 	secret            string
@@ -44,162 +36,171 @@ type ClientBuilder struct {
 	err error
 }
 
-func (cb *ClientBuilder) ID(id string) *ClientBuilder {
-	if cb.err != nil {
-		return cb
+func (b *Builder) ID(id string) *Builder {
+	if b.err != nil {
+		return b
 	}
 
 	if !util.IsValidUUID(id) {
-		cb.err = fmt.Errorf("invalid user id %s", id)
-		return cb
+		b.err = fmt.Errorf("invalid client id %s", id)
+		return b
 	}
 
-	cb.id = id
-	return cb
+	b.id = id
+	return b
 }
 
-func (cb *ClientBuilder) Name(name string) *ClientBuilder {
-	if cb.err != nil {
-		return cb
+func (b *Builder) Name(name string) *Builder {
+	if b.err != nil {
+		return b
 	}
 
 	if len(name) == 0 {
-		cb.err = errors.New("name cannot be empty")
-		return cb
+		b.err = errors.New("name cannot be empty")
+		return b
 	}
 
-	cb.name = name
-	return cb
+	b.name = name
+	return b
 }
 
-func (cb *ClientBuilder) Secret(secret string) *ClientBuilder {
-	if cb.err != nil {
-		return cb
+func (b *Builder) Secret(secret string) *Builder {
+	if b.err != nil {
+		return b
 	}
 
 	if !util.IsValidUUID(secret) {
-		cb.err = fmt.Errorf("invalid client secret %s", secret)
-		return cb
+		b.err = fmt.Errorf("invalid client secret %s", secret)
+		return b
 	}
 
-	cb.id = secret
-	return cb
+	b.id = secret
+	return b
 }
 
-func (cb *ClientBuilder) AccessTokenTTL(accessTokenTTL int) *ClientBuilder {
-	if cb.err != nil {
-		return cb
+func (b *Builder) AccessTokenTTL(accessTokenTTL int) *Builder {
+	if b.err != nil {
+		return b
 	}
 
 	if accessTokenTTL < 1 {
-		cb.err = errors.New("access token ttl cannot be less than one")
-		return cb
+		b.err = errors.New("access token ttl cannot be less than one")
+		return b
 	}
 
-	cb.accessTokenTTL = accessTokenTTL
-	return cb
+	b.accessTokenTTL = accessTokenTTL
+	return b
 }
 
-func (cb *ClientBuilder) SessionTTL(sessionTTL int) *ClientBuilder {
-	if cb.err != nil {
-		return cb
+func (b *Builder) SessionTTL(sessionTTL int) *Builder {
+	if b.err != nil {
+		return b
 	}
 
 	if sessionTTL < 1 {
-		cb.err = errors.New("session ttl cannot be less than one")
-		return cb
+		b.err = errors.New("session ttl cannot be less than one")
+		return b
 	}
 
-	cb.sessionTTL = sessionTTL
-	return cb
+	b.sessionTTL = sessionTTL
+	return b
 }
-func (cb *ClientBuilder) MaxActiveSessions(maxActiveSessions int) *ClientBuilder {
-	if cb.err != nil {
-		return cb
+func (b *Builder) MaxActiveSessions(maxActiveSessions int) *Builder {
+	if b.err != nil {
+		return b
 	}
 
 	if maxActiveSessions < 1 {
-		cb.err = errors.New("max active sessions cannot be less than one")
-		return cb
+		b.err = errors.New("max active sessions cannot be less than one")
+		return b
 	}
 
-	cb.maxActiveSessions = maxActiveSessions
-	return cb
+	b.maxActiveSessions = maxActiveSessions
+	return b
 }
 
-func (cb *ClientBuilder) PrivateKey(privateKey []byte) *ClientBuilder {
-	if cb.err != nil {
-		return cb
+func (b *Builder) PrivateKey(privateKey []byte) *Builder {
+	if b.err != nil {
+		return b
 	}
 
 	if len(privateKey) == 0 {
-		cb.err = errors.New("private key cannot be empty")
-		return cb
+		b.err = errors.New("private key cannot be empty")
+		return b
 	}
 
-	cb.privateKey = privateKey
-	return cb
+	b.privateKey = privateKey
+	return b
 }
 
-func (cb *ClientBuilder) CreatedAt(createdAt time.Time) *ClientBuilder {
-	if cb.err != nil {
-		return cb
+func (b *Builder) CreatedAt(createdAt time.Time) *Builder {
+	if b.err != nil {
+		return b
 	}
 
-	cb.createdAt = createdAt
-	return cb
+	b.createdAt = createdAt
+	return b
 }
 
-func (cb *ClientBuilder) UpdatedAt(updatedAt time.Time) *ClientBuilder {
-	if cb.err != nil {
-		return cb
+func (b *Builder) UpdatedAt(updatedAt time.Time) *Builder {
+	if b.err != nil {
+		return b
 	}
 
-	cb.updatedAt = updatedAt
-	return cb
+	b.updatedAt = updatedAt
+	return b
 }
 
-func (cb *ClientBuilder) Build() (Client, error) {
-	if cb.err != nil {
-		return Client{}, liberr.WithArgs(liberr.Operation("ClientBuilder.Build"), liberr.ValidationError, cb.err)
+func (b *Builder) Build() (Client, error) {
+	if b.err != nil {
+		return Client{}, liberr.WithArgs(liberr.Operation("ClientBuilder.Build"), liberr.ValidationError, b.err)
 	}
 
-	if err := validateArgs(cb.name, cb.accessTokenTTL, cb.sessionTTL); err != nil {
+	if err := validateArgs(b); err != nil {
 		return Client{}, liberr.WithArgs(liberr.Operation("ClientBuilder.Build"), liberr.ValidationError, err)
 	}
 
 	return Client{
-		id:                cb.id,
-		name:              cb.name,
-		secret:            cb.secret,
-		accessTokenTTL:    cb.accessTokenTTL,
-		sessionTTL:        cb.sessionTTL,
-		maxActiveSessions: cb.maxActiveSessions,
-		privateKey:        cb.privateKey,
-		createdAt:         cb.createdAt,
-		updatedAt:         cb.updatedAt,
+		id:                b.id,
+		name:              b.name,
+		secret:            b.secret,
+		accessTokenTTL:    b.accessTokenTTL,
+		sessionTTL:        b.sessionTTL,
+		maxActiveSessions: b.maxActiveSessions,
+		privateKey:        b.privateKey,
+		createdAt:         b.createdAt,
+		updatedAt:         b.updatedAt,
 	}, nil
 }
 
-func NewClientBuilder() *ClientBuilder {
-	return &ClientBuilder{}
+func NewClientBuilder() *Builder {
+	return &Builder{}
 }
 
-func validateArgs(name string, accessTokenTTL int, sessionTTL int) error {
-	if len(name) == 0 {
+//TODO: THIS IS CURRENTLY REPEATED BECAUSE USING BUILDER SOMEONE MIGHT NOT SET THESE VALUES
+func validateArgs(b *Builder) error {
+	if len(b.name) == 0 {
 		return errors.New("client name cannot be empty")
 	}
 
-	if accessTokenTTL < 1 {
+	if b.accessTokenTTL < 1 {
 		return errors.New("access token ttl cannot be less than one")
 	}
 
-	if sessionTTL < 1 {
+	if b.sessionTTL < 1 {
 		return errors.New("session ttl cannot be less than one")
 	}
 
-	if accessTokenTTL > sessionTTL {
+	if b.accessTokenTTL > b.sessionTTL {
 		return errors.New("session ttl cannot be less than access token ttl")
+	}
+
+	if b.maxActiveSessions < 1 {
+		return errors.New("max active sessions cannot be less than one")
+	}
+
+	if b.privateKey == nil || len(b.privateKey) == 0 {
+		return errors.New("private key cannot be empty")
 	}
 
 	return nil

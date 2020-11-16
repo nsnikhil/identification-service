@@ -25,7 +25,7 @@ type userService struct {
 func (us *userService) CreateUser(ctx context.Context, name, email, password string) (string, error) {
 	wrap := func(err error) error { return liberr.WithOp("Service.SignUp", err) }
 
-	user, err := NewUser(us.encoder, name, email, password)
+	user, err := NewUserBuilder(us.encoder).Name(name).Email(email).Password(password).Build()
 	if err != nil {
 		return "", wrap(err)
 	}
@@ -52,12 +52,12 @@ func (us *userService) GetUserID(ctx context.Context, email, password string) (s
 		return "", liberr.WithArgs(liberr.Operation("Service.GetUserID"), liberr.InvalidCredentialsError, err)
 	}
 
-	err = us.encoder.VerifyPassword(password, user.PasswordHash(), user.PasswordSalt())
+	err = us.encoder.VerifyPassword(password, user.passwordHash, user.passwordSalt)
 	if err != nil {
 		return "", liberr.WithArgs(liberr.Operation("Service.GetUserID"), liberr.InvalidCredentialsError, err)
 	}
 
-	return user.ID(), nil
+	return user.id, nil
 }
 
 func (us *userService) UpdatePassword(ctx context.Context, email, oldPassword, newPassword string) error {

@@ -55,7 +55,14 @@ func (cst *clientStoreIntegrationSuite) TestCreateClientFailureWhenRecordsAreDup
 	_, err := cst.store.CreateClient(cst.ctx, cl)
 	require.NoError(cst.T(), err)
 
-	cl, err = client.NewClientBuilder().Name(name).AccessTokenTTL(accessTokenTTL).SessionTTL(sessionTTL).Build()
+	cl, err = client.NewClientBuilder().
+		Name(name).
+		AccessTokenTTL(accessTokenTTL).
+		SessionTTL(sessionTTL).
+		MaxActiveSessions(maxActiveSessions).
+		PrivateKey(priKey).
+		Build()
+
 	require.NoError(cst.T(), err)
 
 	_, err = cst.store.CreateClient(cst.ctx, cl)

@@ -34,10 +34,11 @@ func TestCreateNewUserSuccess(t *testing.T) {
 	mockEncoder.On("EncodeKey", key).Return(hash)
 	mockEncoder.On("ValidatePassword", userPassword).Return(nil)
 
-	_, err := user.NewUser(mockEncoder, name, email, userPassword)
+	_, err := user.NewUserBuilder(mockEncoder).Name(name).Email(email).Password(userPassword).Build()
 	assert.Equal(t, nil, err)
 }
 
+//TODO: add all failure scenarios
 func TestCreateNewUserValidationFailure(t *testing.T) {
 	testCases := map[string]struct {
 		input         func() (string, string, string)
@@ -68,7 +69,12 @@ func TestCreateNewUserValidationFailure(t *testing.T) {
 	for name, testCase := range testCases {
 		t.Run(name, func(t *testing.T) {
 			name, email, userPassword := testCase.input()
-			_, err := user.NewUser(&password.MockEncoder{}, name, email, userPassword)
+			_, err := user.NewUserBuilder(&password.MockEncoder{}).
+				Name(name).
+				Email(email).
+				Password(userPassword).
+				Build()
+
 			assert.Error(t, err)
 		})
 	}
@@ -81,6 +87,6 @@ func TestCreateNewUserFailureForInvalidPassword(t *testing.T) {
 		mock.AnythingOfType("string"),
 	).Return(liberr.WithArgs(errors.New("invalid password")))
 
-	_, err := user.NewUser(mockEncoder, name, email, invalidPassword)
+	_, err := user.NewUserBuilder(mockEncoder).Name(name).Email(email).Password(invalidPassword).Build()
 	assert.Error(t, err)
 }

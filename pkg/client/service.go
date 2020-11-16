@@ -74,7 +74,7 @@ func (cs *clientService) GetClientTTL(ctx context.Context, name, secret string) 
 		return invalidTTL, invalidTTL, liberr.WithOp("Service.GetClientTTL", err)
 	}
 
-	return client.AccessTokenTTL(), client.SessionTTL(), nil
+	return client.accessTokenTTL, client.sessionTTL, nil
 }
 
 func (cs *clientService) ValidateClientCredentials(ctx context.Context, name, secret string) error {

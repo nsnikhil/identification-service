@@ -108,8 +108,8 @@ func (ss *sessionService) RefreshToken(ctx context.Context, clientName, clientSe
 
 	accessToken, err := ss.generator.GenerateAccessToken(
 		accessTokenTTL,
-		session.UserID(),
-		map[string]string{"session_id": session.ID()},
+		session.userID,
+		map[string]string{"session_id": session.id},
 	)
 	if err != nil {
 		return wrap(err)

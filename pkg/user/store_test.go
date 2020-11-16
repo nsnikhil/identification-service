@@ -132,10 +132,10 @@ func getUser(t *testing.T, name, email, userPassword string) user.User {
 	mockEncoder.On("EncodeKey", key).Return(hash)
 	mockEncoder.On("ValidatePassword", userPassword).Return(nil)
 
-	user, err := user.NewUser(mockEncoder, name, email, userPassword)
+	us, err := user.NewUserBuilder(mockEncoder).Name(name).Email(email).Password(userPassword).Build()
 	require.NoError(t, err)
 
-	return user
+	return us
 }
 
 func getMockDB(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {
