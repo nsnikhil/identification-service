@@ -1,7 +1,6 @@
 package app
 
 import (
-	"database/sql"
 	"github.com/go-redis/redis/v8"
 	"go.uber.org/zap"
 	"identification-service/pkg/cache"
@@ -43,8 +42,12 @@ func initRouter(cfg config.Config, lgr *zap.Logger, prometheus reporters.Prometh
 }
 
 func initServices(cfg config.Config) (client.Service, user.Service, session.Service) {
-	db, err := database.NewHandler(cfg.DatabaseConfig()).GetDB()
+	dbCfg := cfg.DatabaseConfig()
+
+	sqlDB, err := database.NewHandler(dbCfg).GetDB()
 	logError(err)
+
+	db := database.NewSQLDatabase(sqlDB, dbCfg.QueryTTL())
 
 	cc, err := cache.NewHandler(cfg.CacheConfig()).GetCache()
 	logError(err)
@@ -66,17 +69,17 @@ func initServices(cfg config.Config) (client.Service, user.Service, session.Serv
 	return cs, us, ss
 }
 
-func initClientService(db *sql.DB, cc *redis.Client, kg libcrypto.Ed25519Generator) client.Service {
+func initClientService(db database.SQLDatabase, cc *redis.Client, kg libcrypto.Ed25519Generator) client.Service {
 	st := client.NewStore(db, cc)
 	return client.NewService(st, kg)
 }
 
-func initUserService(db *sql.DB, en password.Encoder, qu queue.Queue) user.Service {
+func initUserService(db database.SQLDatabase, en password.Encoder, qu queue.Queue) user.Service {
 	st := user.NewStore(db)
 	return user.NewService(st, en, qu)
 }
 
-func initSessionService(db *sql.DB, us user.Service, tg token.Generator) session.Service {
+func initSessionService(db database.SQLDatabase, us user.Service, tg token.Generator) session.Service {
 	st := session.NewStore(db)
 	return session.NewService(st, us, tg)
 }

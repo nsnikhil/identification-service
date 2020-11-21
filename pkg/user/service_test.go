@@ -38,7 +38,7 @@ func (cst *createUserSuite) TestCreateUserSuccess() {
 	mockStore := &user.MockStore{}
 	mockStore.On(
 		"CreateUser",
-		mock.AnythingOfType("*context.timerCtx"),
+		mock.AnythingOfType("*context.emptyCtx"),
 		mock.AnythingOfType("User"),
 	).Return(test.UserID, nil)
 
@@ -54,7 +54,7 @@ func (cst *createUserSuite) TestCreateFailureWhenStoreCallFails() {
 	mockStore := &user.MockStore{}
 	mockStore.On(
 		"CreateUser",
-		mock.AnythingOfType("*context.timerCtx"),
+		mock.AnythingOfType("*context.emptyCtx"),
 		mock.AnythingOfType("User"),
 	).Return("", liberr.WithArgs(errors.New("failed to save new user")))
 
@@ -119,7 +119,7 @@ func TestCreateUser(t *testing.T) {
 
 func TestGetUserIDSuccess(t *testing.T) {
 	mockStore := &user.MockStore{}
-	mockStore.On("GetUser", mock.AnythingOfType("*context.timerCtx"), test.UserEmail).Return(user.User{}, nil)
+	mockStore.On("GetUser", mock.AnythingOfType("*context.emptyCtx"), test.UserEmail).Return(user.User{}, nil)
 
 	mockEncoder := &password.MockEncoder{}
 	mockEncoder.On(
@@ -139,7 +139,7 @@ func TestGetUserIDFailureWhenStoreCallsFails(t *testing.T) {
 	mockStore := &user.MockStore{}
 	mockStore.On(
 		"GetUser",
-		mock.AnythingOfType("*context.timerCtx"),
+		mock.AnythingOfType("*context.emptyCtx"),
 		test.UserEmail,
 	).Return(user.User{}, liberr.WithArgs(errors.New("failed to get user")))
 
@@ -153,7 +153,7 @@ func TestGetUserIDFailureWhenPasswordVerificationFails(t *testing.T) {
 	mockStore := &user.MockStore{}
 	mockStore.On(
 		"GetUser",
-		mock.AnythingOfType("*context.timerCtx"),
+		mock.AnythingOfType("*context.emptyCtx"),
 		test.UserEmail,
 	).Return(user.User{}, nil)
 
@@ -173,10 +173,10 @@ func TestGetUserIDFailureWhenPasswordVerificationFails(t *testing.T) {
 
 func TestUpdatePasswordSuccess(t *testing.T) {
 	mockStore := &user.MockStore{}
-	mockStore.On("GetUser", mock.AnythingOfType("*context.timerCtx"), test.UserEmail).Return(user.User{}, nil)
+	mockStore.On("GetUser", mock.AnythingOfType("*context.emptyCtx"), test.UserEmail).Return(user.User{}, nil)
 	mockStore.On(
 		"UpdatePassword",
-		mock.AnythingOfType("*context.timerCtx"),
+		mock.AnythingOfType("*context.emptyCtx"),
 		mock.AnythingOfType("string"), test.UserPasswordHash, test.UserPasswordSalt,
 	).Return(int64(1), nil)
 
@@ -207,7 +207,7 @@ func TestUpdatePasswordFailure(t *testing.T) {
 				mockStore := &user.MockStore{}
 				mockStore.On(
 					"GetUser",
-					mock.AnythingOfType("*context.timerCtx"),
+					mock.AnythingOfType("*context.emptyCtx"),
 					test.UserEmail,
 				).Return(user.User{}, liberr.WithArgs(errors.New("failed to get user")))
 
@@ -228,7 +228,7 @@ func TestUpdatePasswordFailure(t *testing.T) {
 				mockStore := &user.MockStore{}
 				mockStore.On(
 					"GetUser",
-					mock.AnythingOfType("*context.timerCtx"),
+					mock.AnythingOfType("*context.emptyCtx"),
 					test.UserEmail,
 				).Return(user.User{}, liberr.WithArgs(errors.New("failed to get user")))
 
@@ -246,7 +246,7 @@ func TestUpdatePasswordFailure(t *testing.T) {
 				mockStore := &user.MockStore{}
 				mockStore.On(
 					"GetUser",
-					mock.AnythingOfType("*context.timerCtx"),
+					mock.AnythingOfType("*context.emptyCtx"),
 					test.UserEmail,
 				).Return(user.User{}, nil)
 
@@ -270,7 +270,7 @@ func TestUpdatePasswordFailure(t *testing.T) {
 				mockStore := &user.MockStore{}
 				mockStore.On(
 					"GetUser",
-					mock.AnythingOfType("*context.timerCtx"),
+					mock.AnythingOfType("*context.emptyCtx"),
 					test.UserEmail,
 				).Return(user.User{}, nil)
 
@@ -299,12 +299,12 @@ func TestUpdatePasswordFailure(t *testing.T) {
 				mockStore := &user.MockStore{}
 				mockStore.On(
 					"GetUser",
-					mock.AnythingOfType("*context.timerCtx"),
+					mock.AnythingOfType("*context.emptyCtx"),
 					test.UserEmail,
 				).Return(user.User{}, nil)
 				mockStore.On(
 					"UpdatePassword",
-					mock.AnythingOfType("*context.timerCtx"),
+					mock.AnythingOfType("*context.emptyCtx"),
 					mock.AnythingOfType("string"),
 					test.UserPasswordHash,
 					test.UserPasswordSalt,

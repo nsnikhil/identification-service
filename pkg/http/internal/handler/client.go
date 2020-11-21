@@ -24,6 +24,7 @@ func (ch *ClientHandler) Register(resp http.ResponseWriter, req *http.Request) e
 		reqBody.AccessTokenTTL,
 		reqBody.SessionTTL,
 		reqBody.MaxActiveSessions,
+		reqBody.SessionStrategy,
 	)
 
 	if err != nil {

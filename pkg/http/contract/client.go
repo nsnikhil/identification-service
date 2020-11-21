@@ -7,6 +7,7 @@ type CreateClientRequest struct {
 	AccessTokenTTL    int    `json:"access_token_ttl"`
 	SessionTTL        int    `json:"session_ttl"`
 	MaxActiveSessions int    `json:"max_active_sessions"`
+	SessionStrategy   string `json:"session_strategy"`
 }
 
 type CreateClientResponse struct {

@@ -2,16 +2,16 @@ package client
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"github.com/go-redis/redis/v8"
+	"identification-service/pkg/database"
 	"identification-service/pkg/liberr"
 )
 
 const (
-	createClient = `insert into clients (name, access_token_ttl, session_ttl, max_active_sessions, private_key) values ($1, $2, $3, $4, $5) returning secret`
+	createClient = `insert into clients (name, access_token_ttl, session_ttl, max_active_sessions, session_strategy, private_key) values ($1, $2, $3, $4, $5, $6) returning secret`
 	revokeClient = `update clients set revoked=true where id=$1`
-	getClient    = `select id, revoked, access_token_ttl, session_ttl, max_active_sessions, private_key from clients where name=$1 and secret=$2`
+	getClient    = `select id, revoked, access_token_ttl, session_ttl, max_active_sessions, session_strategy, private_key from clients where name=$1 and secret=$2`
 )
 
 type Store interface {
@@ -21,7 +21,7 @@ type Store interface {
 }
 
 type clientStore struct {
-	db    *sql.DB
+	db    database.SQLDatabase
 	cache *redis.Client
 }
 
@@ -34,6 +34,7 @@ func (cs *clientStore) CreateClient(ctx context.Context, client Client) (string,
 		client.accessTokenTTL,
 		client.sessionTTL,
 		client.maxActiveSessions,
+		client.sessionStrategyName,
 		client.privateKey,
 	).Scan(&secret)
 
@@ -69,19 +70,19 @@ func (cs *clientStore) RevokeClient(ctx context.Context, id string) (int64, erro
 }
 
 func (cs *clientStore) GetClient(ctx context.Context, name, secret string) (Client, error) {
-	var client Client
-
 	row := cs.db.QueryRowContext(ctx, getClient, name, secret)
 	if row.Err() != nil {
-		return client, liberr.WithOp("Store.GetClient", row.Err())
+		return Client{}, liberr.WithOp("Store.GetClient", row.Err())
 	}
 
+	var client Client
 	err := row.Scan(
 		&client.id,
 		&client.revoked,
 		&client.accessTokenTTL,
 		&client.sessionTTL,
 		&client.maxActiveSessions,
+		&client.sessionStrategyName,
 		&client.privateKey,
 	)
 
@@ -96,7 +97,7 @@ func (cs *clientStore) GetClient(ctx context.Context, name, secret string) (Clie
 	return client, nil
 }
 
-func NewStore(db *sql.DB, cache *redis.Client) Store {
+func NewStore(db database.SQLDatabase, cache *redis.Client) Store {
 	return &clientStore{
 		db:    db,
 		cache: cache,

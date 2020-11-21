@@ -5,13 +5,10 @@ import (
 	"encoding/base64"
 	"identification-service/pkg/libcrypto"
 	"identification-service/pkg/liberr"
-	"time"
 )
 
-const invalidTTL = -1
-
 type Service interface {
-	CreateClient(ctx context.Context, name string, accessTokenTTL, sessionTTL, maxActiveSessions int) (string, string, error)
+	CreateClient(ctx context.Context, name string, accessTokenTTL, sessionTTL, maxActiveSessions int, sessionStrategy string) (string, string, error)
 	RevokeClient(ctx context.Context, id string) error
 	GetClient(ctx context.Context, name, secret string) (Client, error)
 }
@@ -21,7 +18,7 @@ type clientService struct {
 	store        Store
 }
 
-func (cs *clientService) CreateClient(ctx context.Context, name string, accessTokenTTL, sessionTTL, maxActiveSessions int) (string, string, error) {
+func (cs *clientService) CreateClient(ctx context.Context, name string, accessTokenTTL, sessionTTL, maxActiveSessions int, sessionStrategy string) (string, string, error) {
 	pubKey, priKey, err := cs.keyGenerator.Generate()
 	if err != nil {
 		return "", "", liberr.WithOp("Service.CreateClient", err)
@@ -32,15 +29,13 @@ func (cs *clientService) CreateClient(ctx context.Context, name string, accessTo
 		AccessTokenTTL(accessTokenTTL).
 		SessionTTL(sessionTTL).
 		MaxActiveSessions(maxActiveSessions).
+		SessionStrategy(sessionStrategy).
 		PrivateKey(priKey).
 		Build()
 
 	if err != nil {
 		return "", "", liberr.WithOp("Service.CreateClient", err)
 	}
-
-	ctx, cancel := context.WithTimeout(ctx, time.Second)
-	defer cancel()
 
 	id, err := cs.store.CreateClient(ctx, cl)
 	if err != nil {
@@ -53,9 +48,6 @@ func (cs *clientService) CreateClient(ctx context.Context, name string, accessTo
 
 //TODO: SHOULD IT RETURN THE UPDATE COUNT ?
 func (cs *clientService) RevokeClient(ctx context.Context, id string) error {
-	ctx, cancel := context.WithTimeout(ctx, time.Second)
-	defer cancel()
-
 	_, err := cs.store.RevokeClient(ctx, id)
 	if err != nil {
 		return liberr.WithOp("Service.RevokeClient", err)
@@ -65,12 +57,9 @@ func (cs *clientService) RevokeClient(ctx context.Context, id string) error {
 }
 
 func (cs *clientService) GetClient(ctx context.Context, name, secret string) (Client, error) {
-	ctx, cancel := context.WithTimeout(ctx, time.Second)
-	defer cancel()
-
 	client, err := cs.store.GetClient(ctx, name, secret)
 	if err != nil {
-		return Client{}, liberr.WithOp("Service.GetClientTTL", err)
+		return Client{}, liberr.WithOp("Service.GetClient", err)
 	}
 
 	return client, nil

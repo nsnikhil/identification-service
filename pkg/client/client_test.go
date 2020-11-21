@@ -8,7 +8,7 @@ import (
 )
 
 func TestClientBuilderBuildSuccess(t *testing.T) {
-	createNewClient(t)
+	test.NewClient(t)
 }
 
 //TODO: ADD ALL TESTCASES FOR CLIENT
@@ -51,18 +51,4 @@ func TestClientBuilderBuildFailure(t *testing.T) {
 			require.Error(t, err)
 		})
 	}
-}
-
-func createNewClient(t *testing.T) client.Client {
-	cl, err := client.NewClientBuilder().
-		Name(test.ClientName).
-		AccessTokenTTL(test.ClientAccessTokenTTL).
-		SessionTTL(test.ClientSessionTTL).
-		MaxActiveSessions(test.ClientMaxActiveSessions).
-		PrivateKey(test.ClientPriKey).
-		Build()
-
-	require.NoError(t, err)
-
-	return cl
 }

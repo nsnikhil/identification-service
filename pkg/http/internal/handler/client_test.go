@@ -26,6 +26,7 @@ func TestClientHandlerCreateSuccess(t *testing.T) {
 		AccessTokenTTL:    test.ClientAccessTokenTTL,
 		SessionTTL:        test.ClientSessionTTL,
 		MaxActiveSessions: test.ClientMaxActiveSessions,
+		SessionStrategy:   test.ClientSessionStrategyRevokeOld,
 	}
 
 	body, err := json.Marshal(&req)
@@ -39,6 +40,7 @@ func TestClientHandlerCreateSuccess(t *testing.T) {
 		test.ClientAccessTokenTTL,
 		test.ClientSessionTTL,
 		test.ClientMaxActiveSessions,
+		test.ClientSessionStrategyRevokeOld,
 	).Return(test.ClientEncodedPublicKey, test.ClientSecret, nil)
 
 	expectedBody := `{"data":{"public_key":"8lchzCKRbdXEHsG/hJNMjMqdJLbIvAvDoViJtlcwWWo","secret":"86d690dd-92a0-40ac-ad48-110c951e3cb8"},"success":true}`
@@ -52,6 +54,7 @@ func TestClientHandlerCreateFailure(t *testing.T) {
 		AccessTokenTTL:    test.ClientAccessTokenTTL,
 		SessionTTL:        test.ClientSessionTTL,
 		MaxActiveSessions: test.ClientMaxActiveSessions,
+		SessionStrategy:   test.ClientSessionStrategyRevokeOld,
 	}
 
 	body, err := json.Marshal(&req)
@@ -65,6 +68,7 @@ func TestClientHandlerCreateFailure(t *testing.T) {
 		test.ClientAccessTokenTTL,
 		test.ClientSessionTTL,
 		test.ClientMaxActiveSessions,
+		test.ClientSessionStrategyRevokeOld,
 	).Return("", "", liberr.WithArgs(errors.New("failed to create client")))
 
 	expectedBody := `{"error":{"message":"internal server error"},"success":false}`

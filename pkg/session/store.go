@@ -2,25 +2,32 @@ package session
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
+	"identification-service/pkg/database"
 	"identification-service/pkg/liberr"
+	"strings"
 )
 
 const (
-	createSession = `insert into sessions (user_id, refresh_token) values ($1, $2) returning id`
-	getSession    = `select id, user_id, revoked, created_at, updated_at from sessions where refresh_token=$1`
-	revokeSession = `update sessions set revoked=true where refresh_token=$1`
+	createSession          = `insert into sessions (user_id, refresh_token) values ($1, $2) returning id`
+	getSession             = `select id, user_id, revoked, created_at, updated_at from sessions where refresh_token=$1`
+	getActiveSessionsCount = `select count(*) from sessions where user_id=$1 and revoked=false`
+	revokeSessions         = `update sessions set revoked=true where refresh_token = ANY($1::uuid[])`
+	getLastNRefreshTokens  = `select refresh_token from sessions where user_id=$1 order by created_at asc limit $2`
 )
 
 type Store interface {
 	CreateSession(ctx context.Context, session Session) (string, error)
 	GetSession(ctx context.Context, refreshToken string) (Session, error)
-	RevokeSession(ctx context.Context, refreshToken string) (int64, error)
+	GetActiveSessionsCount(ctx context.Context, userID string) (int, error)
+	RevokeSessions(ctx context.Context, refreshTokens ...string) (int64, error)
+
+	//TODO: REFACTOR
+	RevokeLastNSessions(ctx context.Context, userID string, n int) (int64, error)
 }
 
 type sessionStore struct {
-	db *sql.DB
+	db database.SQLDatabase
 }
 
 func (ss *sessionStore) CreateSession(ctx context.Context, session Session) (string, error) {
@@ -50,8 +57,24 @@ func (ss *sessionStore) GetSession(ctx context.Context, refreshToken string) (Se
 	return session, nil
 }
 
-func (ss *sessionStore) RevokeSession(ctx context.Context, refreshToken string) (int64, error) {
-	res, err := ss.db.ExecContext(ctx, revokeSession, refreshToken)
+func (ss *sessionStore) GetActiveSessionsCount(ctx context.Context, userID string) (int, error) {
+	row := ss.db.QueryRowContext(ctx, getActiveSessionsCount, userID)
+
+	if row.Err() != nil {
+		return -1, liberr.WithOp("Store.GetActiveSessionsCount", row.Err())
+	}
+
+	var activeSessionCount int
+	err := row.Scan(&activeSessionCount)
+	if err != nil {
+		return -1, liberr.WithOp("Store.GetActiveSessionsCount", err)
+	}
+
+	return activeSessionCount, nil
+}
+
+func (ss *sessionStore) RevokeSessions(ctx context.Context, refreshTokens ...string) (int64, error) {
+	res, err := ss.db.ExecContext(ctx, revokeSessions, toArgs(refreshTokens))
 	if err != nil {
 		return 0, liberr.WithOp("Store.RevokeSession", err)
 	}
@@ -64,14 +87,47 @@ func (ss *sessionStore) RevokeSession(ctx context.Context, refreshToken string) 
 	if c == 0 {
 		return 0, liberr.WithOp(
 			"Store.RevokeSession",
-			fmt.Errorf("no session found for refresh token %s", refreshToken),
+			fmt.Errorf("no session found for refresh tokens %v", refreshTokens),
 		)
 	}
 
 	return c, nil
 }
 
-func NewStore(db *sql.DB) Store {
+func (ss *sessionStore) RevokeLastNSessions(ctx context.Context, userID string, n int) (int64, error) {
+	rows, err := ss.db.QueryContext(ctx, getLastNRefreshTokens, userID, n)
+	if err != nil {
+		return 0, liberr.WithOp("Store.RevokeLastNSessions", err)
+	}
+
+	var refreshTokens []string
+
+	for rows.Next() {
+		var refreshToken string
+
+		err := rows.Scan(&refreshToken)
+		if err != nil {
+			return 0, liberr.WithOp("Store.RevokeLastNSessions", err)
+		}
+
+		refreshTokens = append(refreshTokens, refreshToken)
+	}
+
+	if len(refreshTokens) == 0 {
+		return 0, liberr.WithOp(
+			"Store.RevokeLastNSessions",
+			fmt.Errorf("no refresh tokens found to revoke against %s", userID),
+		)
+	}
+
+	return ss.RevokeSessions(ctx, refreshTokens...)
+}
+
+func toArgs(values []string) string {
+	return "{" + strings.Join(values, ",") + "}"
+}
+
+func NewStore(db database.SQLDatabase) Store {
 	return &sessionStore{
 		db: db,
 	}

@@ -2,8 +2,8 @@ package user
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
+	"identification-service/pkg/database"
 	"identification-service/pkg/liberr"
 )
 
@@ -21,7 +21,7 @@ type Store interface {
 
 // TODO: RENAME
 type userStore struct {
-	db *sql.DB
+	db database.SQLDatabase
 }
 
 func (us *userStore) CreateUser(ctx context.Context, user User) (string, error) {
@@ -72,7 +72,7 @@ func (us *userStore) UpdatePassword(ctx context.Context, userID string, newPassw
 	return c, nil
 }
 
-func NewStore(db *sql.DB) Store {
+func NewStore(db database.SQLDatabase) Store {
 	return &userStore{
 		db: db,
 	}

@@ -9,8 +9,8 @@ type MockService struct {
 	mock.Mock
 }
 
-func (mock *MockService) CreateClient(ctx context.Context, name string, accessTokenTTL, sessionTTL, maxActiveSessions int) (string, string, error) {
-	args := mock.Called(ctx, name, accessTokenTTL, sessionTTL, maxActiveSessions)
+func (mock *MockService) CreateClient(ctx context.Context, name string, accessTokenTTL, sessionTTL, maxActiveSessions int, sessionStrategy string) (string, string, error) {
+	args := mock.Called(ctx, name, accessTokenTTL, sessionTTL, maxActiveSessions, sessionStrategy)
 	return args.String(0), args.String(1), args.Error(2)
 }
 

@@ -7,7 +7,6 @@ import (
 	"identification-service/pkg/liberr"
 	"identification-service/pkg/token"
 	"identification-service/pkg/user"
-	"time"
 )
 
 const invalidToken = "NA"
@@ -39,6 +38,23 @@ func (ss *sessionService) LoginUser(ctx context.Context, email, password string)
 		return wrap(err)
 	}
 
+	activeSessionsCount, err := ss.store.GetActiveSessionsCount(ctx, userID)
+	if err != nil {
+		return wrap(err)
+	}
+
+	if activeSessionsCount >= cl.MaxActiveSessions() {
+		strategy, err := strategyFromName(cl.SessionStrategyName(), ss.store)
+		if err != nil {
+			return wrap(err)
+		}
+
+		err = strategy.apply(ctx, userID, activeSessionsCount, cl.MaxActiveSessions())
+		if err != nil {
+			return wrap(err)
+		}
+	}
+
 	refreshToken, err := ss.generator.GenerateRefreshToken()
 	if err != nil {
 		return wrap(err)
@@ -49,10 +65,7 @@ func (ss *sessionService) LoginUser(ctx context.Context, email, password string)
 		return wrap(err)
 	}
 
-	ctxWt, cancel := context.WithTimeout(ctx, time.Second)
-	defer cancel()
-
-	sessionID, err := ss.store.CreateSession(ctxWt, session)
+	sessionID, err := ss.store.CreateSession(ctx, session)
 	if err != nil {
 		return wrap(err)
 	}
@@ -70,10 +83,7 @@ func (ss *sessionService) LoginUser(ctx context.Context, email, password string)
 }
 
 func (ss *sessionService) LogoutUser(ctx context.Context, refreshToken string) error {
-	ctx, cancel := context.WithTimeout(ctx, time.Second)
-	defer cancel()
-
-	_, err := ss.store.RevokeSession(ctx, refreshToken)
+	_, err := ss.store.RevokeSessions(ctx, refreshToken)
 	if err != nil {
 		return liberr.WithOp("Service.LogoutUser", err)
 	}
@@ -91,15 +101,12 @@ func (ss *sessionService) RefreshToken(ctx context.Context, refreshToken string)
 		return wrap(err)
 	}
 
-	ctxWt, cancel := context.WithTimeout(ctx, time.Second)
-	defer cancel()
-
-	session, err := ss.store.GetSession(ctxWt, refreshToken)
+	session, err := ss.store.GetSession(ctx, refreshToken)
 	if err != nil {
 		return wrap(err)
 	}
 
-	err = validateSession(ctxWt, cl.SessionTTL(), session, ss.store, refreshToken)
+	err = validateSession(ctx, cl.SessionTTL(), session, ss.store, refreshToken)
 	if err != nil {
 		return wrap(err)
 	}
@@ -123,7 +130,7 @@ func validateSession(ctx context.Context, sessionTTL int, session Session, store
 	}
 
 	//TODO: FIX THE LOGIC HERE
-	_, err := store.RevokeSession(ctx, refreshToken)
+	_, err := store.RevokeSessions(ctx, refreshToken)
 	if err != nil {
 		return err
 	}

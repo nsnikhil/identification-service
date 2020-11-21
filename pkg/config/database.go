@@ -12,6 +12,7 @@ type DatabaseConfig struct {
 	maxIdleConnections    int
 	maxOpenConnections    int
 	connectionMaxLifetime int
+	queryTTLInMS          int
 }
 
 func newDatabaseConfig() DatabaseConfig {
@@ -25,6 +26,7 @@ func newDatabaseConfig() DatabaseConfig {
 		maxIdleConnections:    getInt("DB_MAX_IDLE_CONNECTIONS"),
 		maxOpenConnections:    getInt("DB_MAX_OPEN_CONNECTIONS"),
 		connectionMaxLifetime: getInt("DB_CONNECTION_MAX_LIFETIME_IN_MIN"),
+		queryTTLInMS:          getInt("DB_QUERY_TTL_IN_MS"),
 	}
 }
 
@@ -46,4 +48,8 @@ func (dc DatabaseConfig) MaxOpenConnections() int {
 
 func (dc DatabaseConfig) ConnectionMaxLifetime() int {
 	return dc.connectionMaxLifetime
+}
+
+func (dc DatabaseConfig) QueryTTL() int {
+	return dc.queryTTLInMS
 }

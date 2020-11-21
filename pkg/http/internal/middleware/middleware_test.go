@@ -327,6 +327,7 @@ func TestWithClientAuthenticationSuccess(t *testing.T) {
 		Name(test.ClientName).
 		AccessTokenTTL(test.ClientAccessTokenTTL).
 		SessionTTL(test.ClientSessionTTL).
+		SessionStrategy(test.ClientSessionStrategyRevokeOld).
 		MaxActiveSessions(test.ClientMaxActiveSessions).
 		PrivateKey(test.ClientPriKey).
 		Build()
@@ -360,6 +361,7 @@ func TestWithClientAuthenticationFailureWhenClientIsRevoked(t *testing.T) {
 		Name(test.ClientName).
 		AccessTokenTTL(test.ClientAccessTokenTTL).
 		SessionTTL(test.ClientSessionTTL).
+		SessionStrategy(test.ClientSessionStrategyRevokeOld).
 		MaxActiveSessions(test.ClientMaxActiveSessions).
 		PrivateKey(test.ClientPriKey).
 		Revoked(true).

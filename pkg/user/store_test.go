@@ -7,6 +7,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"identification-service/pkg/database"
 	"identification-service/pkg/password"
 	"identification-service/pkg/test"
 	"identification-service/pkg/user"
@@ -16,13 +17,17 @@ import (
 
 type userStoreSuite struct {
 	suite.Suite
-	db    *sql.DB
+	db    database.SQLDatabase
 	mock  sqlmock.Sqlmock
 	store user.Store
 }
 
 func (ust *userStoreSuite) SetupSuite() {
-	ust.db, ust.mock = getMockDB(ust.T())
+	sqlDB, mock := getMockDB(ust.T())
+
+	ust.db = database.NewSQLDatabase(sqlDB, test.QueryTTL)
+	ust.mock = mock
+
 	ust.store = user.NewStore(ust.db)
 }
 

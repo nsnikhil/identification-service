@@ -5,7 +5,6 @@ import (
 	"identification-service/pkg/liberr"
 	"identification-service/pkg/password"
 	"identification-service/pkg/queue"
-	"time"
 )
 
 //TODO: RENAME (APPEND USER IN THE NAME)
@@ -30,9 +29,6 @@ func (us *userService) CreateUser(ctx context.Context, name, email, password str
 		return "", wrap(err)
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, time.Second)
-	defer cancel()
-
 	userID, err := us.store.CreateUser(ctx, user)
 	if err != nil {
 		return "", wrap(err)
@@ -44,9 +40,6 @@ func (us *userService) CreateUser(ctx context.Context, name, email, password str
 }
 
 func (us *userService) GetUserID(ctx context.Context, email, password string) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, time.Second)
-	defer cancel()
-
 	user, err := us.store.GetUser(ctx, email)
 	if err != nil {
 		return "", liberr.WithArgs(liberr.Operation("Service.GetUserID"), liberr.InvalidCredentialsError, err)
@@ -80,9 +73,6 @@ func (us *userService) UpdatePassword(ctx context.Context, email, oldPassword, n
 
 	key := us.encoder.GenerateKey(newPassword, salt)
 	hash := us.encoder.EncodeKey(key)
-
-	ctx, cancel := context.WithTimeout(ctx, time.Second)
-	defer cancel()
 
 	_, err = us.store.UpdatePassword(ctx, id, hash, salt)
 	if err != nil {

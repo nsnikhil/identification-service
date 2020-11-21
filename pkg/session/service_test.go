@@ -18,7 +18,8 @@ import (
 //TODO: FIX LINE BREAK ON THIS FILE
 func TestLoginUserSuccess(t *testing.T) {
 	mockStore := &session.MockStore{}
-	mockStore.On("CreateSession", mock.AnythingOfType("*context.timerCtx"), mock.AnythingOfType("Session")).Return(test.SessionID, nil)
+	mockStore.On("CreateSession", mock.AnythingOfType("*context.valueCtx"), mock.AnythingOfType("Session")).Return(test.SessionID, nil)
+	mockStore.On("GetActiveSessionsCount", mock.AnythingOfType("*context.valueCtx"), test.UserID).Return(1, nil)
 
 	mockGenerator := &token.MockGenerator{}
 	mockGenerator.On("GenerateAccessToken", 10, test.UserID, map[string]string{"session_id": "f113fe5c-de2f-4876-b734-b51fbdc96e4b"}).Return(test.SessionAccessToken, nil)
@@ -29,21 +30,56 @@ func TestLoginUserSuccess(t *testing.T) {
 
 	service := session.NewService(mockStore, mockUserService, mockGenerator)
 
-	cl, err := client.NewClientBuilder().
-		Name(test.ClientName).
-		AccessTokenTTL(test.ClientAccessTokenTTL).
-		SessionTTL(test.ClientSessionTTL).
-		MaxActiveSessions(test.ClientMaxActiveSessions).
-		PrivateKey(test.ClientPriKey).
-		Build()
-
-	require.NoError(t, err)
+	cl := test.NewClient(t)
 
 	ctx, err := client.WithContext(context.Background(), cl)
 	require.NoError(t, err)
 
 	_, _, err = service.LoginUser(ctx, test.UserEmail, test.UserPassword)
 	require.NoError(t, err)
+}
+
+func TestLoginUserSuccessWhenSessionCountExceed(t *testing.T) {
+	mockStore := &session.MockStore{}
+	mockStore.On("CreateSession", mock.AnythingOfType("*context.valueCtx"), mock.AnythingOfType("Session")).Return(test.SessionID, nil)
+	mockStore.On("GetActiveSessionsCount", mock.AnythingOfType("*context.valueCtx"), test.UserID).Return(2, nil)
+	mockStore.On("RevokeLastNSessions", mock.AnythingOfType("*context.valueCtx"), test.UserID, 1).Return(int64(1), nil)
+
+	mockGenerator := &token.MockGenerator{}
+	mockGenerator.On("GenerateAccessToken", 10, test.UserID, map[string]string{"session_id": "f113fe5c-de2f-4876-b734-b51fbdc96e4b"}).Return(test.SessionAccessToken, nil)
+	mockGenerator.On("GenerateRefreshToken").Return(test.SessionRefreshToken, nil)
+
+	mockUserService := &user.MockService{}
+	mockUserService.On("GetUserID", mock.AnythingOfType("*context.valueCtx"), test.UserEmail, test.UserPassword).Return(test.UserID, nil)
+
+	service := session.NewService(mockStore, mockUserService, mockGenerator)
+
+	cl := test.NewClient(t)
+
+	ctx, err := client.WithContext(context.Background(), cl)
+	require.NoError(t, err)
+
+	_, _, err = service.LoginUser(ctx, test.UserEmail, test.UserPassword)
+	require.NoError(t, err)
+}
+
+func TestLoginUserFailureWhenSessionCountExceed(t *testing.T) {
+	mockStore := &session.MockStore{}
+	mockStore.On("GetActiveSessionsCount", mock.AnythingOfType("*context.valueCtx"), test.UserID).Return(2, nil)
+	mockStore.On("RevokeLastNSessions", mock.AnythingOfType("*context.valueCtx"), test.UserID, 1).Return(int64(0), errors.New("failed to revoke last n sessions"))
+
+	mockUserService := &user.MockService{}
+	mockUserService.On("GetUserID", mock.AnythingOfType("*context.valueCtx"), test.UserEmail, test.UserPassword).Return(test.UserID, nil)
+
+	service := session.NewService(mockStore, mockUserService, &token.MockGenerator{})
+
+	cl := test.NewClient(t)
+
+	ctx, err := client.WithContext(context.Background(), cl)
+	require.NoError(t, err)
+
+	_, _, err = service.LoginUser(ctx, test.UserEmail, test.UserPassword)
+	require.Error(t, err)
 }
 
 func TestLoginUserFailure(t *testing.T) {
@@ -110,7 +146,7 @@ func TestLoginUserFailure(t *testing.T) {
 		"test failure when store call fails": {
 			store: func() session.Store {
 				mockStore := &session.MockStore{}
-				mockStore.On("CreateSession", mock.AnythingOfType("*context.timerCtx"), mock.AnythingOfType("Session")).Return("", liberr.WithArgs(errors.New("failed to create new session")))
+				mockStore.On("CreateSession", mock.AnythingOfType("*context.valueCtx"), mock.AnythingOfType("Session")).Return("", liberr.WithArgs(errors.New("failed to create new session")))
 
 				return mockStore
 			},
@@ -130,7 +166,7 @@ func TestLoginUserFailure(t *testing.T) {
 		"test failure when get client ttl fails": {
 			store: func() session.Store {
 				mockStore := &session.MockStore{}
-				mockStore.On("CreateSession", mock.AnythingOfType("*context.timerCtx"), mock.AnythingOfType("Session")).Return(test.SessionID, nil)
+				mockStore.On("CreateSession", mock.AnythingOfType("*context.valueCtx"), mock.AnythingOfType("Session")).Return(test.SessionID, nil)
 
 				return mockStore
 			},
@@ -150,7 +186,7 @@ func TestLoginUserFailure(t *testing.T) {
 		"test failure when access token generation fails": {
 			store: func() session.Store {
 				mockStore := &session.MockStore{}
-				mockStore.On("CreateSession", mock.AnythingOfType("*context.timerCtx"), mock.AnythingOfType("Session")).Return(test.SessionID, nil)
+				mockStore.On("CreateSession", mock.AnythingOfType("*context.valueCtx"), mock.AnythingOfType("Session")).Return(test.SessionID, nil)
 
 				return mockStore
 			},
@@ -182,7 +218,10 @@ func TestLoginUserFailure(t *testing.T) {
 
 func TestLogoutSuccess(t *testing.T) {
 	mockStore := &session.MockStore{}
-	mockStore.On("RevokeSession", mock.AnythingOfType("*context.timerCtx"), test.SessionRefreshToken).Return(int64(1), nil)
+	mockStore.On(
+		"RevokeSessions",
+		mock.AnythingOfType("*context.emptyCtx"), []string{test.SessionRefreshToken},
+	).Return(int64(1), nil)
 
 	service := session.NewService(mockStore, &user.MockService{}, &token.MockGenerator{})
 
@@ -192,7 +231,10 @@ func TestLogoutSuccess(t *testing.T) {
 
 func TestLogoutFailureWhenStoreCallFails(t *testing.T) {
 	mockStore := &session.MockStore{}
-	mockStore.On("RevokeSession", mock.AnythingOfType("*context.timerCtx"), test.SessionRefreshToken).Return(int64(0), liberr.WithArgs(errors.New("failed to revoke session")))
+	mockStore.On(
+		"RevokeSessions",
+		mock.AnythingOfType("*context.emptyCtx"), []string{test.SessionRefreshToken},
+	).Return(int64(0), liberr.WithArgs(errors.New("failed to revoke session")))
 
 	service := session.NewService(mockStore, &user.MockService{}, &token.MockGenerator{})
 
@@ -205,20 +247,14 @@ func TestRefreshTokenSuccess(t *testing.T) {
 	require.NoError(t, err)
 
 	mockStore := &session.MockStore{}
-	mockStore.On("GetSession", mock.AnythingOfType("*context.timerCtx"), test.SessionRefreshToken).Return(ss, nil)
+	mockStore.On("GetSession", mock.AnythingOfType("*context.valueCtx"), test.SessionRefreshToken).Return(ss, nil)
 
 	mockGenerator := &token.MockGenerator{}
-	mockGenerator.On("GenerateAccessToken", 10, mock.AnythingOfType("string"), mock.AnythingOfType("map[string]string")).Return(test.SessionAccessTokenNew, nil)
+	mockGenerator.On("GenerateAccessToken", 10, mock.AnythingOfType("string"), mock.AnythingOfType("map[string]string")).Return(test.SessionAccessTokenTwo, nil)
 
 	service := session.NewService(mockStore, &user.MockService{}, mockGenerator)
 
-	cl, err := client.NewClientBuilder().
-		Name(test.ClientName).
-		AccessTokenTTL(test.ClientAccessTokenTTL).
-		SessionTTL(test.ClientSessionTTL).
-		MaxActiveSessions(test.ClientMaxActiveSessions).
-		PrivateKey(test.ClientPriKey).
-		Build()
+	cl := test.NewClient(t)
 
 	require.NoError(t, err)
 
@@ -237,7 +273,7 @@ func TestRefreshTokenFailure(t *testing.T) {
 		"test failure when store call fails to get session": {
 			store: func() session.Store {
 				mockStore := &session.MockStore{}
-				mockStore.On("GetSession", mock.AnythingOfType("*context.timerCtx"), test.SessionRefreshToken).Return(session.Session{}, liberr.WithArgs(errors.New("failed to get session")))
+				mockStore.On("GetSession", mock.AnythingOfType("*context.valueCtx"), test.SessionRefreshToken).Return(session.Session{}, liberr.WithArgs(errors.New("failed to get session")))
 
 				return mockStore
 			},
@@ -246,7 +282,7 @@ func TestRefreshTokenFailure(t *testing.T) {
 		"test failure when failed to get client ttl": {
 			store: func() session.Store {
 				mockStore := &session.MockStore{}
-				mockStore.On("GetSession", mock.AnythingOfType("*context.timerCtx"), test.SessionRefreshToken).Return(session.Session{}, nil)
+				mockStore.On("GetSession", mock.AnythingOfType("*context.valueCtx"), test.SessionRefreshToken).Return(session.Session{}, nil)
 
 				return mockStore
 			},
@@ -258,8 +294,8 @@ func TestRefreshTokenFailure(t *testing.T) {
 				require.NoError(t, err)
 
 				mockStore := &session.MockStore{}
-				mockStore.On("GetSession", mock.AnythingOfType("*context.timerCtx"), test.SessionRefreshToken).Return(ss, nil)
-				mockStore.On("RevokeSession", mock.AnythingOfType("*context.timerCtx"), test.SessionRefreshToken).Return(int64(1), nil)
+				mockStore.On("GetSession", mock.AnythingOfType("*context.valueCtx"), test.SessionRefreshToken).Return(ss, nil)
+				mockStore.On("RevokeSession", mock.AnythingOfType("*context.valueCtx"), test.SessionRefreshToken).Return(int64(1), nil)
 
 				return mockStore
 			},
@@ -271,7 +307,7 @@ func TestRefreshTokenFailure(t *testing.T) {
 				require.NoError(t, err)
 
 				mockStore := &session.MockStore{}
-				mockStore.On("GetSession", mock.AnythingOfType("*context.timerCtx"), test.SessionRefreshToken).Return(ss, nil)
+				mockStore.On("GetSession", mock.AnythingOfType("*context.valueCtx"), test.SessionRefreshToken).Return(ss, nil)
 
 				return mockStore
 			},

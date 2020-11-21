@@ -1,3 +1,10 @@
+DO $$ BEGIN
+    PERFORM 'public.session_strategy'::regtype;
+EXCEPTION
+    WHEN undefined_object THEN
+        create type session_strategy as enum ('revoke_old');
+END $$;
+
 create table if not exists clients (
 	id uuid primary key default gen_random_uuid(),
 	name varchar(100) unique not null,
@@ -7,6 +14,7 @@ create table if not exists clients (
 	session_ttl integer not null,
 	max_active_sessions integer not null,
 	private_key bytea unique not null,
+	session_strategy session_strategy not null,
 	created_at timestamp without time zone default (now() at time zone 'utc'),
 	updated_at timestamp without time zone default (now() at time zone 'utc'),
 	check (name <> ''),

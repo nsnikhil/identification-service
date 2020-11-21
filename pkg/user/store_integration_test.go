@@ -4,7 +4,6 @@ package user_test
 
 import (
 	"context"
-	"database/sql"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"identification-service/pkg/config"
@@ -17,57 +16,67 @@ import (
 
 type userStoreIntegrationSuite struct {
 	suite.Suite
-	db    *sql.DB
+	db    database.SQLDatabase
+	ctx   context.Context
 	store user.Store
 }
 
 func (ust *userStoreIntegrationSuite) SetupSuite() {
-	ust.db = getDB(ust.T())
-	truncate(ust.T(), ust.db)
+	cfg := config.NewConfig("../../local.env")
+
+	dbCfg := cfg.DatabaseConfig()
+
+	sqlDB, err := database.NewHandler(dbCfg).GetDB()
+	require.NoError(ust.T(), err)
+
+	db := database.NewSQLDatabase(sqlDB, dbCfg.QueryTTL())
+
+	ust.db = db
+	ust.ctx = context.Background()
 	ust.store = user.NewStore(ust.db)
 }
 
 func (ust *userStoreIntegrationSuite) AfterTest(suiteName, testName string) {
-	truncate(ust.T(), ust.db)
+	truncate(ust)
 }
 
 func (ust *userStoreIntegrationSuite) TestCreateUserSuccess() {
-	_, err := ust.store.CreateUser(context.Background(), newUser(ust.T()))
+	_, err := ust.store.CreateUser(ust.ctx, newUser(ust.T()))
 	require.NoError(ust.T(), err)
 }
 
 func (ust *userStoreIntegrationSuite) TestCreateUserFailureForDuplicateRecord() {
-	_, err := ust.store.CreateUser(context.Background(), newUser(ust.T()))
+	_, err := ust.store.CreateUser(ust.ctx, newUser(ust.T()))
 	require.NoError(ust.T(), err)
 
-	_, err = ust.store.CreateUser(context.Background(), newUser(ust.T()))
+	_, err = ust.store.CreateUser(ust.ctx, newUser(ust.T()))
 	require.Error(ust.T(), err)
 }
 
 func (ust *userStoreIntegrationSuite) TestGetUserSuccess() {
-	_, err := ust.store.CreateUser(context.Background(), newUser(ust.T()))
+	_, err := ust.store.CreateUser(ust.ctx, newUser(ust.T()))
 	require.NoError(ust.T(), err)
 
-	_, err = ust.store.GetUser(context.Background(), test.UserEmail)
+	_, err = ust.store.GetUser(ust.ctx, test.UserEmail)
 	require.NoError(ust.T(), err)
 }
 
 func (ust *userStoreIntegrationSuite) TestGetUserFailureWhenEmailIsNotPresent() {
-	_, err := ust.store.GetUser(context.Background(), test.UserEmail)
+	_, err := ust.store.GetUser(ust.ctx, test.UserEmail)
 	require.Error(ust.T(), err)
 }
 
 func (ust *userStoreIntegrationSuite) TestUpdatePasswordSuccessWithDB() {
-	id, err := ust.store.CreateUser(context.Background(), newUser(ust.T()))
+	id, err := ust.store.CreateUser(ust.ctx, newUser(ust.T()))
 	require.NoError(ust.T(), err)
 
-	_, err = ust.store.UpdatePassword(context.Background(), id, test.UserPasswordHash, test.UserPasswordSalt)
+	_, err = ust.store.UpdatePassword(ust.ctx, id, test.UserPasswordHash, test.UserPasswordSalt)
 	require.NoError(ust.T(), err)
 }
 
 func (ust *userStoreIntegrationSuite) TestUpdatePasswordFailureWhenUserIsNotPresent() {
 	_, err := ust.store.UpdatePassword(
-		context.Background(),
+		ust.ctx,
 		test.UserEmail,
 		test.UserPasswordHash,
 		test.UserPasswordSalt,
@@ -98,16 +107,7 @@ func newUser(t *testing.T) user.User {
 	return us
 }
 
-func truncate(t *testing.T, db *sql.DB) {
-	_, err := db.Exec("truncate users cascade ")
-	require.NoError(t, err)
-}
-
-func getDB(t *testing.T) *sql.DB {
-	cfg := config.NewConfig("../../local.env")
-
-	db, err := database.NewHandler(cfg.DatabaseConfig()).GetDB()
-	require.NoError(t, err)
-
-	return db
+func truncate(ust *userStoreIntegrationSuite) {
+	_, err := ust.db.ExecContext(ust.ctx, "truncate users cascade ")
+	require.NoError(ust.T(), err)
 }

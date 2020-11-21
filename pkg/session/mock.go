@@ -38,7 +38,17 @@ func (mock *MockStore) GetSession(ctx context.Context, refreshToken string) (Ses
 	return args.Get(0).(Session), args.Error(1)
 }
 
-func (mock *MockStore) RevokeSession(ctx context.Context, refreshToken string) (int64, error) {
-	args := mock.Called(ctx, refreshToken)
+func (mock *MockStore) GetActiveSessionsCount(ctx context.Context, userID string) (int, error) {
+	args := mock.Called(ctx, userID)
+	return args.Int(0), args.Error(1)
+}
+
+func (mock *MockStore) RevokeSessions(ctx context.Context, refreshTokens ...string) (int64, error) {
+	args := mock.Called(ctx, refreshTokens)
+	return args.Get(0).(int64), args.Error(1)
+}
+
+func (mock *MockStore) RevokeLastNSessions(ctx context.Context, userID string, n int) (int64, error) {
+	args := mock.Called(ctx, userID, n)
 	return args.Get(0).(int64), args.Error(1)
 }

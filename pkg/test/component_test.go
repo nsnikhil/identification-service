@@ -4,7 +4,7 @@ package test_test
 
 import (
 	"bytes"
-	"database/sql"
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/streadway/amqp"
@@ -15,6 +15,7 @@ import (
 	"identification-service/pkg/config"
 	"identification-service/pkg/database"
 	"identification-service/pkg/http/contract"
+	"identification-service/pkg/test"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -34,9 +35,10 @@ const (
 
 type componentTestSuite struct {
 	cl  *http.Client
-	db  *sql.DB
+	db  database.SQLDatabase
 	ch  *amqp.Channel
 	cfg config.Config
+	ctx context.Context
 	suite.Suite
 }
 
@@ -48,8 +50,12 @@ func (cst *componentTestSuite) SetupSuite() {
 
 	cfg := config.NewConfig(configFile)
 
-	db, err := database.NewHandler(cfg.DatabaseConfig()).GetDB()
+	dbCfg := cfg.DatabaseConfig()
+
+	sqlDB, err := database.NewHandler(dbCfg).GetDB()
 	require.NoError(cst.T(), err)
+
+	db := database.NewSQLDatabase(sqlDB, dbCfg.QueryTTL())
 
 	conn, err := amqp.Dial(cfg.AMPQConfig().Address())
 	require.NoError(cst.T(), err)
@@ -61,10 +67,11 @@ func (cst *componentTestSuite) SetupSuite() {
 	cst.ch = ch
 	cst.cfg = cfg
 	cst.cl = &http.Client{Timeout: time.Minute}
+	cst.ctx = context.Background()
 }
 
 func (cst *componentTestSuite) AfterTest(suiteName, testName string) {
-	truncateTables(cst.T(), cst.db)
+	truncateTables(cst)
 }
 
 func (cst *componentTestSuite) TearDownSuite() {
@@ -90,6 +97,7 @@ func (cst *componentTestSuite) TestRegisterClientSuccess() {
 		AccessTokenTTL:    10,
 		SessionTTL:        86400,
 		MaxActiveSessions: 2,
+		SessionStrategy:   test.ClientSessionStrategyRevokeOld,
 	}
 
 	testRegisterClient(
@@ -120,6 +128,7 @@ func (cst *componentTestSuite) TestRegisterClientFailureForValidation() {
 				AccessTokenTTL:    0,
 				SessionTTL:        86400,
 				MaxActiveSessions: 2,
+				SessionStrategy:   test.ClientSessionStrategyRevokeOld,
 			},
 			expectedError: "access token ttl cannot be less than one",
 		},
@@ -129,6 +138,7 @@ func (cst *componentTestSuite) TestRegisterClientFailureForValidation() {
 				AccessTokenTTL:    10,
 				SessionTTL:        0,
 				MaxActiveSessions: 2,
+				SessionStrategy:   test.ClientSessionStrategyRevokeOld,
 			},
 			expectedError: "session ttl cannot be less than one",
 		},
@@ -138,12 +148,28 @@ func (cst *componentTestSuite) TestRegisterClientFailureForValidation() {
 				AccessTokenTTL:    20,
 				SessionTTL:        10,
 				MaxActiveSessions: 2,
+				SessionStrategy:   test.ClientSessionStrategyRevokeOld,
 			},
 			expectedError: "session ttl cannot be less than access token ttl",
 		},
 		"test failure when max active session is less than 1": {
-			reqBody:       contract.CreateClientRequest{Name: "clientOne", AccessTokenTTL: 20, SessionTTL: 10, MaxActiveSessions: 0},
+			reqBody: contract.CreateClientRequest{
+				Name:              "clientOne",
+				AccessTokenTTL:    20,
+				SessionTTL:        10,
+				MaxActiveSessions: 0,
+				SessionStrategy:   test.ClientSessionStrategyRevokeOld,
+			},
 			expectedError: "max active sessions cannot be less than one",
+		},
+		"test failure when session strategy is empty": {
+			reqBody: contract.CreateClientRequest{
+				Name:              "clientOne",
+				AccessTokenTTL:    20,
+				SessionTTL:        10,
+				MaxActiveSessions: 2,
+			},
+			expectedError: "session strategy name cannot be empty",
 		},
 	}
 
@@ -161,10 +187,11 @@ func (cst *componentTestSuite) TestRegisterClientFailureForValidation() {
 
 func (cst *componentTestSuite) TestRegisterClientFailureForDuplicateRecord() {
 	reqBody := contract.CreateClientRequest{
-		Name:              "clientOne",
-		AccessTokenTTL:    10,
-		SessionTTL:        86400,
-		MaxActiveSessions: 2,
+		Name:              test.ClientName,
+		AccessTokenTTL:    test.ClientAccessTokenTTL,
+		SessionTTL:        test.ClientSessionTTL,
+		MaxActiveSessions: test.ClientMaxActiveSessions,
+		SessionStrategy:   test.ClientSessionStrategyRevokeOld,
 	}
 
 	testRegisterClient(
@@ -214,12 +241,13 @@ func (cst *componentTestSuite) TestRevokeClientSuccess() {
 		AccessTokenTTL:    10,
 		SessionTTL:        86400,
 		MaxActiveSessions: 2,
+		SessionStrategy:   test.ClientSessionStrategyRevokeOld,
 	}
 
 	testRegisterClient(cst, http.StatusCreated, contract.APIResponse{Success: true}, regReqBody)
 
 	var clientID string
-	err := cst.db.QueryRow("select id from clients where name = $1", "clientOne").Scan(&clientID)
+	err := cst.db.QueryRowContext(cst.ctx, "select id from clients where name = $1", "clientOne").Scan(&clientID)
 	require.NoError(cst.T(), err)
 	require.NotEmpty(cst.T(), clientID)
 
@@ -267,10 +295,11 @@ func testRevokeClient(cst *componentTestSuite, expectedCode int, expectedRespDat
 
 func createAndGetClientCredentials(cst *componentTestSuite) map[string]string {
 	clientReqBody := contract.CreateClientRequest{
-		Name:              "clientOne",
-		AccessTokenTTL:    10,
-		SessionTTL:        87601,
-		MaxActiveSessions: 2,
+		Name:              test.ClientName,
+		AccessTokenTTL:    test.ClientAccessTokenTTL,
+		SessionTTL:        test.ClientSessionTTL,
+		MaxActiveSessions: test.ClientMaxActiveSessions,
+		SessionStrategy:   test.ClientSessionStrategyRevokeOld,
 	}
 
 	clientResp := testCreateClient(cst, http.StatusCreated, clientReqBody)
@@ -483,6 +512,31 @@ func (cst *componentTestSuite) TestCreateSessionSuccess() {
 	testCreateSession(cst)
 }
 
+func (cst *componentTestSuite) TestCreateSessionSuccessRevokeOld() {
+	header := createUser(cst, false)
+
+	reqBody := contract.LoginRequest{Email: userEmail, Password: userPassword}
+	expectedRespData := contract.APIResponse{Success: true}
+
+	testCreateSessionSuccess(cst, http.StatusCreated, expectedRespData, header, reqBody)
+	testCreateSessionSuccess(cst, http.StatusCreated, expectedRespData, header, reqBody)
+	testCreateSessionSuccess(cst, http.StatusCreated, expectedRespData, header, reqBody)
+
+	row := cst.db.QueryRowContext(context.Background(), `select id from users where email=$1`, userEmail)
+	require.NoError(cst.T(), row.Err())
+
+	var userID string
+	require.NoError(cst.T(), row.Scan(&userID))
+	require.NotEmpty(cst.T(), userID)
+
+	row = cst.db.QueryRowContext(context.Background(), `select count(*) from sessions where user_id=$1 and revoked=true`, userID)
+	require.NoError(cst.T(), row.Err())
+
+	var revokedCount int
+	require.NoError(cst.T(), row.Scan(&revokedCount))
+	assert.Equal(cst.T(), 1, revokedCount)
+}
+
 func testCreateSession(cst *componentTestSuite) map[string]string {
 	header := createUser(cst, false)
 
@@ -553,11 +607,11 @@ func (cst *componentTestSuite) TestRefreshTokenSuccess() {
 	header := testCreateSession(cst)
 
 	var userID string
-	err := cst.db.QueryRow("select id from users where email = $1", userEmail).Scan(&userID)
+	err := cst.db.QueryRowContext(cst.ctx, "select id from users where email = $1", userEmail).Scan(&userID)
 	require.NoError(cst.T(), err)
 
 	var refreshToken string
-	err = cst.db.QueryRow("select refresh_token from sessions where user_id = $1", userID).Scan(&refreshToken)
+	err = cst.db.QueryRowContext(cst.ctx, "select refresh_token from sessions where user_id = $1", userID).Scan(&refreshToken)
 	require.NoError(cst.T(), err)
 
 	reqBody := contract.RefreshTokenRequest{RefreshToken: refreshToken}
@@ -586,15 +640,15 @@ func (cst *componentTestSuite) TestRefreshTokenFailureWhenSessionExpires() {
 	header := testCreateSession(cst)
 
 	var userID string
-	err := cst.db.QueryRow("select id from users where email = $1", userEmail).Scan(&userID)
+	err := cst.db.QueryRowContext(cst.ctx, "select id from users where email = $1", userEmail).Scan(&userID)
 	require.NoError(cst.T(), err)
 
 	prev := time.Now().AddDate(0, -2, -5)
-	_, err = cst.db.Exec("update sessions set created_at=$1, updated_at=$2", prev, prev)
+	_, err = cst.db.ExecContext(cst.ctx, "update sessions set created_at=$1, updated_at=$2", prev, prev)
 	require.NoError(cst.T(), err)
 
 	var refreshToken string
-	err = cst.db.QueryRow("select refresh_token from sessions where user_id = $1", userID).Scan(&refreshToken)
+	err = cst.db.QueryRowContext(cst.ctx, "select refresh_token from sessions where user_id = $1", userID).Scan(&refreshToken)
 	require.NoError(cst.T(), err)
 
 	reqBody := contract.RefreshTokenRequest{RefreshToken: refreshToken}
@@ -640,11 +694,11 @@ func (cst *componentTestSuite) TestLogoutUserSuccess() {
 	header := testCreateSession(cst)
 
 	var userID string
-	err := cst.db.QueryRow("select id from users where email = $1", userEmail).Scan(&userID)
+	err := cst.db.QueryRowContext(cst.ctx, "select id from users where email = $1", userEmail).Scan(&userID)
 	require.NoError(cst.T(), err)
 
 	var refreshToken string
-	err = cst.db.QueryRow("select refresh_token from sessions where user_id = $1", userID).Scan(&refreshToken)
+	err = cst.db.QueryRowContext(cst.ctx, "select refresh_token from sessions where user_id = $1", userID).Scan(&refreshToken)
 	require.NoError(cst.T(), err)
 
 	reqBody := contract.LogoutRequest{RefreshToken: refreshToken}
@@ -773,13 +827,13 @@ func testMessageConsume(t *testing.T, cfg config.AMPQConfig, ch *amqp.Channel) {
 	}
 }
 
-func truncateTables(t *testing.T, db *sql.DB) {
-	_, err := db.Exec(`truncate clients`)
-	require.NoError(t, err)
+func truncateTables(cst *componentTestSuite) {
+	_, err := cst.db.ExecContext(cst.ctx, `truncate clients`)
+	require.NoError(cst.T(), err)
 
-	_, err = db.Exec(`truncate users cascade`)
-	require.NoError(t, err)
+	_, err = cst.db.ExecContext(cst.ctx, `truncate users cascade`)
+	require.NoError(cst.T(), err)
 
-	_, err = db.Exec(`truncate sessions`)
-	require.NoError(t, err)
+	_, err = cst.db.ExecContext(cst.ctx, `truncate sessions`)
+	require.NoError(cst.T(), err)
 }
