@@ -14,6 +14,7 @@ import (
 	"identification-service/pkg/app"
 	"identification-service/pkg/config"
 	"identification-service/pkg/database"
+	"identification-service/pkg/event"
 	"identification-service/pkg/http/contract"
 	"identification-service/pkg/test"
 	"io"
@@ -322,8 +323,13 @@ func createUser(cst *componentTestSuite, consumeMessage bool) map[string]string 
 	}
 
 	testSignUpUser(cst, http.StatusCreated, expectedRespData, headers, reqBody)
+
 	if consumeMessage {
-		testMessageConsume(cst.T(), cst.cfg.AMPQConfig(), cst.ch)
+		queueName, ok := cst.cfg.PublisherConfig().QueueMap()[string(event.SignUp)]
+
+		if ok {
+			testMessageConsume(cst.T(), queueName, cst.ch)
+		}
 	}
 
 	return headers
@@ -802,9 +808,9 @@ func startApp(configFile string) {
 	time.Sleep(time.Second)
 }
 
-func testMessageConsume(t *testing.T, cfg config.AMPQConfig, ch *amqp.Channel) {
+func testMessageConsume(t *testing.T, queueName string, ch *amqp.Channel) {
 	delivery, err := ch.Consume(
-		cfg.QueueName(),
+		queueName,
 		"component-test-consumer",
 		true,
 		true,

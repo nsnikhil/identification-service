@@ -9,6 +9,7 @@ import (
 
 const (
 	EmptyString = ""
+	QueueName   = "test_queue"
 
 	//CLIENT
 	ClientName                     = "clientOne"

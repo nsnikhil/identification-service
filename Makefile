@@ -7,6 +7,7 @@ ALL_PACKAGES=$(shell go list ./... | grep -v "vendor")
 LOCAL_CONFIG_FILE=local.env
 DOCKER_REGISTRY_USER_NAME=nsnikhil
 HTTP_SERVE_COMMAND=http-serve
+WORKER_COMMAND=worker
 MIGRATE_COMMAND=migrate
 ROLLBACK_COMMAND=rollback
 
@@ -48,6 +49,12 @@ local-http-serve: build
 
 http-serve: build
 	$(APP_EXECUTABLE) -configFile=$(configFile) $(HTTP_SERVE_COMMAND)
+
+local-worker: build
+	$(APP_EXECUTABLE) -configFile=$(LOCAL_CONFIG_FILE) $(WORKER_COMMAND)
+
+worker: build
+	$(APP_EXECUTABLE) -configFile=$(configFile) $(WORKER_COMMAND)
 
 docker-build:
 	docker build -t $(DOCKER_REGISTRY_USER_NAME)/$(APP):$(APP_VERSION) .

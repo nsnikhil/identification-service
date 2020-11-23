@@ -7,6 +7,7 @@ import (
 	"identification-service/pkg/client"
 	"identification-service/pkg/config"
 	"identification-service/pkg/database"
+	"identification-service/pkg/event/publisher"
 	"identification-service/pkg/http/router"
 	"identification-service/pkg/http/server"
 	"identification-service/pkg/libcrypto"
@@ -31,6 +32,10 @@ func initHTTPServer(configFile string) server.Server {
 	return server.NewServer(cfg, lgr, rt)
 }
 
+func initConsumer() {
+
+}
+
 func initReporters(cfg config.Config) (*zap.Logger, reporters.Prometheus) {
 	lgr := initLogger(cfg)
 	pr := reporters.NewPrometheus()
@@ -52,8 +57,10 @@ func initServices(cfg config.Config) (client.Service, user.Service, session.Serv
 	cc, err := cache.NewHandler(cfg.CacheConfig()).GetCache()
 	logError(err)
 
-	//TODO: PASS PROPER LOGGER OR REMOVE LOGGER
-	qu := queue.NewQueue(cfg.AMPQConfig().QueueName(), cfg.AMPQConfig().Address(), zap.NewNop())
+	qu := queue.NewAMQP(cfg.AMPQConfig().Address())
+
+	pr, err := publisher.NewPublisher(qu, cfg.PublisherConfig().QueueMap())
+	logError(err)
 
 	en := password.NewEncoder(cfg.PasswordConfig())
 
@@ -63,7 +70,7 @@ func initServices(cfg config.Config) (client.Service, user.Service, session.Serv
 	logError(err)
 
 	cs := initClientService(db, cc, kg)
-	us := initUserService(db, en, qu)
+	us := initUserService(db, en, pr)
 	ss := initSessionService(db, us, tg)
 
 	return cs, us, ss
@@ -74,9 +81,9 @@ func initClientService(db database.SQLDatabase, cc *redis.Client, kg libcrypto.E
 	return client.NewService(st, kg)
 }
 
-func initUserService(db database.SQLDatabase, en password.Encoder, qu queue.Queue) user.Service {
+func initUserService(db database.SQLDatabase, en password.Encoder, pr publisher.Publisher) user.Service {
 	st := user.NewStore(db)
-	return user.NewService(st, en, qu)
+	return user.NewService(st, en, pr)
 }
 
 func initSessionService(db database.SQLDatabase, us user.Service, tg token.Generator) session.Service {

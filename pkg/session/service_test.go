@@ -329,3 +329,29 @@ func TestRefreshTokenFailure(t *testing.T) {
 		})
 	}
 }
+
+func TestRevokeAllSessionsSuccess(t *testing.T) {
+	mockStore := &session.MockStore{}
+	mockStore.On(
+		"RevokeAllSessions",
+		mock.AnythingOfType("*context.emptyCtx"), test.UserID,
+	).Return(int64(1), nil)
+
+	service := session.NewService(mockStore, &user.MockService{}, &token.MockGenerator{})
+
+	err := service.RevokeAllSessions(context.Background(), test.UserID)
+	require.NoError(t, err)
+}
+
+func TestRevokeAllSessionsFailure(t *testing.T) {
+	mockStore := &session.MockStore{}
+	mockStore.On(
+		"RevokeAllSessions",
+		mock.AnythingOfType("*context.emptyCtx"), test.UserID,
+	).Return(int64(0), errors.New("failed to revoke all sessions"))
+
+	service := session.NewService(mockStore, &user.MockService{}, &token.MockGenerator{})
+
+	err := service.RevokeAllSessions(context.Background(), test.UserID)
+	require.Error(t, err)
+}

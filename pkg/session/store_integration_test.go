@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/suite"
 	"identification-service/pkg/config"
 	"identification-service/pkg/database"
+	"identification-service/pkg/event/publisher"
 	"identification-service/pkg/password"
-	"identification-service/pkg/queue"
 	"identification-service/pkg/session"
 	"identification-service/pkg/test"
 	"identification-service/pkg/user"
@@ -38,10 +38,11 @@ func (sst *sessionStoreIntegrationSuite) SetupSuite() {
 	sst.db = db
 	sst.store = session.NewStore(sst.db)
 	encoder := password.NewEncoder(cfg.PasswordConfig())
-	mockQueue := &queue.MockQueue{}
-	mockQueue.On("UnsafePush", mock.AnythingOfType("[]uint8")).Return(nil)
 
-	sst.userService = user.NewService(user.NewStore(db), encoder, mockQueue)
+	mockPublisher := &publisher.MockPublisher{}
+	mockPublisher.On("Publish", mock.Anything, mock.AnythingOfType("string")).Return(nil)
+
+	sst.userService = user.NewService(user.NewStore(db), encoder, mockPublisher)
 }
 
 func (sst *sessionStoreIntegrationSuite) AfterTest(suiteName, testName string) {
@@ -125,6 +126,38 @@ func (sst *sessionStoreIntegrationSuite) TestRevokeLastNSessionsFailure() {
 	userID := createUser(sst)
 
 	c, err := sst.store.RevokeLastNSessions(sst.ctx, userID, 2)
+	require.Error(sst.T(), err)
+
+	assert.Equal(sst.T(), int64(0), c)
+}
+
+func (sst *sessionStoreIntegrationSuite) TestRevokeAllSessionsSuccess() {
+	userID := createUser(sst)
+
+	rts := []string{test.SessionRefreshToken, test.SessionRefreshTokenTwo}
+
+	for _, rt := range rts {
+		_, err := sst.store.CreateSession(sst.ctx, newSession(sst.T(), userID, rt))
+		require.NoError(sst.T(), err)
+	}
+
+	c, err := sst.store.RevokeAllSessions(sst.ctx, userID)
+	require.NoError(sst.T(), err)
+
+	assert.Equal(sst.T(), int64(2), c)
+}
+
+func (sst *sessionStoreIntegrationSuite) TestRevokeAllSessionsFailureWhenNoSessionsExists() {
+	userID := createUser(sst)
+
+	c, err := sst.store.RevokeAllSessions(sst.ctx, userID)
+	require.Error(sst.T(), err)
+
+	assert.Equal(sst.T(), int64(0), c)
+}
+
+func (sst *sessionStoreIntegrationSuite) TestRevokeAllSessionsFailureWhenUserDoesNotExists() {
+	c, err := sst.store.RevokeAllSessions(sst.ctx, test.UserID)
 	require.Error(sst.T(), err)
 
 	assert.Equal(sst.T(), int64(0), c)

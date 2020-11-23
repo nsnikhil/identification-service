@@ -16,6 +16,8 @@ type Config struct {
 	tokenConfig      TokenConfig
 	ampqConfig       AMPQConfig
 	cacheConfig      CacheConfig
+	publisherConfig  PublisherConfig
+	consumerConfig   ConsumerConfig
 	authConfig       AuthConfig
 }
 
@@ -59,6 +61,14 @@ func (c Config) CacheConfig() CacheConfig {
 	return c.cacheConfig
 }
 
+func (c Config) PublisherConfig() PublisherConfig {
+	return c.publisherConfig
+}
+
+func (c Config) ConsumerConfig() ConsumerConfig {
+	return c.consumerConfig
+}
+
 func (c Config) AMPQConfig() AMPQConfig {
 	return c.ampqConfig
 }
@@ -84,6 +94,8 @@ func NewConfig(configFile string) Config {
 		tokenConfig:      newTokenConfig(),
 		authConfig:       newAuthConfig(),
 		cacheConfig:      newCacheConfig(),
+		publisherConfig:  newPublisherConfig(),
+		consumerConfig:   newConsumerConfig(),
 		ampqConfig:       newAMPQConfig(),
 	}
 }

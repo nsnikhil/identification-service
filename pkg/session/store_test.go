@@ -119,7 +119,7 @@ func (st *sessionStoreSuite) TestRevokeSessionsFailure() {
 }
 
 func (st *sessionStoreSuite) TestRevokeLastNSessionsSuccess() {
-	fetchQuery := `select refresh_token from sessions where user_id=$1 order by created_at asc limit $2`
+	fetchQuery := `select refresh_token from sessions where user_id=$1 and revoked=false order by created_at asc limit $2`
 
 	rows := sqlmock.NewRows([]string{"refresh_token"}).
 		AddRow(test.SessionRefreshToken)
@@ -141,7 +141,7 @@ func (st *sessionStoreSuite) TestRevokeLastNSessionsSuccess() {
 }
 
 func (st *sessionStoreSuite) TestRevokeLastNSessionsFailureWhenFetchFails() {
-	fetchQuery := `select refresh_token from sessions where user_id=$1 order by created_at asc limit $2`
+	fetchQuery := `select refresh_token from sessions where user_id=$1 and revoked=false order by created_at asc limit $2`
 
 	st.mock.ExpectQuery(regexp.QuoteMeta(fetchQuery)).
 		WithArgs(test.UserID, 1).
@@ -154,7 +154,7 @@ func (st *sessionStoreSuite) TestRevokeLastNSessionsFailureWhenFetchFails() {
 }
 
 func (st *sessionStoreSuite) TestRevokeLastNSessionsFailureWhenUpdateFails() {
-	fetchQuery := `select refresh_token from sessions where user_id=$1 order by created_at asc limit $2`
+	fetchQuery := `select refresh_token from sessions where user_id=$1 and revoked=false order by created_at asc limit $2`
 
 	rows := sqlmock.NewRows([]string{"refresh_token"}).
 		AddRow(test.SessionRefreshToken)
@@ -170,6 +170,32 @@ func (st *sessionStoreSuite) TestRevokeLastNSessionsFailureWhenUpdateFails() {
 		WillReturnError(errors.New("failed to revoke sessions"))
 
 	_, err := st.store.RevokeLastNSessions(context.Background(), test.UserID, 1)
+	require.Error(st.T(), err)
+
+	require.NoError(st.T(), st.mock.ExpectationsWereMet())
+}
+
+func (st *sessionStoreSuite) TestRevokeAllSessionsSuccess() {
+	query := `update sessions set revoked=true where user_id=$1`
+
+	st.mock.ExpectExec(regexp.QuoteMeta(query)).
+		WithArgs(test.UserID).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	_, err := st.store.RevokeAllSessions(context.Background(), test.UserID)
+	require.NoError(st.T(), err)
+
+	require.NoError(st.T(), st.mock.ExpectationsWereMet())
+}
+
+func (st *sessionStoreSuite) TestRevokeAllSessionsFailure() {
+	query := `update sessions set revoked=true where user_id=$1`
+
+	st.mock.ExpectExec(regexp.QuoteMeta(query)).
+		WithArgs(test.UserID).
+		WillReturnError(errors.New("failed to revoke all sessions"))
+
+	_, err := st.store.RevokeAllSessions(context.Background(), test.UserID)
 	require.Error(st.T(), err)
 
 	require.NoError(st.T(), st.mock.ExpectationsWereMet())

@@ -50,7 +50,7 @@ func getCorsOptions(env string) cors.Options {
 		ExposedHeaders:   []string{"Link"},
 		AllowCredentials: false,
 		MaxAge:           86400,
-		Debug:            true,
+		//Debug:            true,
 	}
 }
 

@@ -2,9 +2,10 @@ package user
 
 import (
 	"context"
+	"identification-service/pkg/event"
+	"identification-service/pkg/event/publisher"
 	"identification-service/pkg/liberr"
 	"identification-service/pkg/password"
-	"identification-service/pkg/queue"
 )
 
 //TODO: RENAME (APPEND USER IN THE NAME)
@@ -16,9 +17,9 @@ type Service interface {
 
 // TODO: RENAME
 type userService struct {
-	store   Store
-	encoder password.Encoder
-	queue   queue.Queue
+	store     Store
+	encoder   password.Encoder
+	publisher publisher.Publisher
 }
 
 func (us *userService) CreateUser(ctx context.Context, name, email, password string) (string, error) {
@@ -34,7 +35,8 @@ func (us *userService) CreateUser(ctx context.Context, name, email, password str
 		return "", wrap(err)
 	}
 
-	go us.queue.UnsafePush([]byte(userID))
+	//TODO: CHECK FOR ERROR
+	go us.publisher.Publish(event.SignUp, userID)
 
 	return userID, nil
 }
@@ -61,7 +63,7 @@ func (us *userService) UpdatePassword(ctx context.Context, email, oldPassword, n
 		return wrap(err)
 	}
 
-	id, err := us.GetUserID(ctx, email, oldPassword)
+	userID, err := us.GetUserID(ctx, email, oldPassword)
 	if err != nil {
 		return wrap(err)
 	}
@@ -74,18 +76,21 @@ func (us *userService) UpdatePassword(ctx context.Context, email, oldPassword, n
 	key := us.encoder.GenerateKey(newPassword, salt)
 	hash := us.encoder.EncodeKey(key)
 
-	_, err = us.store.UpdatePassword(ctx, id, hash, salt)
+	_, err = us.store.UpdatePassword(ctx, userID, hash, salt)
 	if err != nil {
 		return wrap(err)
 	}
 
+	//TODO: CHECK FOR ERROR
+	go us.publisher.Publish(event.UpdatePassword, userID)
+
 	return nil
 }
 
-func NewService(store Store, encoder password.Encoder, queue queue.Queue) Service {
+func NewService(store Store, encoder password.Encoder, producer publisher.Publisher) Service {
 	return &userService{
-		store:   store,
-		encoder: encoder,
-		queue:   queue,
+		store:     store,
+		encoder:   encoder,
+		publisher: producer,
 	}
 }

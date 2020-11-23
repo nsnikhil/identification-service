@@ -24,6 +24,11 @@ func (mock *MockService) RefreshToken(ctx context.Context, refreshToken string) 
 	return args.String(0), args.Error(1)
 }
 
+func (mock *MockService) RevokeAllSessions(ctx context.Context, userID string) error {
+	args := mock.Called(ctx, userID)
+	return args.Error(0)
+}
+
 type MockStore struct {
 	mock.Mock
 }
@@ -50,5 +55,10 @@ func (mock *MockStore) RevokeSessions(ctx context.Context, refreshTokens ...stri
 
 func (mock *MockStore) RevokeLastNSessions(ctx context.Context, userID string, n int) (int64, error) {
 	args := mock.Called(ctx, userID, n)
+	return args.Get(0).(int64), args.Error(1)
+}
+
+func (mock *MockStore) RevokeAllSessions(ctx context.Context, userID string) (int64, error) {
+	args := mock.Called(ctx, userID)
 	return args.Get(0).(int64), args.Error(1)
 }

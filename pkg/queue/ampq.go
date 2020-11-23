@@ -3,7 +3,6 @@ package queue
 import (
 	"errors"
 	"github.com/streadway/amqp"
-	"go.uber.org/zap"
 	"time"
 )
 
@@ -14,9 +13,10 @@ const (
 	resendDelay    = 5 * time.Second
 )
 
-type Queue interface {
-	Push(data []byte) error
-	UnsafePush(data []byte) error
+type AMQP interface {
+	Push(name string, data []byte) error
+	UnsafePush(name string, data []byte) error
+	Stream(name string) (<-chan amqp.Delivery, error)
 	Close() error
 }
 
@@ -26,10 +26,7 @@ var (
 	errShutdown      = errors.New("session is shutting down")
 )
 
-//TODO: CHECK IF THE LOGGER IS NEEDED HERE ?
 type rabbitMQ struct {
-	name            string
-	logger          *zap.Logger
 	connection      *amqp.Connection
 	channel         *amqp.Channel
 	done            chan bool
@@ -39,12 +36,8 @@ type rabbitMQ struct {
 	isReady         bool
 }
 
-func NewQueue(name string, addr string, lgr *zap.Logger) Queue {
-	mq := rabbitMQ{
-		logger: lgr,
-		name:   name,
-		done:   make(chan bool),
-	}
+func NewAMQP(addr string) AMQP {
+	mq := rabbitMQ{done: make(chan bool)}
 	go mq.handleReconnect(addr)
 	return &mq
 }
@@ -52,11 +45,9 @@ func NewQueue(name string, addr string, lgr *zap.Logger) Queue {
 func (mq *rabbitMQ) handleReconnect(addr string) {
 	for {
 		mq.isReady = false
-		mq.logger.Info("Attempting to connect")
 
 		conn, err := mq.connect(addr)
 		if err != nil {
-			mq.logger.Warn("Failed to connect. Retrying...")
 
 			select {
 			case <-mq.done:
@@ -79,7 +70,6 @@ func (mq *rabbitMQ) connect(addr string) (*amqp.Connection, error) {
 	}
 
 	mq.changeConnection(conn)
-	mq.logger.Info("Connected!")
 	return conn, nil
 }
 
@@ -89,7 +79,6 @@ func (mq *rabbitMQ) handleReInit(conn *amqp.Connection) bool {
 
 		err := mq.init(conn)
 		if err != nil {
-			mq.logger.Warn("Failed to initialize channel. Retrying...")
 
 			select {
 			case <-mq.done:
@@ -103,10 +92,8 @@ func (mq *rabbitMQ) handleReInit(conn *amqp.Connection) bool {
 		case <-mq.done:
 			return true
 		case <-mq.notifyConnClose:
-			mq.logger.Warn("Connection closed. Reconnecting...")
 			return false
 		case <-mq.notifyChanClose:
-			mq.logger.Warn("Channel closed. Re-running init...")
 		}
 	}
 }
@@ -122,14 +109,8 @@ func (mq *rabbitMQ) init(conn *amqp.Connection) error {
 		return err
 	}
 
-	_, err = ch.QueueDeclare(mq.name, false, false, false, false, nil)
-	if err != nil {
-		return err
-	}
-
 	mq.changeChannel(ch)
 	mq.isReady = true
-	mq.logger.Info("Setup!")
 
 	return nil
 }
@@ -148,15 +129,14 @@ func (mq *rabbitMQ) changeChannel(channel *amqp.Channel) {
 	mq.channel.NotifyPublish(mq.notifyConfirm)
 }
 
-func (mq *rabbitMQ) Push(data []byte) error {
+func (mq *rabbitMQ) Push(name string, data []byte) error {
 	if !mq.isReady {
 		return errors.New("failed to push push: not connected")
 	}
 
 	for {
-		err := mq.UnsafePush(data)
+		err := mq.UnsafePush(name, data)
 		if err != nil {
-			mq.logger.Warn("Push failed. Retrying...")
 			select {
 			case <-mq.done:
 				return errShutdown
@@ -168,33 +148,43 @@ func (mq *rabbitMQ) Push(data []byte) error {
 		select {
 		case confirm := <-mq.notifyConfirm:
 			if confirm.Ack {
-				mq.logger.Info("Push confirmed!")
 				return nil
 			}
 		case <-time.After(resendDelay):
 		}
 
-		mq.logger.Warn("Push didn't confirm. Retrying...")
 	}
 }
 
-func (mq *rabbitMQ) UnsafePush(data []byte) error {
+func (mq *rabbitMQ) UnsafePush(name string, data []byte) error {
 	if !mq.isReady {
 		return errNotConnected
 	}
 
-	return mq.channel.Publish("", mq.name, false, false, amqp.Publishing{
+	//TODO: PULL THE ARGS FROM CONFIG
+	_, err := mq.channel.QueueDeclare(name, false, false, false, false, nil)
+	if err != nil {
+		return err
+	}
+
+	return mq.channel.Publish("", name, false, false, amqp.Publishing{
 		ContentType: "text/plain",
 		Body:        data,
 	})
 }
 
-func (mq *rabbitMQ) Stream() (<-chan amqp.Delivery, error) {
+func (mq *rabbitMQ) Stream(name string) (<-chan amqp.Delivery, error) {
 	if !mq.isReady {
 		return nil, errNotConnected
 	}
 
-	return mq.channel.Consume(mq.name, "", false, false, false, false, nil)
+	//TODO: PULL THE ARGS FROM CONFIG
+	_, err := mq.channel.QueueDeclare(name, false, false, false, false, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return mq.channel.Consume(name, "", false, false, false, false, nil)
 }
 
 func (mq *rabbitMQ) Close() error {

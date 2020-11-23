@@ -13,7 +13,8 @@ const (
 	getSession             = `select id, user_id, revoked, created_at, updated_at from sessions where refresh_token=$1`
 	getActiveSessionsCount = `select count(*) from sessions where user_id=$1 and revoked=false`
 	revokeSessions         = `update sessions set revoked=true where refresh_token = ANY($1::uuid[])`
-	getLastNRefreshTokens  = `select refresh_token from sessions where user_id=$1 order by created_at asc limit $2`
+	getLastNRefreshTokens  = `select refresh_token from sessions where user_id=$1 and revoked=false order by created_at asc limit $2`
+	revokeAllSessions      = `update sessions set revoked=true where user_id=$1`
 )
 
 type Store interface {
@@ -21,6 +22,8 @@ type Store interface {
 	GetSession(ctx context.Context, refreshToken string) (Session, error)
 	GetActiveSessionsCount(ctx context.Context, userID string) (int, error)
 	RevokeSessions(ctx context.Context, refreshTokens ...string) (int64, error)
+
+	RevokeAllSessions(ctx context.Context, userID string) (int64, error)
 
 	//TODO: REFACTOR
 	RevokeLastNSessions(ctx context.Context, userID string, n int) (int64, error)
@@ -121,6 +124,27 @@ func (ss *sessionStore) RevokeLastNSessions(ctx context.Context, userID string, 
 	}
 
 	return ss.RevokeSessions(ctx, refreshTokens...)
+}
+
+func (ss *sessionStore) RevokeAllSessions(ctx context.Context, userID string) (int64, error) {
+	res, err := ss.db.ExecContext(ctx, revokeAllSessions, userID)
+	if err != nil {
+		return 0, liberr.WithOp("Store.RevokeAllSessions", err)
+	}
+
+	c, err := res.RowsAffected()
+	if err != nil {
+		return 0, liberr.WithOp("Store.RevokeAllSessions", err)
+	}
+
+	if c == 0 {
+		return 0, liberr.WithOp(
+			"Store.RevokeAllSessions",
+			fmt.Errorf("no sessions found for user %s", userID),
+		)
+	}
+
+	return c, nil
 }
 
 func toArgs(values []string) string {

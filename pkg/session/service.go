@@ -15,6 +15,7 @@ type Service interface {
 	LoginUser(ctx context.Context, email, password string) (string, string, error)
 	LogoutUser(ctx context.Context, refreshToken string) error
 	RefreshToken(ctx context.Context, refreshToken string) (string, error)
+	RevokeAllSessions(ctx context.Context, userID string) error
 }
 
 type sessionService struct {
@@ -123,7 +124,15 @@ func (ss *sessionService) RefreshToken(ctx context.Context, refreshToken string)
 	return accessToken, nil
 }
 
-//TODO: THIS FUNCTION IS NOT TESTED, FIND A WAY TO TEST IT
+func (ss *sessionService) RevokeAllSessions(ctx context.Context, userID string) error {
+	_, err := ss.store.RevokeAllSessions(ctx, userID)
+	if err != nil {
+		return liberr.WithOp("Service.RevokeAllSessions", err)
+	}
+
+	return nil
+}
+
 func validateSession(ctx context.Context, sessionTTL int, session Session, store Store, refreshToken string) error {
 	if !session.IsExpired(float64(sessionTTL)) {
 		return nil

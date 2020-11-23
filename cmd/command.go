@@ -8,6 +8,7 @@ import (
 
 const (
 	httpServeCommand = "http-serve"
+	workerCommand    = "worker"
 	migrateCommand   = "migrate"
 	rollbackCommand  = "rollback"
 )
@@ -15,6 +16,7 @@ const (
 func commands() map[string]func(configFile string) {
 	return map[string]func(configFile string){
 		httpServeCommand: app.StartHTTPServer,
+		workerCommand:    app.StartWorker,
 		migrateCommand:   database.RunMigrations,
 		rollbackCommand:  database.RollBackMigrations,
 	}
