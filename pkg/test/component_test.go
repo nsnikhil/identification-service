@@ -770,7 +770,7 @@ func execRequest(t *testing.T, cl *http.Client, req *http.Request) *http.Respons
 }
 
 func getData(t *testing.T, expectedCode int, resp *http.Response) contract.APIResponse {
-	require.Equal(t, expectedCode, resp.StatusCode)
+	assert.Equal(t, expectedCode, resp.StatusCode)
 
 	b, err := ioutil.ReadAll(resp.Body)
 	require.NoError(t, err)

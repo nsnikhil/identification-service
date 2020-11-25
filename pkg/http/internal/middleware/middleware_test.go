@@ -279,7 +279,7 @@ func TestWithBasicAuthSuccess(t *testing.T) {
 	testWithBasicAuth(t, http.StatusOK, "user", "password")
 }
 
-func TestWithBasicAuthFailure(t *testing.T) {
+func TestWithBasicAuthFailureForInvalidCredentials(t *testing.T) {
 	testCases := map[string]struct {
 		username, password string
 	}{

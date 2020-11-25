@@ -175,7 +175,7 @@ func (b *Builder) PrivateKey(privateKey []byte) *Builder {
 		return b
 	}
 
-	if len(privateKey) == 0 {
+	if privateKey == nil || len(privateKey) == 0 {
 		b.err = errors.New("private key cannot be empty")
 		return b
 	}
@@ -189,12 +189,22 @@ func (b *Builder) CreatedAt(createdAt time.Time) *Builder {
 		return b
 	}
 
+	if createdAt == (time.Time{}) {
+		b.err = errors.New("invalid created at time")
+		return b
+	}
+
 	b.createdAt = createdAt
 	return b
 }
 
 func (b *Builder) UpdatedAt(updatedAt time.Time) *Builder {
 	if b.err != nil {
+		return b
+	}
+
+	if updatedAt == (time.Time{}) {
+		b.err = errors.New("invalid updated at time")
 		return b
 	}
 

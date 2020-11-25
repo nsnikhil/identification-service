@@ -22,8 +22,34 @@ func TestCreateNewClientSuccess(t *testing.T) {
 
 	svc := client.NewService(mockStore, mockKeyGenerator)
 
-	_, _, err := svc.CreateClient(context.Background(), test.ClientName, test.ClientAccessTokenTTL, test.ClientSessionTTL, test.ClientMaxActiveSessions, test.ClientSessionStrategyRevokeOld)
+	_, _, err := svc.CreateClient(
+		context.Background(),
+		test.ClientName,
+		test.ClientAccessTokenTTL,
+		test.ClientSessionTTL,
+		test.ClientMaxActiveSessions,
+		test.ClientSessionStrategyRevokeOld,
+	)
+
 	require.NoError(t, err)
+}
+
+func TestCreateNewClientFailureWhenClientValidationFails(t *testing.T) {
+	mockKeyGenerator := &libcrypto.MockEd25519Generator{}
+	mockKeyGenerator.On("Generate").Return(test.ClientPubKey, test.ClientPriKey, nil)
+
+	svc := client.NewService(&client.MockStore{}, mockKeyGenerator)
+
+	_, _, err := svc.CreateClient(
+		context.Background(),
+		"",
+		test.ClientAccessTokenTTL,
+		test.ClientSessionTTL,
+		test.ClientMaxActiveSessions,
+		test.ClientSessionStrategyRevokeOld,
+	)
+
+	require.Error(t, err)
 }
 
 func TestCreateNewClientFailureWhenKeyGenerationFails(t *testing.T) {
@@ -32,7 +58,15 @@ func TestCreateNewClientFailureWhenKeyGenerationFails(t *testing.T) {
 
 	svc := client.NewService(&client.MockStore{}, mockKeyGenerator)
 
-	_, _, err := svc.CreateClient(context.Background(), test.ClientName, test.ClientAccessTokenTTL, test.ClientSessionTTL, test.ClientMaxActiveSessions, test.ClientSessionStrategyRevokeOld)
+	_, _, err := svc.CreateClient(
+		context.Background(),
+		test.ClientName,
+		test.ClientAccessTokenTTL,
+		test.ClientSessionTTL,
+		test.ClientMaxActiveSessions,
+		test.ClientSessionStrategyRevokeOld,
+	)
+
 	require.Error(t, err)
 }
 
@@ -45,7 +79,15 @@ func TestCreateNewClientFailureWhenStoreReturnFailure(t *testing.T) {
 
 	svc := client.NewService(mockStore, mockKeyGenerator)
 
-	_, _, err := svc.CreateClient(context.Background(), test.ClientName, test.ClientAccessTokenTTL, test.ClientSessionTTL, test.ClientMaxActiveSessions, test.ClientSessionStrategyRevokeOld)
+	_, _, err := svc.CreateClient(
+		context.Background(),
+		test.ClientName,
+		test.ClientAccessTokenTTL,
+		test.ClientSessionTTL,
+		test.ClientMaxActiveSessions,
+		test.ClientSessionStrategyRevokeOld,
+	)
+
 	require.Error(t, err)
 }
 

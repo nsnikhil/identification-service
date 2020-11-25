@@ -67,7 +67,7 @@ func TestToBytesFailureFailure(t *testing.T) {
 	}
 }
 
-func TestFromBytes(t *testing.T) {
+func TestFromBytesSuccess(t *testing.T) {
 	ev, err := event.NewEvent(event.SignUp, "some data")
 	assert.Nil(t, err)
 
@@ -78,4 +78,9 @@ func TestFromBytes(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Equal(t, ev, bev)
+}
+
+func TestFromBytesFailure(t *testing.T) {
+	_, err := event.FromBytes([]byte{1, 2, 3, 4})
+	assert.Error(t, err)
 }
