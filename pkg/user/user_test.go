@@ -9,6 +9,18 @@ import (
 	"identification-service/pkg/test"
 	"identification-service/pkg/user"
 	"testing"
+	"time"
+)
+
+const (
+	id               = "id"
+	name             = "name"
+	email            = "email"
+	userPassword     = "userPassword"
+	userPasswordSalt = "userPasswordSalt"
+	userPasswordHash = "userPasswordHash"
+	createdAt        = "createdAt"
+	updatedAt        = "updatedAt"
 )
 
 func TestCreateNewUserSuccess(t *testing.T) {
@@ -27,46 +39,52 @@ func TestCreateNewUserSuccess(t *testing.T) {
 	assert.Equal(t, nil, err)
 }
 
-//TODO: add all failure scenarios
 func TestCreateNewUserValidationFailure(t *testing.T) {
-	testCases := map[string]struct {
-		input         func() (string, string, string)
-		expectedError error
-	}{
-		"test failure when name is empty": {
-			input: func() (string, string, string) {
-				return test.EmptyString, test.UserEmail, test.UserPassword
-			},
-			expectedError: liberr.WithArgs(errors.New("name cannot be empty")),
-		},
-
-		"test failure when email is empty": {
-			input: func() (string, string, string) {
-				return test.UserEmail, test.EmptyString, test.UserPassword
-			},
-			expectedError: liberr.WithArgs(errors.New("email cannot be empty")),
-		},
-
-		"test failure when password is empty": {
-			input: func() (string, string, string) {
-				return test.UserEmail, test.UserEmail, test.EmptyString
-			},
-			expectedError: liberr.WithArgs(errors.New("password cannot be empty")),
-		},
+	testCases := map[string]map[string]interface{}{
+		"test failure when id is empty":                     {id: ""},
+		"test failure when id is invalid":                   {id: "invalid id"},
+		"test failure when name is empty":                   {name: ""},
+		"test failure when email is empty":                  {email: ""},
+		"test failure when password is empty":               {userPassword: ""},
+		"test failure when password hash is empty":          {userPasswordHash: ""},
+		"test failure when password salt is empty":          {userPasswordSalt: []byte{}},
+		"test failure when created at is set to zero value": {createdAt: time.Time{}},
+		"test failure when updated at is set to zero value": {updatedAt: time.Time{}},
 	}
 
-	for name, testCase := range testCases {
+	for name, data := range testCases {
 		t.Run(name, func(t *testing.T) {
-			name, email, userPassword := testCase.input()
-			_, err := user.NewUserBuilder(&password.MockEncoder{}).
-				Name(name).
-				Email(email).
-				Password(userPassword).
-				Build()
-
+			_, err := buildUser(data)
 			assert.Error(t, err)
 		})
 	}
+}
+
+func buildUser(d map[string]interface{}) (user.User, error) {
+	mockEncoder := &password.MockEncoder{}
+	mockEncoder.On("GenerateSalt").Return(test.UserPasswordSalt, nil)
+	mockEncoder.On("GenerateKey", test.UserPassword, test.UserPasswordSalt).Return(test.UserPasswordKey)
+	mockEncoder.On("EncodeKey", test.UserPasswordKey).Return(test.UserPasswordHash)
+	mockEncoder.On("ValidatePassword", test.UserPassword).Return(nil)
+
+	either := func(a interface{}, b interface{}) interface{} {
+		if a == nil {
+			return b
+		}
+
+		return a
+	}
+
+	return user.NewUserBuilder(mockEncoder).
+		ID(either(d[id], test.UserID).(string)).
+		Name(either(d[name], test.UserName).(string)).
+		Email(either(d[email], test.UserEmail).(string)).
+		Password(either(d[userPassword], test.UserPassword).(string)).
+		PasswordSalt(either(d[userPasswordSalt], test.UserPasswordSalt).([]byte)).
+		PasswordHash(either(d[userPasswordHash], test.UserPasswordHash).(string)).
+		CreatedAt(either(d[createdAt], test.CreatedAt).(time.Time)).
+		UpdatedAt(either(d[updatedAt], test.UpdatedAt).(time.Time)).
+		Build()
 }
 
 func TestCreateNewUserFailureForInvalidPassword(t *testing.T) {
