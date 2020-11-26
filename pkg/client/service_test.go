@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"identification-service/pkg/client"
 	"identification-service/pkg/libcrypto"
-	"identification-service/pkg/liberr"
 	"identification-service/pkg/test"
 	"testing"
 )
@@ -54,7 +53,7 @@ func TestCreateNewClientFailureWhenClientValidationFails(t *testing.T) {
 
 func TestCreateNewClientFailureWhenKeyGenerationFails(t *testing.T) {
 	mockKeyGenerator := &libcrypto.MockEd25519Generator{}
-	mockKeyGenerator.On("Generate").Return(ed25519.PublicKey{}, ed25519.PrivateKey{}, liberr.WithArgs(errors.New("failed to generate key")))
+	mockKeyGenerator.On("Generate").Return(ed25519.PublicKey{}, ed25519.PrivateKey{}, errors.New("failed to generate key"))
 
 	svc := client.NewService(&client.MockStore{}, mockKeyGenerator)
 
@@ -75,7 +74,7 @@ func TestCreateNewClientFailureWhenStoreReturnFailure(t *testing.T) {
 	mockKeyGenerator.On("Generate").Return(test.ClientPubKey, test.ClientPriKey, nil)
 
 	mockStore := &client.MockStore{}
-	mockStore.On("CreateClient", mock.AnythingOfType("*context.emptyCtx"), mock.AnythingOfType("client.Client")).Return("", liberr.WithArgs(errors.New("failed to create client")))
+	mockStore.On("CreateClient", mock.AnythingOfType("*context.emptyCtx"), mock.AnythingOfType("client.Client")).Return("", errors.New("failed to create client"))
 
 	svc := client.NewService(mockStore, mockKeyGenerator)
 
@@ -103,7 +102,7 @@ func TestRevokeClientSuccess(t *testing.T) {
 
 func TestRevokeClientFailure(t *testing.T) {
 	mockStore := &client.MockStore{}
-	mockStore.On("RevokeClient", mock.AnythingOfType("*context.emptyCtx"), test.ClientID).Return(int64(0), liberr.WithArgs(errors.New("failed to revoke client")))
+	mockStore.On("RevokeClient", mock.AnythingOfType("*context.emptyCtx"), test.ClientID).Return(int64(0), errors.New("failed to revoke client"))
 
 	svc := client.NewService(mockStore, &libcrypto.MockEd25519Generator{})
 
@@ -123,7 +122,7 @@ func TestGetClientSuccess(t *testing.T) {
 
 func TestGetClientFailure(t *testing.T) {
 	mockStore := &client.MockStore{}
-	mockStore.On("GetClient", mock.AnythingOfType("*context.emptyCtx"), test.ClientName, test.ClientSecret).Return(client.Client{}, liberr.WithArgs(errors.New("failed to get client")))
+	mockStore.On("GetClient", mock.AnythingOfType("*context.emptyCtx"), test.ClientName, test.ClientSecret).Return(client.Client{}, errors.New("failed to get client"))
 
 	svc := client.NewService(mockStore, &libcrypto.MockEd25519Generator{})
 

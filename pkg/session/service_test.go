@@ -6,7 +6,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"identification-service/pkg/client"
-	"identification-service/pkg/liberr"
 	"identification-service/pkg/session"
 	"identification-service/pkg/test"
 	"identification-service/pkg/token"
@@ -102,7 +101,7 @@ func TestLoginUserFailure(t *testing.T) {
 			store: func() session.Store { return &session.MockStore{} },
 			userService: func() user.Service {
 				mockUserService := &user.MockService{}
-				mockUserService.On("GetUserID", mock.AnythingOfType("*context.valueCtx"), test.UserEmail, test.UserPassword).Return("", liberr.WithArgs(errors.New("failed to get user id")))
+				mockUserService.On("GetUserID", mock.AnythingOfType("*context.valueCtx"), test.UserEmail, test.UserPassword).Return("", errors.New("failed to get user id"))
 
 				return mockUserService
 			},
@@ -154,7 +153,7 @@ func TestLoginUserFailure(t *testing.T) {
 			},
 			generator: func() token.Generator {
 				mockGenerator := &token.MockGenerator{}
-				mockGenerator.On("GenerateRefreshToken").Return("", liberr.WithArgs(errors.New("failed to generate refresh token")))
+				mockGenerator.On("GenerateRefreshToken").Return("", errors.New("failed to generate refresh token"))
 
 				return mockGenerator
 			},
@@ -182,7 +181,7 @@ func TestLoginUserFailure(t *testing.T) {
 		"test failure when store call fails": {
 			store: func() session.Store {
 				mockStore := &session.MockStore{}
-				mockStore.On("CreateSession", mock.AnythingOfType("*context.valueCtx"), mock.AnythingOfType("Session")).Return("", liberr.WithArgs(errors.New("failed to create new session")))
+				mockStore.On("CreateSession", mock.AnythingOfType("*context.valueCtx"), mock.AnythingOfType("Session")).Return("", errors.New("failed to create new session"))
 				mockStore.On("GetActiveSessionsCount", mock.AnythingOfType("*context.valueCtx"), test.UserID).Return(1, nil)
 
 				return mockStore
@@ -217,7 +216,7 @@ func TestLoginUserFailure(t *testing.T) {
 			generator: func() token.Generator {
 				mockGenerator := &token.MockGenerator{}
 				mockGenerator.On("GenerateRefreshToken").Return(test.SessionRefreshToken, nil)
-				mockGenerator.On("GenerateAccessToken", 10, test.UserID, map[string]string{"session_id": "f113fe5c-de2f-4876-b734-b51fbdc96e4b"}).Return("", liberr.WithArgs(errors.New("failed to generate access token")))
+				mockGenerator.On("GenerateAccessToken", 10, test.UserID, map[string]string{"session_id": "f113fe5c-de2f-4876-b734-b51fbdc96e4b"}).Return("", errors.New("failed to generate access token"))
 
 				return mockGenerator
 			},
@@ -252,7 +251,7 @@ func TestLogoutFailureWhenStoreCallFails(t *testing.T) {
 	mockStore.On(
 		"RevokeSessions",
 		mock.AnythingOfType("*context.emptyCtx"), []string{test.SessionRefreshToken},
-	).Return(int64(0), liberr.WithArgs(errors.New("failed to revoke session")))
+	).Return(int64(0), errors.New("failed to revoke session"))
 
 	service := session.NewService(mockStore, &user.MockService{}, &token.MockGenerator{})
 
@@ -301,7 +300,7 @@ func TestRefreshTokenFailure(t *testing.T) {
 		"test failure when store call fails to get session": {
 			store: func() session.Store {
 				mockStore := &session.MockStore{}
-				mockStore.On("GetSession", mock.AnythingOfType("*context.valueCtx"), test.SessionRefreshToken).Return(session.Session{}, liberr.WithArgs(errors.New("failed to get session")))
+				mockStore.On("GetSession", mock.AnythingOfType("*context.valueCtx"), test.SessionRefreshToken).Return(session.Session{}, errors.New("failed to get session"))
 
 				return mockStore
 			},
@@ -345,7 +344,7 @@ func TestRefreshTokenFailure(t *testing.T) {
 			},
 			generator: func() token.Generator {
 				mockGenerator := &token.MockGenerator{}
-				mockGenerator.On("GenerateAccessToken", 10, mock.AnythingOfType("string"), mock.AnythingOfType("map[string]string")).Return("", liberr.WithArgs(errors.New("failed to generate token")))
+				mockGenerator.On("GenerateAccessToken", 10, mock.AnythingOfType("string"), mock.AnythingOfType("map[string]string")).Return("", errors.New("failed to generate token"))
 
 				return mockGenerator
 			},

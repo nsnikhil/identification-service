@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"identification-service/pkg/config"
 	"identification-service/pkg/libcrypto"
-	"identification-service/pkg/liberr"
 	"identification-service/pkg/token"
 	"regexp"
 	"testing"
@@ -39,7 +38,7 @@ func TestCreateNewGeneratorFailure(t *testing.T) {
 	mockGenerator.On(
 		"FromEncodedPem",
 		mock.AnythingOfType("string"),
-	).Return(ed25519.PublicKey{}, ed25519.PrivateKey{}, liberr.WithArgs(errors.New("failed to genrate")))
+	).Return(ed25519.PublicKey{}, ed25519.PrivateKey{}, errors.New("failed to genrate"))
 
 	_, err := token.NewGenerator(cfg, mockGenerator)
 	require.Error(t, err)
