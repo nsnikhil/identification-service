@@ -117,6 +117,7 @@ func (ss *sessionService) RefreshToken(ctx context.Context, refreshToken string)
 		session.userID,
 		map[string]string{"session_id": session.id},
 	)
+
 	if err != nil {
 		return wrap(err)
 	}

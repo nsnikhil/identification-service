@@ -61,14 +61,8 @@ func (ss *sessionStore) GetSession(ctx context.Context, refreshToken string) (Se
 }
 
 func (ss *sessionStore) GetActiveSessionsCount(ctx context.Context, userID string) (int, error) {
-	row := ss.db.QueryRowContext(ctx, getActiveSessionsCount, userID)
-
-	if row.Err() != nil {
-		return -1, liberr.WithOp("Store.GetActiveSessionsCount", row.Err())
-	}
-
 	var activeSessionCount int
-	err := row.Scan(&activeSessionCount)
+	err := ss.db.QueryRowContext(ctx, getActiveSessionsCount, userID).Scan(&activeSessionCount)
 	if err != nil {
 		return -1, liberr.WithOp("Store.GetActiveSessionsCount", err)
 	}

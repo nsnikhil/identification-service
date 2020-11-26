@@ -86,6 +86,16 @@ func (sst *sessionStoreIntegrationSuite) TestGetSessionFailure() {
 	require.Error(sst.T(), err)
 }
 
+func (sst *sessionStoreIntegrationSuite) TestGetActiveSessionsCountSuccess() {
+	userID := createUser(sst)
+
+	_, err := sst.store.CreateSession(sst.ctx, newSession(sst.T(), userID, test.SessionRefreshToken))
+	require.NoError(sst.T(), err)
+
+	_, err = sst.store.GetActiveSessionsCount(sst.ctx, test.UserID)
+	require.NoError(sst.T(), err)
+}
+
 func (sst *sessionStoreIntegrationSuite) TestRevokeSessionsSuccess() {
 	userID := createUser(sst)
 

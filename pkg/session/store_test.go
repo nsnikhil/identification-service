@@ -92,6 +92,32 @@ func (st *sessionStoreSuite) TestGetSessionFailure() {
 	require.NoError(st.T(), st.mock.ExpectationsWereMet())
 }
 
+func (st *sessionStoreSuite) TestGetActiveSessionsCountSuccess() {
+	query := `select count(*) from sessions where user_id=$1 and revoked=false`
+
+	st.mock.ExpectQuery(regexp.QuoteMeta(query)).
+		WithArgs(test.UserID).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+
+	_, err := st.store.GetActiveSessionsCount(context.Background(), test.UserID)
+	require.NoError(st.T(), err)
+
+	require.NoError(st.T(), st.mock.ExpectationsWereMet())
+}
+
+func (st *sessionStoreSuite) TestGetActiveSessionsCountFailure() {
+	query := `select count(*) from sessions where user_id=$1 and revoked=false`
+
+	st.mock.ExpectQuery(regexp.QuoteMeta(query)).
+		WithArgs(test.UserID).
+		WillReturnError(errors.New("failed to get active sessions count"))
+
+	_, err := st.store.GetActiveSessionsCount(context.Background(), test.UserID)
+	require.Error(st.T(), err)
+
+	require.NoError(st.T(), st.mock.ExpectationsWereMet())
+}
+
 func (st *sessionStoreSuite) TestRevokeSessionsSuccess() {
 	query := `update sessions set revoked=true where refresh_token = ANY($1::uuid[])`
 
