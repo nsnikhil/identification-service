@@ -10,9 +10,11 @@ import (
 
 const (
 	EmptyString = ""
+	Zero        = 0
 	QueueName   = "test_queue"
 
 	//CLIENT
+	ClientTableName                = "clients"
 	ClientName                     = "clientOne"
 	ClientAccessTokenTTL           = 10
 	ClientSessionTTL               = 87601
@@ -23,6 +25,7 @@ const (
 	ClientEncodedPublicKey         = "8lchzCKRbdXEHsG/hJNMjMqdJLbIvAvDoViJtlcwWWo"
 
 	//USER
+	UserTableName       = "users"
 	UserName            = "Test Name"
 	UserEmail           = "test@test.com"
 	UserPassword        = "Password@1234"
@@ -32,10 +35,10 @@ const (
 	UserPasswordHash    = "IrNrmgBeMAGGLIB//hF8+EVgxK6S/4NbXo9pIeadTfM="
 
 	//SESSION
-	SessionID             = "f113fe5c-de2f-4876-b734-b51fbdc96e4b"
-	SessionAccessToken    = "v2.public.eyJhdWQiOiJ1c2VyIiwiZXhwIjoiMjAyMC0xMS0wN1QxMDozNjowNyswNTozMCIsImlhdCI6IjIwMjAtMTEtMDdUMTA6MjY6MDcrMDU6MzAiLCJpc3MiOiJpZGVudGlmaWNhdGlvbi1zZXJ2aWNlIiwianRpIjoiMTEwMTI0NjUtMDNhNC00OWI2LTgwODEtY2RmYzczMDlhY2MwIiwibmJmIjoiMjAyMC0xMS0wN1QxMDoyNjowNyswNTozMCJ9PrXViH5779NxXHK_PxnwW-FdFV0klU07umd8X7F0A9irFLX7GTS3AczNm_hmb_yfYOX0o4DJri89AWeCb0qTAg.bnVsbA"
-	SessionAccessTokenTwo = "v2.public.eyJhdWQiOiJ1c2VyIiwiZXhwIjoiMjAyMC0xMS0wN1QxMjozNDowOCswNTozMCIsImlhdCI6IjIwMjAtMTEtMDdUMTI6MjQ6MDgrMDU6MzAiLCJpc3MiOiJpZGVudGlmaWNhdGlvbi1zZXJ2aWNlIiwianRpIjoiZjJiNzhlNWYtNTZhMi00MzMwLWFhYWUtYmM4OWM1NzllNzIwIiwibmJmIjoiMjAyMC0xMS0wN1QxMjoyNDowOCswNTozMCIsInN1YiI6Ijg2ZDY5MGRkLTkyYTAtNDBhYy1hZDQ4LTExMGM5NTFlM2NiOCJ9DHCzvrlz6_QDB6zuuQcAmZs6yFoqBgkcHbtIVRcsDJ068XGs6N5R4U069lQvy-r7fHY2pL6tmxjRAZq1McetAA.bnVsbA"
-
+	SessionTableName         = "sessions"
+	SessionID                = "f113fe5c-de2f-4876-b734-b51fbdc96e4b"
+	SessionAccessToken       = "v2.public.eyJhdWQiOiJ1c2VyIiwiZXhwIjoiMjAyMC0xMS0wN1QxMDozNjowNyswNTozMCIsImlhdCI6IjIwMjAtMTEtMDdUMTA6MjY6MDcrMDU6MzAiLCJpc3MiOiJpZGVudGlmaWNhdGlvbi1zZXJ2aWNlIiwianRpIjoiMTEwMTI0NjUtMDNhNC00OWI2LTgwODEtY2RmYzczMDlhY2MwIiwibmJmIjoiMjAyMC0xMS0wN1QxMDoyNjowNyswNTozMCJ9PrXViH5779NxXHK_PxnwW-FdFV0klU07umd8X7F0A9irFLX7GTS3AczNm_hmb_yfYOX0o4DJri89AWeCb0qTAg.bnVsbA"
+	SessionAccessTokenTwo    = "v2.public.eyJhdWQiOiJ1c2VyIiwiZXhwIjoiMjAyMC0xMS0wN1QxMjozNDowOCswNTozMCIsImlhdCI6IjIwMjAtMTEtMDdUMTI6MjQ6MDgrMDU6MzAiLCJpc3MiOiJpZGVudGlmaWNhdGlvbi1zZXJ2aWNlIiwianRpIjoiZjJiNzhlNWYtNTZhMi00MzMwLWFhYWUtYmM4OWM1NzllNzIwIiwibmJmIjoiMjAyMC0xMS0wN1QxMjoyNDowOCswNTozMCIsInN1YiI6Ijg2ZDY5MGRkLTkyYTAtNDBhYy1hZDQ4LTExMGM5NTFlM2NiOCJ9DHCzvrlz6_QDB6zuuQcAmZs6yFoqBgkcHbtIVRcsDJ068XGs6N5R4U069lQvy-r7fHY2pL6tmxjRAZq1McetAA.bnVsbA"
 	SessionRefreshToken      = "5df8159e-fd51-4e6c-9849-a9b1f070a403"
 	SessionRefreshTokenTwo   = "7c70c869-df19-45f3-a51c-23d88d2ff5d5"
 	SessionRefreshTokenThree = "0798a3b4-e090-4dad-8f92-024260028bd5"
