@@ -20,7 +20,7 @@ const (
 )
 
 type sessionAPITestSuite struct {
-	deps *testDeps
+	deps testDeps
 	suite.Suite
 }
 

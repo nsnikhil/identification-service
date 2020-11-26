@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/go-redis/redis/v8"
 	"github.com/streadway/amqp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"identification-service/pkg/app"
+	"identification-service/pkg/cache"
 	"identification-service/pkg/config"
 	"identification-service/pkg/database"
 	"identification-service/pkg/http/contract"
@@ -24,17 +26,16 @@ const address = "http://127.0.0.1:8080"
 type testDeps struct {
 	cl  *http.Client
 	db  database.SQLDatabase
+	cc  *redis.Client
 	ch  *amqp.Channel
 	cfg config.Config
 	ctx context.Context
 }
 
-func setupTest(t *testing.T) *testDeps {
+func setupTest(t *testing.T) testDeps {
 	require.NoError(t, os.Setenv("ENV", "test"))
 
 	configFile := "../../local.env"
-	startApp(configFile)
-
 	cfg := config.NewConfig(configFile)
 
 	dbCfg := cfg.DatabaseConfig()
@@ -44,29 +45,36 @@ func setupTest(t *testing.T) *testDeps {
 
 	db := database.NewSQLDatabase(sqlDB, dbCfg.QueryTTL())
 
+	cc, err := cache.NewHandler(cfg.CacheConfig()).GetCache()
+	require.NoError(t, err)
+
 	conn, err := amqp.Dial(cfg.AMPQConfig().Address())
 	require.NoError(t, err)
 
 	ch, err := conn.Channel()
 	require.NoError(t, err)
 
-	return &testDeps{
+	go app.StartHTTPServer(configFile)
+	time.Sleep(time.Second)
+
+	return testDeps{
 		db:  db,
 		ch:  ch,
+		cc:  cc,
 		cfg: cfg,
 		cl:  &http.Client{Timeout: time.Minute},
 		ctx: context.Background(),
 	}
 }
 
-func tearDownTest(t *testing.T, deps *testDeps) {
+func tearDownTest(t *testing.T, deps testDeps) {
 	deps.cl.CloseIdleConnections()
 	require.NoError(t, os.Unsetenv("ENV"))
 	require.NoError(t, deps.ch.Close())
 	require.NoError(t, deps.db.Close())
+	require.NoError(t, deps.cc.Close())
 }
 
-//TODO: DUPLICATE OF CRETE CLIENT SUCCESS IN CLIENT_API_TEST.GO
 func registerClientAndGetHeaders(t *testing.T, cfg config.AuthConfig, cl *http.Client) map[string]string {
 	reqBody := getRegisterClientReqBody(map[string]interface{}{})
 
@@ -121,16 +129,6 @@ func getData(t *testing.T, expectedCode int, resp *http.Response) contract.APIRe
 	return res
 }
 
-func verifyTokens(t *testing.T, data interface{}) {
-	require.NotNil(t, data)
-
-	accessToken := data.(map[string]interface{})["access_token"].(string)
-	refreshToken := data.(map[string]interface{})["refresh_token"].(string)
-
-	assert.True(t, len(accessToken) != 0)
-	assert.True(t, len(refreshToken) != 0)
-}
-
 func verifyResp(
 	t *testing.T,
 	expectedResponse contract.APIResponse,
@@ -170,17 +168,12 @@ func newRequest(t *testing.T, method, path string, body io.Reader) *http.Request
 	return req
 }
 
-func startApp(configFile string) {
-	go app.StartHTTPServer(configFile)
-	time.Sleep(time.Second)
-}
-
 func testMessageConsume(t *testing.T, queueName string, ch *amqp.Channel) {
 	delivery, err := ch.Consume(
 		queueName,
-		"component-test-consumer",
+		"test-consumer",
 		true,
-		true,
+		false,
 		false,
 		false,
 		nil,

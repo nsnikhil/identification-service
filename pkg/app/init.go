@@ -2,7 +2,7 @@ package app
 
 import (
 	"github.com/go-redis/redis/v8"
-	"go.uber.org/zap"
+	"gopkg.in/natefinch/lumberjack.v2"
 	"identification-service/pkg/cache"
 	"identification-service/pkg/client"
 	"identification-service/pkg/config"
@@ -32,17 +32,13 @@ func initHTTPServer(configFile string) server.Server {
 	return server.NewServer(cfg, lgr, rt)
 }
 
-func initConsumer() {
-
-}
-
-func initReporters(cfg config.Config) (*zap.Logger, reporters.Prometheus) {
+func initReporters(cfg config.Config) (reporters.Logger, reporters.Prometheus) {
 	lgr := initLogger(cfg)
 	pr := reporters.NewPrometheus()
 	return lgr, pr
 }
 
-func initRouter(cfg config.Config, lgr *zap.Logger, prometheus reporters.Prometheus, cs client.Service, us user.Service, ss session.Service) http.Handler {
+func initRouter(cfg config.Config, lgr reporters.Logger, prometheus reporters.Prometheus, cs client.Service, us user.Service, ss session.Service) http.Handler {
 	return router.NewRouter(cfg, lgr, prometheus, cs, us, ss)
 }
 
@@ -91,7 +87,7 @@ func initSessionService(db database.SQLDatabase, us user.Service, tg token.Gener
 	return session.NewService(st, us, tg)
 }
 
-func initLogger(cfg config.Config) *zap.Logger {
+func initLogger(cfg config.Config) reporters.Logger {
 	return reporters.NewLogger(
 		cfg.Env(),
 		cfg.LogConfig().Level(),
@@ -103,7 +99,7 @@ func getWriters(cfg config.Config) []io.Writer {
 	//TODO: MOVE TO CONST
 	logSinkMap := map[string]io.Writer{
 		"stdout": os.Stdout,
-		"file":   reporters.NewExternalLogFile(cfg.LogFileConfig()),
+		"file":   newExternalLogFile(cfg.LogFileConfig()),
 	}
 
 	var writers []io.Writer
@@ -115,6 +111,16 @@ func getWriters(cfg config.Config) []io.Writer {
 	}
 
 	return writers
+}
+
+func newExternalLogFile(cfg config.LogFileConfig) *lumberjack.Logger {
+	return &lumberjack.Logger{
+		Filename:   cfg.GetFilePath(),
+		MaxSize:    cfg.GetFileMaxSizeInMb(),
+		MaxBackups: cfg.GetFileMaxBackups(),
+		MaxAge:     cfg.GetFileMaxAge(),
+		LocalTime:  cfg.GetFileWithLocalTimeStamp(),
+	}
 }
 
 func logError(err error) {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go.uber.org/zap"
 	"identification-service/pkg/client"
 	"identification-service/pkg/http/internal/resperr"
 	"identification-service/pkg/http/internal/util"
@@ -14,7 +13,7 @@ import (
 	"time"
 )
 
-func WithErrorHandler(lgr *zap.Logger, handler func(resp http.ResponseWriter, req *http.Request) error) http.HandlerFunc {
+func WithErrorHandler(lgr reporters.Logger, handler func(resp http.ResponseWriter, req *http.Request) error) http.HandlerFunc {
 	return func(resp http.ResponseWriter, req *http.Request) {
 		err := handler(resp, req)
 		if err == nil {
@@ -26,7 +25,7 @@ func WithErrorHandler(lgr *zap.Logger, handler func(resp http.ResponseWriter, re
 }
 
 //TODO: ADD MASKING BEFORE LOGGING REQ AND RESP
-func WithReqRespLog(lgr *zap.Logger, handler http.HandlerFunc) http.HandlerFunc {
+func WithReqRespLog(lgr reporters.Logger, handler http.HandlerFunc) http.HandlerFunc {
 	return func(resp http.ResponseWriter, req *http.Request) {
 		cr := util.NewCopyWriter(resp)
 
@@ -56,7 +55,7 @@ func WithResponseHeaders(handler http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func WithBasicAuth(cred map[string]string, lgr *zap.Logger, realm string, handler http.HandlerFunc) http.HandlerFunc {
+func WithBasicAuth(cred map[string]string, lgr reporters.Logger, realm string, handler http.HandlerFunc) http.HandlerFunc {
 	return func(resp http.ResponseWriter, req *http.Request) {
 
 		authFailed := func(resp http.ResponseWriter, realm string) {
@@ -85,7 +84,7 @@ func WithBasicAuth(cred map[string]string, lgr *zap.Logger, realm string, handle
 	}
 }
 
-func WithClientAuth(lgr *zap.Logger, service client.Service, handler http.HandlerFunc) http.HandlerFunc {
+func WithClientAuth(lgr reporters.Logger, service client.Service, handler http.HandlerFunc) http.HandlerFunc {
 	return func(resp http.ResponseWriter, req *http.Request) {
 		name := req.Header.Get("CLIENT-ID")
 		secret := req.Header.Get("CLIENT-SECRET")
@@ -119,7 +118,7 @@ func WithClientAuth(lgr *zap.Logger, service client.Service, handler http.Handle
 	}
 }
 
-func logAndWriteError(lgr *zap.Logger, resp http.ResponseWriter, err error) {
+func logAndWriteError(lgr reporters.Logger, resp http.ResponseWriter, err error) {
 	t, ok := err.(*liberr.Error)
 	if ok {
 		lgr.Error(t.EncodedStack())

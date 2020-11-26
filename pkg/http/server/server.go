@@ -2,8 +2,8 @@ package server
 
 import (
 	"context"
-	"go.uber.org/zap"
 	"identification-service/pkg/config"
+	reporters "identification-service/pkg/reporting"
 	"net/http"
 	"os"
 	"os/signal"
@@ -17,25 +17,25 @@ type Server interface {
 
 type appServer struct {
 	cfg    config.Config
-	lgr    *zap.Logger
+	lgr    reporters.Logger
 	router http.Handler
 }
 
 func (as *appServer) Start() {
 	server := newHTTPServer(as.cfg.HTTPServerConfig(), as.router)
 
-	as.lgr.Sugar().Infof("listening on %s", as.cfg.HTTPServerConfig().Address())
+	as.lgr.InfoF("listening on ", as.cfg.HTTPServerConfig().Address())
 	go func() { _ = server.ListenAndServe() }()
 
 	waitForShutdown(server, as.lgr)
 }
 
-func waitForShutdown(server *http.Server, lgr *zap.Logger) {
+func waitForShutdown(server *http.Server, lgr reporters.Logger) {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	<-sigCh
 
-	defer func() { _ = lgr.Sync() }()
+	defer func() { _ = lgr.Flush() }()
 
 	err := server.Shutdown(context.Background())
 	if err != nil {
@@ -55,7 +55,7 @@ func newHTTPServer(cfg config.HTTPServerConfig, handler http.Handler) *http.Serv
 	}
 }
 
-func NewServer(cfg config.Config, lgr *zap.Logger, router http.Handler) Server {
+func NewServer(cfg config.Config, lgr reporters.Logger, router http.Handler) Server {
 	return &appServer{
 		cfg:    cfg,
 		lgr:    lgr,

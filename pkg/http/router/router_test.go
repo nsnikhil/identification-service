@@ -3,7 +3,6 @@ package router_test
 import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 	"identification-service/pkg/client"
 	"identification-service/pkg/config"
 	"identification-service/pkg/http/router"
@@ -18,7 +17,7 @@ import (
 func TestRouter(t *testing.T) {
 
 	r := router.NewRouter(
-		config.Config{}, zap.NewNop(), &reporters.MockPrometheus{},
+		config.Config{}, &reporters.MockLogger{}, &reporters.MockPrometheus{},
 		&client.MockService{}, &user.MockService{}, &session.MockService{},
 	)
 

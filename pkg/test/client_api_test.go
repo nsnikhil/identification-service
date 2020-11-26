@@ -22,7 +22,7 @@ const (
 )
 
 type clientAPITestSuite struct {
-	deps *testDeps
+	deps testDeps
 	suite.Suite
 }
 

@@ -6,7 +6,6 @@ import (
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/cors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"go.uber.org/zap"
 	"identification-service/pkg/client"
 	"identification-service/pkg/config"
 	"identification-service/pkg/http/internal/handler"
@@ -17,12 +16,12 @@ import (
 	"net/http"
 )
 
-func NewRouter(cfg config.Config, lgr *zap.Logger, pr reporters.Prometheus, cs client.Service, us user.Service, ss session.Service) http.Handler {
+func NewRouter(cfg config.Config, lgr reporters.Logger, pr reporters.Prometheus, cs client.Service, us user.Service, ss session.Service) http.Handler {
 	return getChiRouter(cfg, lgr, pr, cs, us, ss)
 }
 
 //TODO: FIX MIDDLEWARE REPETITION CODE
-func getChiRouter(cfg config.Config, lgr *zap.Logger, pr reporters.Prometheus, cs client.Service, us user.Service, ss session.Service) *chi.Mux {
+func getChiRouter(cfg config.Config, lgr reporters.Logger, pr reporters.Prometheus, cs client.Service, us user.Service, ss session.Service) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.Recoverer)
 	r.Use(cors.Handler(getCorsOptions(cfg.Env())))
@@ -54,7 +53,7 @@ func getCorsOptions(env string) cors.Options {
 	}
 }
 
-func registerUserRoutes(r chi.Router, lgr *zap.Logger, pr reporters.Prometheus, cs client.Service, us user.Service) {
+func registerUserRoutes(r chi.Router, lgr reporters.Logger, pr reporters.Prometheus, cs client.Service, us user.Service) {
 	uh := handler.NewUserHandler(us)
 
 	signUpHandler := mdl.WithReqRespLog(lgr,
@@ -81,7 +80,7 @@ func registerUserRoutes(r chi.Router, lgr *zap.Logger, pr reporters.Prometheus, 
 	})
 }
 
-func registerSessionRoutes(r chi.Router, lgr *zap.Logger, pr reporters.Prometheus, cs client.Service, ss session.Service) {
+func registerSessionRoutes(r chi.Router, lgr reporters.Logger, pr reporters.Prometheus, cs client.Service, ss session.Service) {
 	sh := handler.NewSessionHandler(ss)
 
 	loginHandler := mdl.WithReqRespLog(lgr,
@@ -118,7 +117,7 @@ func registerSessionRoutes(r chi.Router, lgr *zap.Logger, pr reporters.Prometheu
 	})
 }
 
-func registerClientRoutes(r chi.Router, cfg config.AuthConfig, lgr *zap.Logger, pr reporters.Prometheus, ss client.Service) {
+func registerClientRoutes(r chi.Router, cfg config.AuthConfig, lgr reporters.Logger, pr reporters.Prometheus, ss client.Service) {
 	ch := handler.NewClientHandler(ss)
 
 	cred := map[string]string{cfg.UserName(): cfg.Password()}

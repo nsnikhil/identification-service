@@ -1,6 +1,8 @@
 package reporters
 
-import "github.com/prometheus/client_golang/prometheus"
+import (
+	"github.com/prometheus/client_golang/prometheus"
+)
 
 const (
 	attempt = "attempt"
@@ -65,7 +67,10 @@ func NewPrometheus() Prometheus {
 	ct := newCounter()
 	ht := newHistogram()
 
-	prometheus.MustRegister(ct, ht)
+	//prometheus.MustRegister(ct, ht)
+
+	prometheus.Register(ct)
+	prometheus.Register(ht)
 
 	return &defaultPrometheus{
 		apiCounter:        ct,

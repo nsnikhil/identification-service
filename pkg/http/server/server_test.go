@@ -3,9 +3,9 @@ package server_test
 import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 	"identification-service/pkg/config"
 	"identification-service/pkg/http/server"
+	reporters "identification-service/pkg/reporting"
 	"net/http"
 	"testing"
 	"time"
@@ -13,12 +13,13 @@ import (
 
 func TestServerStart(t *testing.T) {
 	cfg := config.NewConfig("../../../local.env")
-	lgr := zap.NewNop()
+	mockLogger := &reporters.MockLogger{}
+	mockLogger.On("InfoF", []interface{}{"listening on ", ":8080"})
 
 	rt := http.NewServeMux()
 	rt.HandleFunc("/ping", func(resp http.ResponseWriter, req *http.Request) {})
 
-	srv := server.NewServer(cfg, lgr, rt)
+	srv := server.NewServer(cfg, mockLogger, rt)
 	go srv.Start()
 
 	//TODO REMOVE SLEEP

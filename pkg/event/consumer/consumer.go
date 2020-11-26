@@ -3,11 +3,11 @@ package consumer
 import (
 	"fmt"
 	"github.com/streadway/amqp"
-	"go.uber.org/zap"
 	"identification-service/pkg/config"
 	"identification-service/pkg/event"
 	"identification-service/pkg/liberr"
 	"identification-service/pkg/queue"
+	reporters "identification-service/pkg/reporting"
 	"identification-service/pkg/session"
 	"os"
 	"os/signal"
@@ -20,7 +20,7 @@ type Consumer interface {
 }
 
 type queueConsumer struct {
-	lgr *zap.Logger
+	lgr reporters.Logger
 	cfg config.Config
 	qu  queue.AMQP
 	ss  session.Service
@@ -28,7 +28,7 @@ type queueConsumer struct {
 
 func (qc *queueConsumer) Start() {
 
-	qc.lgr.Sugar().Infof("started consumer on %s", qc.cfg.AMPQConfig().Address())
+	qc.lgr.InfoF("started consumer on %s", qc.cfg.AMPQConfig().Address())
 
 	for _, queueName := range qc.cfg.ConsumerConfig().QueueNames() {
 		go func(queueName string) {
@@ -73,12 +73,12 @@ func handleData(ss session.Service, data amqp.Delivery) error {
 	}
 }
 
-func handleGracefulShutdown(lgr *zap.Logger, qu queue.AMQP) {
+func handleGracefulShutdown(lgr reporters.Logger, qu queue.AMQP) {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	<-sigCh
 
-	defer func() { _ = lgr.Sync() }()
+	defer func() { _ = lgr.Flush() }()
 
 	err := qu.Close()
 	if err != nil {
@@ -89,7 +89,7 @@ func handleGracefulShutdown(lgr *zap.Logger, qu queue.AMQP) {
 	lgr.Info("worker shutdown successful")
 }
 
-func NewConsumer(cfg config.Config, lgr *zap.Logger, qu queue.AMQP, ss session.Service) Consumer {
+func NewConsumer(cfg config.Config, lgr reporters.Logger, qu queue.AMQP, ss session.Service) Consumer {
 	return &queueConsumer{
 		cfg: cfg,
 		lgr: lgr,

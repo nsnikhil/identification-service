@@ -23,7 +23,7 @@ const (
 )
 
 type userAPITestSuite struct {
-	deps *testDeps
+	deps testDeps
 	suite.Suite
 }
 
@@ -155,7 +155,7 @@ func (uat *userAPITestSuite) TestSignUpUserFailureForDuplicateRecord() {
 		expectedRespData,
 		authHeaders,
 		reqBody,
-		true,
+		false,
 	)
 
 	expectedRespData = contract.APIResponse{
