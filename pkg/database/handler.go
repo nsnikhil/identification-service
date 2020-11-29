@@ -2,7 +2,6 @@ package database
 
 import (
 	"database/sql"
-	"fmt"
 	_ "github.com/lib/pq"
 	"identification-service/pkg/config"
 	"identification-service/pkg/liberr"
@@ -20,7 +19,6 @@ type sqlDBHandler struct {
 func (dbh *sqlDBHandler) GetDB() (*sql.DB, error) {
 	db, err := sql.Open(dbh.cfg.DriverName(), dbh.cfg.Source())
 	if err != nil {
-		fmt.Println(err)
 		return nil, liberr.WithArgs(liberr.Operation("Handler.GetDB"), liberr.SeverityError, err)
 	}
 

@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"identification-service/pkg/liberr"
 	"time"
 )
 
@@ -23,24 +24,35 @@ type pgDatabase struct {
 }
 
 func (pdb *pgDatabase) QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
-	ctx, _ = context.WithTimeout(ctx, pdb.timeout)
-	//defer cancel()
+	ctx, cancel := context.WithTimeout(ctx, pdb.timeout)
+	defer cancel()
 
-	return pdb.db.QueryContext(ctx, query, args...)
+	res, err := pdb.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, liberr.WithOp("SQLDatabase.QueryContext", err)
+	}
+
+	return res, nil
 }
 
 func (pdb *pgDatabase) QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row {
-	ctx, _ = context.WithTimeout(ctx, pdb.timeout)
-	//defer cancel()
+	ctx, cancel := context.WithTimeout(ctx, pdb.timeout)
+	defer cancel()
 
-	return pdb.db.QueryRowContext(ctx, query, args...)
+	res := pdb.db.QueryRowContext(ctx, query, args...)
+	return res
 }
 
 func (pdb *pgDatabase) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
-	ctx, _ = context.WithTimeout(ctx, pdb.timeout)
-	//defer cancel()
+	ctx, cancel := context.WithTimeout(ctx, pdb.timeout)
+	defer cancel()
 
-	return pdb.db.ExecContext(ctx, query, args...)
+	res, err := pdb.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return nil, liberr.WithOp("SQLDatabase.ExecContext", err)
+	}
+
+	return res, nil
 }
 
 func (pdb *pgDatabase) Close() error {
