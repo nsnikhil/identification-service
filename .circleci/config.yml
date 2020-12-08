@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: cimg/golang:1.15.6
+      - image: cimg/go:1.15.6
       - image: circleci/postgres:13.1
       - image: circleci/redis:6.0.9-alpine
       - image: rabbitmq:alpine
