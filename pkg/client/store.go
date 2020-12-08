@@ -6,6 +6,7 @@ import (
 	"github.com/go-redis/redis/v8"
 	"identification-service/pkg/database"
 	"identification-service/pkg/liberr"
+	"time"
 )
 
 const (
@@ -30,12 +31,12 @@ func (cs *clientStore) CreateClient(ctx context.Context, client Client) (string,
 
 	//TODO: RETURN DIFFERENT ERROR KIND FOR DUPLICATE RECORD
 	err := cs.db.QueryRowContext(ctx, createClient,
-		client.name,
-		client.accessTokenTTL,
-		client.sessionTTL,
-		client.maxActiveSessions,
-		client.sessionStrategyName,
-		client.privateKey,
+		client.Name,
+		client.internalClient.AccessTokenTTL,
+		client.internalClient.SessionTTL,
+		client.internalClient.MaxActiveSessions,
+		client.internalClient.SessionStrategyName,
+		client.PrivateKey,
 	).Scan(&secret)
 
 	if err != nil {
@@ -70,6 +71,10 @@ func (cs *clientStore) RevokeClient(ctx context.Context, id string) (int64, erro
 }
 
 func (cs *clientStore) GetClient(ctx context.Context, name, secret string) (Client, error) {
+	if cl, err := fetchFromCache(ctx, cs.cache, name); err == nil {
+		return cl, nil
+	}
+
 	row := cs.db.QueryRowContext(ctx, getClient, name, secret)
 	if row.Err() != nil {
 		return Client{}, liberr.WithOp("Store.GetClient", row.Err())
@@ -77,13 +82,13 @@ func (cs *clientStore) GetClient(ctx context.Context, name, secret string) (Clie
 
 	var client Client
 	err := row.Scan(
-		&client.id,
-		&client.revoked,
-		&client.accessTokenTTL,
-		&client.sessionTTL,
-		&client.maxActiveSessions,
-		&client.sessionStrategyName,
-		&client.privateKey,
+		&client.Id,
+		&client.Revoked,
+		&client.internalClient.AccessTokenTTL,
+		&client.internalClient.SessionTTL,
+		&client.internalClient.MaxActiveSessions,
+		&client.internalClient.SessionStrategyName,
+		&client.PrivateKey,
 	)
 
 	if err != nil {
@@ -91,10 +96,42 @@ func (cs *clientStore) GetClient(ctx context.Context, name, secret string) (Clie
 	}
 
 	//TODO: REFACTOR THIS
-	client.name = name
-	client.secret = secret
+	client.Name = name
+	client.Secret = secret
+
+	//TODO: HANDLE ERROR
+	go updateCache(ctx, cs.cache, client)
 
 	return client, nil
+}
+
+func updateCache(ctx context.Context, cache *redis.Client, cl Client) error {
+	s, err := encode(cl)
+	if err != nil {
+		return err
+	}
+
+	//TODO: PICK CONFIG FROM TIME
+	_, err = cache.Set(ctx, cl.Name, s, time.Hour).Result()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func fetchFromCache(ctx context.Context, cache *redis.Client, name string) (Client, error) {
+	s, err := cache.Get(ctx, name).Result()
+	if err != nil {
+		return Client{}, err
+	}
+
+	cl, err := decode(s)
+	if err != nil {
+		return Client{}, err
+	}
+
+	return cl, err
 }
 
 func NewStore(db database.SQLDatabase, cache *redis.Client) Store {

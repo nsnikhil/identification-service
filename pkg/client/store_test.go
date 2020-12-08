@@ -2,9 +2,9 @@ package client_test
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/alicebob/miniredis/v2"
 	"github.com/go-redis/redis/v8"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -18,17 +18,23 @@ import (
 type clientStoreSuite struct {
 	suite.Suite
 	db    database.SQLDatabase
+	rd    *miniredis.Miniredis
 	mock  sqlmock.Sqlmock
 	store client.Store
 }
 
 func (cst *clientStoreSuite) SetupSuite() {
-	sqlDB, mock := getMockDB(cst.T())
+	rd, err := miniredis.Run()
+	cst.Require().NoError(err)
+
+	sqlDB, mock, err := sqlmock.New()
+	cst.Require().NoError(err)
 
 	cst.db = database.NewSQLDatabase(sqlDB, test.QueryTTL)
 	cst.mock = mock
+	cst.rd = rd
 
-	cst.store = client.NewStore(cst.db, &redis.Client{})
+	cst.store = client.NewStore(cst.db, redis.NewClient(&redis.Options{Addr: rd.Addr()}))
 }
 
 func (cst *clientStoreSuite) TestCreateClientSuccess() {
@@ -156,11 +162,4 @@ func (cst *clientStoreSuite) TestGetClientFailure() {
 
 func TestStore(t *testing.T) {
 	suite.Run(t, new(clientStoreSuite))
-}
-
-func getMockDB(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-
-	return db, mock
 }

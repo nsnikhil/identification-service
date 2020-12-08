@@ -1,7 +1,10 @@
 package client
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
+	"encoding/gob"
 	"errors"
 	"fmt"
 	"identification-service/pkg/liberr"
@@ -14,37 +17,41 @@ type ctxKey string
 var clientCtxKey ctxKey = "clientCtxKey"
 
 type Client struct {
-	id                  string
-	name                string
-	secret              string
-	revoked             bool
-	accessTokenTTL      int
-	sessionTTL          int
-	maxActiveSessions   int
-	sessionStrategyName string
-	privateKey          []byte
-	createdAt           time.Time
-	updatedAt           time.Time
+	internalClient
+}
+
+type internalClient struct {
+	Id                  string
+	Name                string
+	Secret              string
+	Revoked             bool
+	AccessTokenTTL      int
+	SessionTTL          int
+	MaxActiveSessions   int
+	SessionStrategyName string
+	PrivateKey          []byte
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
 }
 
 func (cl Client) IsRevoked() bool {
-	return cl.revoked
+	return cl.Revoked
 }
 
 func (cl Client) AccessTokenTTL() int {
-	return cl.accessTokenTTL
+	return cl.internalClient.AccessTokenTTL
 }
 
 func (cl Client) SessionStrategyName() string {
-	return cl.sessionStrategyName
+	return cl.internalClient.SessionStrategyName
 }
 
 func (cl Client) SessionTTL() int {
-	return cl.sessionTTL
+	return cl.internalClient.SessionTTL
 }
 
 func (cl Client) MaxActiveSessions() int {
-	return cl.maxActiveSessions
+	return cl.internalClient.MaxActiveSessions
 }
 
 type Builder struct {
@@ -222,17 +229,19 @@ func (b *Builder) Build() (Client, error) {
 	}
 
 	return Client{
-		id:                  b.id,
-		name:                b.name,
-		secret:              b.secret,
-		revoked:             b.revoked,
-		accessTokenTTL:      b.accessTokenTTL,
-		sessionTTL:          b.sessionTTL,
-		maxActiveSessions:   b.maxActiveSessions,
-		sessionStrategyName: b.sessionStrategyName,
-		privateKey:          b.privateKey,
-		createdAt:           b.createdAt,
-		updatedAt:           b.updatedAt,
+		internalClient{
+			Id:                  b.id,
+			Name:                b.name,
+			Secret:              b.secret,
+			Revoked:             b.revoked,
+			AccessTokenTTL:      b.accessTokenTTL,
+			SessionTTL:          b.sessionTTL,
+			MaxActiveSessions:   b.maxActiveSessions,
+			SessionStrategyName: b.sessionStrategyName,
+			PrivateKey:          b.privateKey,
+			CreatedAt:           b.createdAt,
+			UpdatedAt:           b.updatedAt,
+		},
 	}, nil
 }
 
@@ -245,7 +254,15 @@ func WithContext(ctx context.Context, cl Client) (context.Context, error) {
 		return nil, errors.New("base context is nil")
 	}
 
-	err := validateArgs(cl.name, cl.accessTokenTTL, cl.sessionTTL, cl.maxActiveSessions, cl.sessionStrategyName, cl.privateKey)
+	err := validateArgs(
+		cl.Name,
+		cl.internalClient.AccessTokenTTL,
+		cl.internalClient.SessionTTL,
+		cl.internalClient.MaxActiveSessions,
+		cl.internalClient.SessionStrategyName,
+		cl.PrivateKey,
+	)
+
 	if err != nil {
 		return nil, liberr.WithArgs(liberr.Operation("Client.WithContext"), liberr.ValidationError, err)
 	}
@@ -270,7 +287,15 @@ func FromContext(ctx context.Context) (Client, error) {
 		)
 	}
 
-	err := validateArgs(cl.name, cl.accessTokenTTL, cl.sessionTTL, cl.maxActiveSessions, cl.sessionStrategyName, cl.privateKey)
+	err := validateArgs(
+		cl.Name,
+		cl.internalClient.AccessTokenTTL,
+		cl.internalClient.SessionTTL,
+		cl.internalClient.MaxActiveSessions,
+		cl.internalClient.SessionStrategyName,
+		cl.internalClient.PrivateKey,
+	)
+
 	if err != nil {
 		return Client{}, liberr.WithArgs(liberr.Operation("Client.WithContext"), liberr.ValidationError, err)
 	}
@@ -310,4 +335,36 @@ func validateArgs(name string, accessTokenTTL, sessionTTL, maxActiveSessions int
 	}
 
 	return nil
+}
+
+func encode(cl Client) (string, error) {
+	b := bytes.Buffer{}
+	e := gob.NewEncoder(&b)
+
+	err := e.Encode(cl.internalClient)
+	if err != nil {
+		return "", err
+	}
+
+	return base64.StdEncoding.EncodeToString(b.Bytes()), nil
+}
+
+func decode(str string) (Client, error) {
+	by, err := base64.StdEncoding.DecodeString(str)
+	if err != nil {
+		return Client{}, err
+	}
+
+	b := bytes.Buffer{}
+	b.Write(by)
+
+	d := gob.NewDecoder(&b)
+
+	var cl Client
+	err = d.Decode(&cl.internalClient)
+	if err != nil {
+		return Client{}, err
+	}
+
+	return cl, nil
 }

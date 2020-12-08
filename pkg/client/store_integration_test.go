@@ -94,6 +94,22 @@ func (cst *clientStoreIntegrationSuite) TestGetClientSuccess() {
 	require.NoError(cst.T(), err)
 }
 
+func (cst *clientStoreIntegrationSuite) TestGetClientFromCacheSuccess() {
+	cl := test.NewClient(cst.T())
+
+	secret, err := cst.store.CreateClient(cst.ctx, cl)
+	require.NoError(cst.T(), err)
+
+	_, err = cst.store.GetClient(cst.ctx, test.ClientName, secret)
+	require.NoError(cst.T(), err)
+
+	_, err = cst.db.ExecContext(cst.ctx, "TRUNCATE clients")
+	require.NoError(cst.T(), err)
+
+	_, err = cst.store.GetClient(cst.ctx, test.ClientName, secret)
+	require.NoError(cst.T(), err)
+}
+
 func (cst *clientStoreIntegrationSuite) TestGetClientFailureWhenRecordIsNotPresent() {
 	_, err := cst.store.GetClient(cst.ctx, test.ClientName, test.ClientSecret)
 	require.Error(cst.T(), err)
