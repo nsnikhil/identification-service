@@ -11,15 +11,11 @@ WORKER_COMMAND=worker
 MIGRATE_COMMAND=migrate
 ROLLBACK_COMMAND=rollback
 
-setup: copy-config init-db init-test-db migrate test
+setup: copy-config init-db migrate test
 
 init-db:
 	psql -c "create user id_user superuser password 'id_password';" -U postgres
 	psql -c "create database id_db owner=id_user" -U postgres
-
-init-test-db:
-	psql -c "create user id_test_user superuser password 'id_test_password';" -U postgres
-	psql -c "create database id_test_db owner=id_test_user" -U postgres
 
 deps:
 	go mod download
