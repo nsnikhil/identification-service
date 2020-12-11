@@ -9,6 +9,8 @@ jobs:
           - POSTGRES_DB: id_db
           - POSTGRES_USER: id_user
           - POSTGRES_PASSWORD: id_password
+        volumes:
+          - ../pkg/database/migrations/:/docker-entrypoint-initdb.d/
 
       - image: redis:6.0.9-alpine
 

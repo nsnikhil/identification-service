@@ -69,7 +69,7 @@ test:
 	go clean -testcache
 	go test -p 1 ./...
 
-ci-test: copy-config init-db migrate test
+ci-test: copy-config migrate test
 
 test-cover-html:
 	go clean -testcache
