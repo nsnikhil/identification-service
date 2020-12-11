@@ -16,4 +16,5 @@ jobs:
 
     steps:
       - checkout
+      - run: apk add --no-cache make build-base
       - run: make ci-test
