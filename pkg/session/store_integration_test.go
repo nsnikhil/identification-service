@@ -175,6 +175,7 @@ func createUser(sst *sessionStoreIntegrationSuite, cfg config.Config) string {
 
 	userID, err := userService.CreateUser(sst.ctx, test.UserName(), test.UserEmail(), test.UserPassword)
 	require.NoError(sst.T(), err)
+	require.NotEmpty(sst.T(), userID)
 
 	return userID
 }
