@@ -28,7 +28,7 @@ func (cst *clientStoreIntegrationSuite) SetupSuite() {
 	cst.ctx = context.Background()
 }
 
-func (cst *clientStoreIntegrationSuite) AfterTest(suiteName, testName string) {
+func (cst *clientStoreIntegrationSuite) TearDownSuite() {
 	truncate(cst)
 }
 
@@ -44,8 +44,6 @@ func (cst *clientStoreIntegrationSuite) TestCreateClientFailureWhenRecordsAreDup
 
 	_, err := cst.store.CreateClient(cst.ctx, cl)
 	require.NoError(cst.T(), err)
-
-	cl = test.NewClient(cst.T())
 
 	_, err = cst.store.CreateClient(cst.ctx, cl)
 	require.Error(cst.T(), err)

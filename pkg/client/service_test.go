@@ -13,8 +13,10 @@ import (
 )
 
 func TestCreateNewClientSuccess(t *testing.T) {
+	pub, pri := test.GenerateKey()
+
 	mockKeyGenerator := &libcrypto.MockEd25519Generator{}
-	mockKeyGenerator.On("Generate").Return(test.ClientPubKey, test.ClientPriKey, nil)
+	mockKeyGenerator.On("Generate").Return(pub, pri, nil)
 
 	mockStore := &client.MockStore{}
 	mockStore.On("CreateClient", mock.AnythingOfType("*context.emptyCtx"), mock.AnythingOfType("client.Client")).Return(test.ClientID(), nil)
@@ -34,8 +36,10 @@ func TestCreateNewClientSuccess(t *testing.T) {
 }
 
 func TestCreateNewClientFailureWhenClientValidationFails(t *testing.T) {
+	pub, pri := test.GenerateKey()
+
 	mockKeyGenerator := &libcrypto.MockEd25519Generator{}
-	mockKeyGenerator.On("Generate").Return(test.ClientPubKey, test.ClientPriKey, nil)
+	mockKeyGenerator.On("Generate").Return(pub, pri, nil)
 
 	svc := client.NewService(&client.MockStore{}, mockKeyGenerator)
 
@@ -70,8 +74,10 @@ func TestCreateNewClientFailureWhenKeyGenerationFails(t *testing.T) {
 }
 
 func TestCreateNewClientFailureWhenStoreReturnFailure(t *testing.T) {
+	pub, pri := test.GenerateKey()
+
 	mockKeyGenerator := &libcrypto.MockEd25519Generator{}
-	mockKeyGenerator.On("Generate").Return(test.ClientPubKey, test.ClientPriKey, nil)
+	mockKeyGenerator.On("Generate").Return(pub, pri, nil)
 
 	mockStore := &client.MockStore{}
 	mockStore.On("CreateClient", mock.AnythingOfType("*context.emptyCtx"), mock.AnythingOfType("client.Client")).Return("", errors.New("failed to create client"))

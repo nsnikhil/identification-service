@@ -28,11 +28,8 @@ func (cat *clientAPITestSuite) SetupSuite() {
 	cat.deps = setupTest(cat.T())
 }
 
-func (cat *clientAPITestSuite) AfterTest(suiteName, testName string) {
-	truncateTables(cat.T(), cat.deps.ctx, cat.deps.db, ClientTableName)
-}
-
 func (cat *clientAPITestSuite) TearDownSuite() {
+	truncateTables(cat.T(), cat.deps.ctx, cat.deps.db, ClientTableName)
 	tearDownTest(cat.T(), cat.deps)
 }
 

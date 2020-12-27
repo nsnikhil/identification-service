@@ -68,7 +68,7 @@ func registerClientAndGetHeaders(t *testing.T, cfg config.AuthConfig, cl *http.C
 	clientResp := testRegisterClient(t, cfg, cl, http.StatusCreated, contract.APIResponse{Success: true}, reqBody)
 
 	return map[string]string{
-		"CLIENT-ID":     ClientName(),
+		"CLIENT-ID":     reqBody.Name,
 		"CLIENT-SECRET": clientResp.Data.(map[string]interface{})["secret"].(string),
 	}
 }
@@ -79,7 +79,7 @@ func signUpUser(
 	cl *http.Client,
 	ch *amqp.Channel,
 	headers map[string]string,
-) {
+) contract.CreateUserRequest {
 
 	reqBody := getCreateUserReqBody(map[string]interface{}{})
 
@@ -89,10 +89,12 @@ func signUpUser(
 	}
 
 	testSignUpUser(t, cfg, cl, ch, http.StatusCreated, expectedRespData, headers, reqBody, false)
+
+	return reqBody
 }
 
-func loginUser(t *testing.T, cl *http.Client, headers map[string]string) {
-	reqBody := getLoginReqBody(map[string]interface{}{})
+func loginUser(t *testing.T, cl *http.Client, headers map[string]string, reqBodyOverride map[string]interface{}) {
+	reqBody := getLoginReqBody(reqBodyOverride)
 	testLogin(t, cl, http.StatusCreated, contract.APIResponse{Success: true}, headers, reqBody)
 }
 

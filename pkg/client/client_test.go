@@ -70,7 +70,7 @@ func buildClient(d map[string]interface{}) (client.Client, error) {
 		SessionTTL(either(d[sessionTTL], test.ClientSessionTTL).(int)).
 		MaxActiveSessions(either(d[maxActiveSessions], test.ClientMaxActiveSessions).(int)).
 		SessionStrategy(either(d[sessionStrategyName], test.ClientSessionStrategyRevokeOld).(string)).
-		PrivateKey(either(d[privateKey], test.ClientPriKeyBytes).([]byte)).
+		PrivateKey(either(d[privateKey], test.ClientPriKeyBytes()).([]byte)).
 		CreatedAt(either(d[createdAt], test.CreatedAt).(time.Time)).
 		UpdatedAt(either(d[updatedAt], test.UpdatedAt).(time.Time)).
 		Build()

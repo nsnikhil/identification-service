@@ -26,28 +26,34 @@ func (ust *userStoreIntegrationSuite) SetupSuite() {
 	ust.store = user.NewStore(ust.db)
 }
 
-func (ust *userStoreIntegrationSuite) AfterTest(suiteName, testName string) {
+func (ust *userStoreIntegrationSuite) TearDownSuite() {
 	truncate(ust)
 }
 
 func (ust *userStoreIntegrationSuite) TestCreateUserSuccess() {
-	_, err := ust.store.CreateUser(ust.ctx, newUser(ust.T()))
+	nu, _ := newUser(ust.T())
+
+	_, err := ust.store.CreateUser(ust.ctx, nu)
 	require.NoError(ust.T(), err)
 }
 
 func (ust *userStoreIntegrationSuite) TestCreateUserFailureForDuplicateRecord() {
-	_, err := ust.store.CreateUser(ust.ctx, newUser(ust.T()))
+	nu, _ := newUser(ust.T())
+
+	_, err := ust.store.CreateUser(ust.ctx, nu)
 	require.NoError(ust.T(), err)
 
-	_, err = ust.store.CreateUser(ust.ctx, newUser(ust.T()))
+	_, err = ust.store.CreateUser(ust.ctx, nu)
 	require.Error(ust.T(), err)
 }
 
 func (ust *userStoreIntegrationSuite) TestGetUserSuccess() {
-	_, err := ust.store.CreateUser(ust.ctx, newUser(ust.T()))
+	nu, email := newUser(ust.T())
+
+	_, err := ust.store.CreateUser(ust.ctx, nu)
 	require.NoError(ust.T(), err)
 
-	_, err = ust.store.GetUser(ust.ctx, test.UserEmail())
+	_, err = ust.store.GetUser(ust.ctx, email)
 	require.NoError(ust.T(), err)
 }
 
@@ -57,10 +63,12 @@ func (ust *userStoreIntegrationSuite) TestGetUserFailureWhenEmailIsNotPresent() 
 }
 
 func (ust *userStoreIntegrationSuite) TestUpdatePasswordSuccessWithDB() {
-	id, err := ust.store.CreateUser(ust.ctx, newUser(ust.T()))
+	nu, _ := newUser(ust.T())
+
+	id, err := ust.store.CreateUser(ust.ctx, nu)
 	require.NoError(ust.T(), err)
 
-	_, err = ust.store.UpdatePassword(ust.ctx, id, test.UserPasswordHash, test.UserPasswordSalt)
+	_, err = ust.store.UpdatePassword(ust.ctx, id, test.UserPasswordHash(), test.UserPasswordSalt())
 	require.NoError(ust.T(), err)
 }
 
@@ -68,8 +76,8 @@ func (ust *userStoreIntegrationSuite) TestUpdatePasswordFailureWhenUserIsNotPres
 	_, err := ust.store.UpdatePassword(
 		ust.ctx,
 		test.UserEmail(),
-		test.UserPasswordHash,
-		test.UserPasswordSalt,
+		test.UserPasswordHash(),
+		test.UserPasswordSalt(),
 	)
 
 	require.Error(ust.T(), err)
@@ -79,22 +87,27 @@ func TestStoreIntegration(t *testing.T) {
 	suite.Run(t, new(userStoreIntegrationSuite))
 }
 
-func newUser(t *testing.T) user.User {
+func newUser(t *testing.T) (user.User, string) {
+	userEmail := test.UserEmail()
+	passwordSalt := test.UserPasswordSalt()
+	passwordKey := test.UserPasswordKey()
+	passwordHash := test.UserPasswordHash()
+
 	mockEncoder := &password.MockEncoder{}
-	mockEncoder.On("GenerateSalt").Return(test.UserPasswordSalt, nil)
-	mockEncoder.On("GenerateKey", test.UserPassword, test.UserPasswordSalt).Return(test.UserPasswordKey)
-	mockEncoder.On("EncodeKey", test.UserPasswordKey).Return(test.UserPasswordHash)
+	mockEncoder.On("GenerateSalt").Return(passwordSalt, nil)
+	mockEncoder.On("GenerateKey", test.UserPassword, passwordSalt).Return(passwordKey)
+	mockEncoder.On("EncodeKey", passwordKey).Return(passwordHash)
 	mockEncoder.On("ValidatePassword", test.UserPassword).Return(nil)
 
 	us, err := user.NewUserBuilder(mockEncoder).
 		Name(test.UserName()).
-		Email(test.UserEmail()).
+		Email(userEmail).
 		Password(test.UserPassword).
 		Build()
 
 	require.NoError(t, err)
 
-	return us
+	return us, userEmail
 }
 
 func truncate(ust *userStoreIntegrationSuite) {

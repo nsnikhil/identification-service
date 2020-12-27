@@ -22,17 +22,19 @@ import (
 
 func TestLoginSuccess(t *testing.T) {
 	userEmail := test.UserEmail()
+	accessToken := test.SessionAccessToken()
 	refreshToken := test.SessionRefreshToken()
 
 	reqBody := contract.LoginRequest{Email: userEmail, Password: test.UserPassword}
 
 	expectedBody := fmt.Sprintf(
-		`{"data":{"access_token":"v2.public.eyJhdWQiOiJ1c2VyIiwiZXhwIjoiMjAyMC0xMS0wN1QxMDozNjowNyswNTozMCIsImlhdCI6IjIwMjAtMTEtMDdUMTA6MjY6MDcrMDU6MzAiLCJpc3MiOiJpZGVudGlmaWNhdGlvbi1zZXJ2aWNlIiwianRpIjoiMTEwMTI0NjUtMDNhNC00OWI2LTgwODEtY2RmYzczMDlhY2MwIiwibmJmIjoiMjAyMC0xMS0wN1QxMDoyNjowNyswNTozMCJ9PrXViH5779NxXHK_PxnwW-FdFV0klU07umd8X7F0A9irFLX7GTS3AczNm_hmb_yfYOX0o4DJri89AWeCb0qTAg.bnVsbA","refresh_token":"%s"},"success":true}`,
+		`{"data":{"access_token":"%s","refresh_token":"%s"},"success":true}`,
+		accessToken,
 		refreshToken,
 	)
 
 	mockSessionService := &session.MockService{}
-	mockSessionService.On("LoginUser", mock.AnythingOfType("*context.emptyCtx"), userEmail, test.UserPassword).Return(test.SessionAccessToken, refreshToken, nil)
+	mockSessionService.On("LoginUser", mock.AnythingOfType("*context.emptyCtx"), userEmail, test.UserPassword).Return(accessToken, refreshToken, nil)
 
 	testLogin(t, http.StatusCreated, expectedBody, mockSessionService, reqBody)
 }
@@ -68,14 +70,15 @@ func testLogin(t *testing.T, expectedCode int, expectedBody string, sessionServi
 }
 
 func TestRefreshTokenSuccess(t *testing.T) {
+	accessToken := test.SessionAccessToken()
 	refreshToken := test.SessionRefreshToken()
 
 	reqBody := contract.RefreshTokenRequest{RefreshToken: refreshToken}
 
 	mockSessionService := &session.MockService{}
-	mockSessionService.On("RefreshToken", mock.AnythingOfType("*context.emptyCtx"), refreshToken).Return(test.SessionAccessToken, nil)
+	mockSessionService.On("RefreshToken", mock.AnythingOfType("*context.emptyCtx"), refreshToken).Return(accessToken, nil)
 
-	expectedBody := `{"data":{"access_token":"v2.public.eyJhdWQiOiJ1c2VyIiwiZXhwIjoiMjAyMC0xMS0wN1QxMDozNjowNyswNTozMCIsImlhdCI6IjIwMjAtMTEtMDdUMTA6MjY6MDcrMDU6MzAiLCJpc3MiOiJpZGVudGlmaWNhdGlvbi1zZXJ2aWNlIiwianRpIjoiMTEwMTI0NjUtMDNhNC00OWI2LTgwODEtY2RmYzczMDlhY2MwIiwibmJmIjoiMjAyMC0xMS0wN1QxMDoyNjowNyswNTozMCJ9PrXViH5779NxXHK_PxnwW-FdFV0klU07umd8X7F0A9irFLX7GTS3AczNm_hmb_yfYOX0o4DJri89AWeCb0qTAg.bnVsbA"},"success":true}`
+	expectedBody := fmt.Sprintf(`{"data":{"access_token":"%s"},"success":true}`, accessToken)
 
 	testRefreshToken(t, http.StatusOK, expectedBody, mockSessionService, reqBody)
 }

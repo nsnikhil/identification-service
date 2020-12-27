@@ -329,7 +329,7 @@ func TestWithClientAuthenticationSuccess(t *testing.T) {
 		SessionTTL(test.ClientSessionTTL).
 		SessionStrategy(test.ClientSessionStrategyRevokeOld).
 		MaxActiveSessions(test.ClientMaxActiveSessions).
-		PrivateKey(test.ClientPriKey).
+		PrivateKey(test.ClientPriKey()).
 		Build()
 
 	require.NoError(t, err)
@@ -363,7 +363,7 @@ func TestWithClientAuthenticationFailureWhenClientIsRevoked(t *testing.T) {
 		SessionTTL(test.ClientSessionTTL).
 		SessionStrategy(test.ClientSessionStrategyRevokeOld).
 		MaxActiveSessions(test.ClientMaxActiveSessions).
-		PrivateKey(test.ClientPriKey).
+		PrivateKey(test.ClientPriKey()).
 		Revoked(true).
 		Build()
 

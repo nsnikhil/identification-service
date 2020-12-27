@@ -29,11 +29,8 @@ func (uat *userAPITestSuite) SetupSuite() {
 	uat.deps = setupTest(uat.T())
 }
 
-func (uat *userAPITestSuite) AfterTest(suiteName, testName string) {
-	truncateTables(uat.T(), uat.deps.ctx, uat.deps.db, ClientTableName, UserTableName)
-}
-
 func (uat *userAPITestSuite) TearDownSuite() {
+	truncateTables(uat.T(), uat.deps.ctx, uat.deps.db, ClientTableName, UserTableName)
 	tearDownTest(uat.T(), uat.deps)
 }
 
@@ -177,9 +174,9 @@ func (uat *userAPITestSuite) TestSignUpUserFailureForDuplicateRecord() {
 
 func (uat *userAPITestSuite) TestUpdatePasswordSuccess() {
 	authHeaders := registerClientAndGetHeaders(uat.T(), uat.deps.cfg.AuthConfig(), uat.deps.cl)
-	signUpUser(uat.T(), uat.deps.cfg.PublisherConfig(), uat.deps.cl, uat.deps.ch, authHeaders)
+	userDetails := signUpUser(uat.T(), uat.deps.cfg.PublisherConfig(), uat.deps.cl, uat.deps.ch, authHeaders)
 
-	reqBody := getUpdatePasswordReqBody(map[string]interface{}{})
+	reqBody := getUpdatePasswordReqBody(map[string]interface{}{userEmailKey: userDetails.Email})
 
 	expectedRespData := contract.APIResponse{
 		Success: true,

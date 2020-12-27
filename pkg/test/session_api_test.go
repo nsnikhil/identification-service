@@ -26,11 +26,8 @@ func (sat *sessionAPITestSuite) SetupSuite() {
 	sat.deps = setupTest(sat.T())
 }
 
-func (sat *sessionAPITestSuite) AfterTest(suiteName, testName string) {
-	truncateTables(sat.T(), sat.deps.ctx, sat.deps.db, ClientTableName, UserTableName, SessionTableName)
-}
-
 func (sat *sessionAPITestSuite) TearDownSuite() {
+	truncateTables(sat.T(), sat.deps.ctx, sat.deps.db, ClientTableName, UserTableName, SessionTableName)
 	tearDownTest(sat.T(), sat.deps)
 }
 
@@ -40,9 +37,9 @@ func TestSessionAPI(t *testing.T) {
 
 func (sat *sessionAPITestSuite) TestLoginSuccess() {
 	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl)
-	signUpUser(sat.T(), sat.deps.cfg.PublisherConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
+	userDetails := signUpUser(sat.T(), sat.deps.cfg.PublisherConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
 
-	reqBody := getLoginReqBody(map[string]interface{}{})
+	reqBody := getLoginReqBody(map[string]interface{}{userEmailKey: userDetails.Email})
 
 	testLogin(sat.T(), sat.deps.cl, http.StatusCreated, contract.APIResponse{Success: true}, authHeaders, reqBody)
 }
@@ -62,9 +59,9 @@ func (sat *sessionAPITestSuite) TestLoginFailureWhenClientCredentialsAreMissing(
 
 func (sat *sessionAPITestSuite) TestLoginSuccessWithRevokeOld() {
 	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl)
-	signUpUser(sat.T(), sat.deps.cfg.PublisherConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
+	userDetails := signUpUser(sat.T(), sat.deps.cfg.PublisherConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
 
-	reqBody := getLoginReqBody(map[string]interface{}{})
+	reqBody := getLoginReqBody(map[string]interface{}{userEmailKey: userDetails.Email})
 	expectedResp := contract.APIResponse{Success: true}
 
 	testLogin(sat.T(), sat.deps.cl, http.StatusCreated, expectedResp, authHeaders, reqBody)
@@ -76,7 +73,7 @@ func (sat *sessionAPITestSuite) TestLoginSuccessWithRevokeOld() {
 	err := sat.deps.db.QueryRowContext(
 		context.Background(),
 		`select id from users where email=$1`,
-		UserEmail(),
+		userDetails.Email,
 	).Scan(&userID)
 
 	require.NoError(sat.T(), err)
@@ -131,15 +128,15 @@ func (sat *sessionAPITestSuite) TestLoginFailureWhenCredentialsAreIncorrect() {
 
 func (sat *sessionAPITestSuite) TestRefreshTokenSuccess() {
 	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl)
-	signUpUser(sat.T(), sat.deps.cfg.PublisherConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
-	loginUser(sat.T(), sat.deps.cl, authHeaders)
+	userDetails := signUpUser(sat.T(), sat.deps.cfg.PublisherConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
+	loginUser(sat.T(), sat.deps.cl, authHeaders, map[string]interface{}{userEmailKey: userDetails.Email})
 
 	var userID string
 
 	err := sat.deps.db.QueryRowContext(
 		sat.deps.ctx,
 		"select id from users where email = $1",
-		UserEmail(),
+		userDetails.Email,
 	).Scan(&userID)
 
 	require.NoError(sat.T(), err)
@@ -175,8 +172,8 @@ func (sat *sessionAPITestSuite) TestRefreshTokenFailureWhenClientCredentialsAreM
 
 func (sat *sessionAPITestSuite) TestRefreshTokenFailureWhenRefreshTokenIsIncorrect() {
 	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl)
-	signUpUser(sat.T(), sat.deps.cfg.PublisherConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
-	loginUser(sat.T(), sat.deps.cl, authHeaders)
+	userDetails := signUpUser(sat.T(), sat.deps.cfg.PublisherConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
+	loginUser(sat.T(), sat.deps.cl, authHeaders, map[string]interface{}{userEmailKey: userDetails.Email})
 
 	reqBody := contract.RefreshTokenRequest{RefreshToken: SessionRefreshToken()}
 
@@ -190,14 +187,14 @@ func (sat *sessionAPITestSuite) TestRefreshTokenFailureWhenRefreshTokenIsIncorre
 
 func (sat *sessionAPITestSuite) TestRefreshTokenFailureWhenSessionExpires() {
 	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl)
-	signUpUser(sat.T(), sat.deps.cfg.PublisherConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
-	loginUser(sat.T(), sat.deps.cl, authHeaders)
+	userDetails := signUpUser(sat.T(), sat.deps.cfg.PublisherConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
+	loginUser(sat.T(), sat.deps.cl, authHeaders, map[string]interface{}{userEmailKey: userDetails.Email})
 
 	var userID string
 	err := sat.deps.db.QueryRowContext(
 		sat.deps.ctx,
 		"select id from users where email = $1",
-		UserEmail(),
+		userDetails.Email,
 	).Scan(&userID)
 
 	require.NoError(sat.T(), err)
@@ -235,15 +232,15 @@ func (sat *sessionAPITestSuite) TestRefreshTokenFailureWhenSessionExpires() {
 
 func (sat *sessionAPITestSuite) TestLogoutUserSuccess() {
 	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl)
-	signUpUser(sat.T(), sat.deps.cfg.PublisherConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
-	loginUser(sat.T(), sat.deps.cl, authHeaders)
+	userDetails := signUpUser(sat.T(), sat.deps.cfg.PublisherConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
+	loginUser(sat.T(), sat.deps.cl, authHeaders, map[string]interface{}{userEmailKey: userDetails.Email})
 
 	var userID string
 
 	err := sat.deps.db.QueryRowContext(
 		sat.deps.ctx,
 		"select id from users where email = $1",
-		UserEmail(),
+		userDetails.Email,
 	).Scan(&userID)
 
 	require.NoError(sat.T(), err)

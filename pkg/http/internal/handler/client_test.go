@@ -22,10 +22,12 @@ import (
 )
 
 func TestClientHandlerCreateSuccess(t *testing.T) {
+	clientName := test.ClientName()
+	clientEncodedPublicKey := test.ClientEncodedPublicKey()
 	clientSecret := test.ClientSecret()
 
 	req := contract.CreateClientRequest{
-		Name:              test.ClientName(),
+		Name:              clientName,
 		AccessTokenTTL:    test.ClientAccessTokenTTL,
 		SessionTTL:        test.ClientSessionTTL,
 		MaxActiveSessions: test.ClientMaxActiveSessions,
@@ -39,15 +41,16 @@ func TestClientHandlerCreateSuccess(t *testing.T) {
 	mockClientService.On(
 		"CreateClient",
 		mock.AnythingOfType("*context.emptyCtx"),
-		test.ClientName(),
+		clientName,
 		test.ClientAccessTokenTTL,
 		test.ClientSessionTTL,
 		test.ClientMaxActiveSessions,
 		test.ClientSessionStrategyRevokeOld,
-	).Return(test.ClientEncodedPublicKey, clientSecret, nil)
+	).Return(clientEncodedPublicKey, clientSecret, nil)
 
 	expectedBody := fmt.Sprintf(
-		`{"data":{"public_key":"8lchzCKRbdXEHsG/hJNMjMqdJLbIvAvDoViJtlcwWWo","secret":"%s"},"success":true}`,
+		`{"data":{"public_key":"%s","secret":"%s"},"success":true}`,
+		clientEncodedPublicKey,
 		clientSecret,
 	)
 
@@ -55,8 +58,10 @@ func TestClientHandlerCreateSuccess(t *testing.T) {
 }
 
 func TestClientHandlerCreateFailure(t *testing.T) {
+	clientName := test.ClientName()
+
 	req := contract.CreateClientRequest{
-		Name:              test.ClientName(),
+		Name:              clientName,
 		AccessTokenTTL:    test.ClientAccessTokenTTL,
 		SessionTTL:        test.ClientSessionTTL,
 		MaxActiveSessions: test.ClientMaxActiveSessions,
@@ -70,7 +75,7 @@ func TestClientHandlerCreateFailure(t *testing.T) {
 	mockClientService.On(
 		"CreateClient",
 		mock.AnythingOfType("*context.emptyCtx"),
-		test.ClientName(),
+		clientName,
 		test.ClientAccessTokenTTL,
 		test.ClientSessionTTL,
 		test.ClientMaxActiveSessions,

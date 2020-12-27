@@ -24,10 +24,14 @@ const (
 )
 
 func TestCreateNewUserSuccess(t *testing.T) {
+	passwordSalt := test.UserPasswordSalt()
+	passwordKey := test.UserPasswordKey()
+	passwordHash := test.UserPasswordHash()
+
 	mockEncoder := &password.MockEncoder{}
-	mockEncoder.On("GenerateSalt").Return(test.UserPasswordSalt, nil)
-	mockEncoder.On("GenerateKey", test.UserPassword, test.UserPasswordSalt).Return(test.UserPasswordKey)
-	mockEncoder.On("EncodeKey", test.UserPasswordKey).Return(test.UserPasswordHash)
+	mockEncoder.On("GenerateSalt").Return(passwordSalt, nil)
+	mockEncoder.On("GenerateKey", test.UserPassword, passwordSalt).Return(passwordKey)
+	mockEncoder.On("EncodeKey", passwordKey).Return(passwordHash)
 	mockEncoder.On("ValidatePassword", test.UserPassword).Return(nil)
 
 	_, err := user.NewUserBuilder(mockEncoder).
@@ -61,10 +65,14 @@ func TestCreateNewUserValidationFailure(t *testing.T) {
 }
 
 func buildUser(d map[string]interface{}) (user.User, error) {
+	passwordSalt := test.UserPasswordSalt()
+	passwordKey := test.UserPasswordKey()
+	passwordHash := test.UserPasswordHash()
+
 	mockEncoder := &password.MockEncoder{}
-	mockEncoder.On("GenerateSalt").Return(test.UserPasswordSalt, nil)
-	mockEncoder.On("GenerateKey", test.UserPassword, test.UserPasswordSalt).Return(test.UserPasswordKey)
-	mockEncoder.On("EncodeKey", test.UserPasswordKey).Return(test.UserPasswordHash)
+	mockEncoder.On("GenerateSalt").Return(passwordSalt, nil)
+	mockEncoder.On("GenerateKey", test.UserPassword, passwordSalt).Return(passwordKey)
+	mockEncoder.On("EncodeKey", passwordKey).Return(passwordHash)
 	mockEncoder.On("ValidatePassword", test.UserPassword).Return(nil)
 
 	either := func(a interface{}, b interface{}) interface{} {
@@ -80,8 +88,8 @@ func buildUser(d map[string]interface{}) (user.User, error) {
 		Name(either(d[name], test.UserName()).(string)).
 		Email(either(d[email], test.UserEmail()).(string)).
 		Password(either(d[userPassword], test.UserPassword).(string)).
-		PasswordSalt(either(d[userPasswordSalt], test.UserPasswordSalt).([]byte)).
-		PasswordHash(either(d[userPasswordHash], test.UserPasswordHash).(string)).
+		PasswordSalt(either(d[userPasswordSalt], test.UserPasswordSalt()).([]byte)).
+		PasswordHash(either(d[userPasswordHash], test.UserPasswordHash()).(string)).
 		CreatedAt(either(d[createdAt], test.CreatedAt).(time.Time)).
 		UpdatedAt(either(d[updatedAt], test.UpdatedAt).(time.Time)).
 		Build()
