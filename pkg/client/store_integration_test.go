@@ -1,5 +1,3 @@
-// build integration_test
-
 package client_test
 
 import (
@@ -7,7 +5,6 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"identification-service/pkg/cache"
 	"identification-service/pkg/client"
 	"identification-service/pkg/config"
 	"identification-service/pkg/database"
@@ -25,19 +22,8 @@ type clientStoreIntegrationSuite struct {
 
 func (cst *clientStoreIntegrationSuite) SetupSuite() {
 	cfg := config.NewConfig("../../local.env")
-
-	dbCfg := cfg.DatabaseConfig()
-
-	sqlDB, err := database.NewHandler(dbCfg).GetDB()
-	require.NoError(cst.T(), err)
-
-	db := database.NewSQLDatabase(sqlDB, dbCfg.QueryTTL())
-
-	cc, err := cache.NewHandler(cfg.CacheConfig()).GetCache()
-	require.NoError(cst.T(), err)
-
-	cst.db = db
-	cst.cache = cc
+	cst.db = test.NewDB(cst.T(), cfg)
+	cst.cache = test.NewCache(cst.T(), cfg)
 	cst.store = client.NewStore(cst.db, cst.cache)
 	cst.ctx = context.Background()
 }
@@ -80,7 +66,7 @@ func (cst *clientStoreIntegrationSuite) TestRevokeClientSuccess() {
 }
 
 func (cst *clientStoreIntegrationSuite) TestRevokeClientFailure() {
-	_, err := cst.store.RevokeClient(cst.ctx, test.ClientID)
+	_, err := cst.store.RevokeClient(cst.ctx, test.ClientID())
 	require.Error(cst.T(), err)
 }
 
@@ -90,7 +76,7 @@ func (cst *clientStoreIntegrationSuite) TestGetClientSuccess() {
 	secret, err := cst.store.CreateClient(cst.ctx, cl)
 	require.NoError(cst.T(), err)
 
-	_, err = cst.store.GetClient(cst.ctx, test.ClientName, secret)
+	_, err = cst.store.GetClient(cst.ctx, cl.Name, secret)
 	require.NoError(cst.T(), err)
 }
 
@@ -100,18 +86,18 @@ func (cst *clientStoreIntegrationSuite) TestGetClientFromCacheSuccess() {
 	secret, err := cst.store.CreateClient(cst.ctx, cl)
 	require.NoError(cst.T(), err)
 
-	_, err = cst.store.GetClient(cst.ctx, test.ClientName, secret)
+	_, err = cst.store.GetClient(cst.ctx, cl.Name, secret)
 	require.NoError(cst.T(), err)
 
 	_, err = cst.db.ExecContext(cst.ctx, "TRUNCATE clients")
 	require.NoError(cst.T(), err)
 
-	_, err = cst.store.GetClient(cst.ctx, test.ClientName, secret)
+	_, err = cst.store.GetClient(cst.ctx, cl.Name, secret)
 	require.NoError(cst.T(), err)
 }
 
 func (cst *clientStoreIntegrationSuite) TestGetClientFailureWhenRecordIsNotPresent() {
-	_, err := cst.store.GetClient(cst.ctx, test.ClientName, test.ClientSecret)
+	_, err := cst.store.GetClient(cst.ctx, test.ClientName(), test.ClientSecret())
 	require.Error(cst.T(), err)
 }
 

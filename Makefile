@@ -67,14 +67,14 @@ copy-config:
 
 test:
 	go clean -testcache
-	go test -p 1 ./...
+	go test ./...
 
 ci-test: copy-config migrate test
 
 test-cover-html:
 	go clean -testcache
 	mkdir -p out/
-	go test -p 1 ./... -coverprofile=out/coverage.out
+	go test ./... -coverprofile=out/coverage.out
 	go tool cover -html=out/coverage.out
 
 migrate: build

@@ -324,7 +324,7 @@ func testWithBasicAuth(t *testing.T, expectedCode int, user, password string) {
 
 func TestWithClientAuthenticationSuccess(t *testing.T) {
 	cl, err := client.NewClientBuilder().
-		Name(test.ClientName).
+		Name(test.ClientName()).
 		AccessTokenTTL(test.ClientAccessTokenTTL).
 		SessionTTL(test.ClientSessionTTL).
 		SessionStrategy(test.ClientSessionStrategyRevokeOld).
@@ -358,7 +358,7 @@ func TestWithClientAuthenticationFailureWhenSvcCallFails(t *testing.T) {
 
 func TestWithClientAuthenticationFailureWhenClientIsRevoked(t *testing.T) {
 	cl, err := client.NewClientBuilder().
-		Name(test.ClientName).
+		Name(test.ClientName()).
 		AccessTokenTTL(test.ClientAccessTokenTTL).
 		SessionTTL(test.ClientSessionTTL).
 		SessionStrategy(test.ClientSessionStrategyRevokeOld).

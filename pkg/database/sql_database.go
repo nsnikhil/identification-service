@@ -24,8 +24,8 @@ type pgDatabase struct {
 }
 
 func (pdb *pgDatabase) QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
-	ctx, cancel := context.WithTimeout(ctx, pdb.timeout)
-	defer cancel()
+	//ctx, cancel := context.WithTimeout(ctx, pdb.timeout)
+	//defer cancel()
 
 	res, err := pdb.db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -36,16 +36,16 @@ func (pdb *pgDatabase) QueryContext(ctx context.Context, query string, args ...i
 }
 
 func (pdb *pgDatabase) QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row {
-	ctx, cancel := context.WithTimeout(ctx, pdb.timeout)
-	defer cancel()
+	//ctx, cancel := context.WithTimeout(ctx, pdb.timeout)
+	//defer cancel()
 
 	res := pdb.db.QueryRowContext(ctx, query, args...)
 	return res
 }
 
 func (pdb *pgDatabase) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
-	ctx, cancel := context.WithTimeout(ctx, pdb.timeout)
-	defer cancel()
+	//ctx, cancel := context.WithTimeout(ctx, pdb.timeout)
+	//defer cancel()
 
 	res, err := pdb.db.ExecContext(ctx, query, args...)
 	if err != nil {

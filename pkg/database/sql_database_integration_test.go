@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"identification-service/pkg/config"
 	"identification-service/pkg/database"
+	"identification-service/pkg/test"
 	"testing"
 )
 
@@ -17,15 +18,7 @@ type sqlDBTestSuite struct {
 
 func (sts *sqlDBTestSuite) SetupSuite() {
 	cfg := config.NewConfig("../../local.env")
-
-	dbCfg := cfg.DatabaseConfig()
-
-	sqlDB, err := database.NewHandler(dbCfg).GetDB()
-	require.NoError(sts.T(), err)
-
-	db := database.NewSQLDatabase(sqlDB, dbCfg.QueryTTL())
-
-	sts.db = db
+	sts.db = test.NewDB(sts.T(), cfg)
 	sts.ctx = context.Background()
 }
 

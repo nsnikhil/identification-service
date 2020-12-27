@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -20,23 +21,31 @@ import (
 )
 
 func TestLoginSuccess(t *testing.T) {
-	reqBody := contract.LoginRequest{Email: test.UserEmail, Password: test.UserPassword}
+	userEmail := test.UserEmail()
+	refreshToken := test.SessionRefreshToken()
 
-	expectedBody := `{"data":{"access_token":"v2.public.eyJhdWQiOiJ1c2VyIiwiZXhwIjoiMjAyMC0xMS0wN1QxMDozNjowNyswNTozMCIsImlhdCI6IjIwMjAtMTEtMDdUMTA6MjY6MDcrMDU6MzAiLCJpc3MiOiJpZGVudGlmaWNhdGlvbi1zZXJ2aWNlIiwianRpIjoiMTEwMTI0NjUtMDNhNC00OWI2LTgwODEtY2RmYzczMDlhY2MwIiwibmJmIjoiMjAyMC0xMS0wN1QxMDoyNjowNyswNTozMCJ9PrXViH5779NxXHK_PxnwW-FdFV0klU07umd8X7F0A9irFLX7GTS3AczNm_hmb_yfYOX0o4DJri89AWeCb0qTAg.bnVsbA","refresh_token":"5df8159e-fd51-4e6c-9849-a9b1f070a403"},"success":true}`
+	reqBody := contract.LoginRequest{Email: userEmail, Password: test.UserPassword}
+
+	expectedBody := fmt.Sprintf(
+		`{"data":{"access_token":"v2.public.eyJhdWQiOiJ1c2VyIiwiZXhwIjoiMjAyMC0xMS0wN1QxMDozNjowNyswNTozMCIsImlhdCI6IjIwMjAtMTEtMDdUMTA6MjY6MDcrMDU6MzAiLCJpc3MiOiJpZGVudGlmaWNhdGlvbi1zZXJ2aWNlIiwianRpIjoiMTEwMTI0NjUtMDNhNC00OWI2LTgwODEtY2RmYzczMDlhY2MwIiwibmJmIjoiMjAyMC0xMS0wN1QxMDoyNjowNyswNTozMCJ9PrXViH5779NxXHK_PxnwW-FdFV0klU07umd8X7F0A9irFLX7GTS3AczNm_hmb_yfYOX0o4DJri89AWeCb0qTAg.bnVsbA","refresh_token":"%s"},"success":true}`,
+		refreshToken,
+	)
 
 	mockSessionService := &session.MockService{}
-	mockSessionService.On("LoginUser", mock.AnythingOfType("*context.emptyCtx"), test.UserEmail, test.UserPassword).Return(test.SessionAccessToken, test.SessionRefreshToken, nil)
+	mockSessionService.On("LoginUser", mock.AnythingOfType("*context.emptyCtx"), userEmail, test.UserPassword).Return(test.SessionAccessToken, refreshToken, nil)
 
 	testLogin(t, http.StatusCreated, expectedBody, mockSessionService, reqBody)
 }
 
 func TestLoginFailure(t *testing.T) {
-	reqBody := contract.LoginRequest{Email: test.UserEmail, Password: test.UserPassword}
+	userEmail := test.UserEmail()
+
+	reqBody := contract.LoginRequest{Email: userEmail, Password: test.UserPassword}
 
 	expectedBody := `{"error":{"message":"internal server error"},"success":false}`
 
 	mockSessionService := &session.MockService{}
-	mockSessionService.On("LoginUser", mock.AnythingOfType("*context.emptyCtx"), test.UserEmail, test.UserPassword).Return("", "", liberr.WithArgs(errors.New("failed to login")))
+	mockSessionService.On("LoginUser", mock.AnythingOfType("*context.emptyCtx"), userEmail, test.UserPassword).Return("", "", liberr.WithArgs(errors.New("failed to login")))
 
 	testLogin(t, http.StatusInternalServerError, expectedBody, mockSessionService, reqBody)
 }
@@ -59,10 +68,12 @@ func testLogin(t *testing.T, expectedCode int, expectedBody string, sessionServi
 }
 
 func TestRefreshTokenSuccess(t *testing.T) {
-	reqBody := contract.RefreshTokenRequest{RefreshToken: test.SessionRefreshToken}
+	refreshToken := test.SessionRefreshToken()
+
+	reqBody := contract.RefreshTokenRequest{RefreshToken: refreshToken}
 
 	mockSessionService := &session.MockService{}
-	mockSessionService.On("RefreshToken", mock.AnythingOfType("*context.emptyCtx"), test.SessionRefreshToken).Return(test.SessionAccessToken, nil)
+	mockSessionService.On("RefreshToken", mock.AnythingOfType("*context.emptyCtx"), refreshToken).Return(test.SessionAccessToken, nil)
 
 	expectedBody := `{"data":{"access_token":"v2.public.eyJhdWQiOiJ1c2VyIiwiZXhwIjoiMjAyMC0xMS0wN1QxMDozNjowNyswNTozMCIsImlhdCI6IjIwMjAtMTEtMDdUMTA6MjY6MDcrMDU6MzAiLCJpc3MiOiJpZGVudGlmaWNhdGlvbi1zZXJ2aWNlIiwianRpIjoiMTEwMTI0NjUtMDNhNC00OWI2LTgwODEtY2RmYzczMDlhY2MwIiwibmJmIjoiMjAyMC0xMS0wN1QxMDoyNjowNyswNTozMCJ9PrXViH5779NxXHK_PxnwW-FdFV0klU07umd8X7F0A9irFLX7GTS3AczNm_hmb_yfYOX0o4DJri89AWeCb0qTAg.bnVsbA"},"success":true}`
 
@@ -70,10 +81,12 @@ func TestRefreshTokenSuccess(t *testing.T) {
 }
 
 func TestRefreshTokenFailure(t *testing.T) {
-	reqBody := contract.RefreshTokenRequest{RefreshToken: test.SessionRefreshToken}
+	refreshToken := test.SessionRefreshToken()
+
+	reqBody := contract.RefreshTokenRequest{RefreshToken: refreshToken}
 
 	mockSessionService := &session.MockService{}
-	mockSessionService.On("RefreshToken", mock.AnythingOfType("*context.emptyCtx"), test.SessionRefreshToken).Return("", liberr.WithArgs(errors.New("failed to refresh token")))
+	mockSessionService.On("RefreshToken", mock.AnythingOfType("*context.emptyCtx"), refreshToken).Return("", liberr.WithArgs(errors.New("failed to refresh token")))
 
 	expectedBody := `{"error":{"message":"internal server error"},"success":false}`
 
@@ -98,10 +111,12 @@ func testRefreshToken(t *testing.T, expectedCode int, expectedBody string, sessi
 }
 
 func TestLogoutSuccess(t *testing.T) {
-	reqBody := contract.LogoutRequest{RefreshToken: test.SessionRefreshToken}
+	refreshToken := test.SessionRefreshToken()
+
+	reqBody := contract.LogoutRequest{RefreshToken: refreshToken}
 
 	mockSessionService := &session.MockService{}
-	mockSessionService.On("LogoutUser", mock.AnythingOfType("*context.emptyCtx"), test.SessionRefreshToken).Return(nil)
+	mockSessionService.On("LogoutUser", mock.AnythingOfType("*context.emptyCtx"), refreshToken).Return(nil)
 
 	expectedBody := `{"data":{"message":"Logout Successful"},"success":true}`
 
@@ -109,10 +124,12 @@ func TestLogoutSuccess(t *testing.T) {
 }
 
 func TestLogoutFailure(t *testing.T) {
-	reqBody := contract.LogoutRequest{RefreshToken: test.SessionRefreshToken}
+	refreshToken := test.SessionRefreshToken()
+
+	reqBody := contract.LogoutRequest{RefreshToken: refreshToken}
 
 	mockSessionService := &session.MockService{}
-	mockSessionService.On("LogoutUser", mock.AnythingOfType("*context.emptyCtx"), test.SessionRefreshToken).Return(liberr.WithArgs(errors.New("failed to logout user")))
+	mockSessionService.On("LogoutUser", mock.AnythingOfType("*context.emptyCtx"), refreshToken).Return(liberr.WithArgs(errors.New("failed to logout user")))
 
 	expectedBody := `{"error":{"message":"internal server error"},"success":false}`
 

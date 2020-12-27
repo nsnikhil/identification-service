@@ -1,5 +1,3 @@
-// build integration_test
-
 package queue_test
 
 import (

@@ -10,29 +10,29 @@ import (
 )
 
 const (
-	id           = "id"
-	userID       = "userID"
-	refreshToken = "refreshToken"
-	revoked      = "revoked"
-	createdAt    = "createdAt"
-	updatedAt    = "updatedAt"
+	idKey           = "id"
+	userIDKey       = "userID"
+	refreshTokenKey = "refreshToken"
+	revokedKey      = "revoked"
+	createdAtKey    = "createdAt"
+	updatedAtKey    = "updatedAt"
 )
 
 func TestCreateNewSessionSuccess(t *testing.T) {
-	_, err := session.NewSessionBuilder().UserID(test.UserID).RefreshToken(test.SessionRefreshToken).Build()
+	_, err := session.NewSessionBuilder().UserID(test.UserID()).RefreshToken(test.SessionRefreshToken()).Build()
 	require.NoError(t, err)
 }
 
 func TestCreateNewSessionValidationFailure(t *testing.T) {
 	testCases := map[string]map[string]interface{}{
-		"test failure when id is empty":                     {id: ""},
-		"test failure when id is invalid":                   {id: "invalid id"},
-		"test failure when userID is empty":                 {userID: ""},
-		"test failure when userID is invalid":               {userID: "invalid id"},
-		"test failure when refreshToken is empty":           {refreshToken: ""},
-		"test failure when refreshToken is invalid":         {refreshToken: "invalid id"},
-		"test failure when created at is set to zero value": {createdAt: time.Time{}},
-		"test failure when updated at is set to zero value": {updatedAt: time.Time{}},
+		"test failure when id is empty":                     {idKey: ""},
+		"test failure when id is invalid":                   {idKey: "invalid id"},
+		"test failure when userID is empty":                 {userIDKey: ""},
+		"test failure when userID is invalid":               {userIDKey: "invalid id"},
+		"test failure when refreshToken is empty":           {refreshTokenKey: ""},
+		"test failure when refreshToken is invalid":         {refreshTokenKey: "invalid id"},
+		"test failure when created at is set to zero value": {createdAtKey: time.Time{}},
+		"test failure when updated at is set to zero value": {updatedAtKey: time.Time{}},
 	}
 
 	for name, data := range testCases {
@@ -53,12 +53,12 @@ func buildSession(d map[string]interface{}) (session.Session, error) {
 	}
 
 	return session.NewSessionBuilder().
-		ID(either(d[id], test.SessionID).(string)).
-		UserID(either(d[userID], test.UserID).(string)).
-		RefreshToken(either(d[refreshToken], test.SessionRefreshToken).(string)).
-		Revoked(either(d[revoked], false).(bool)).
-		CreatedAt(either(d[createdAt], test.CreatedAt).(time.Time)).
-		UpdatedAt(either(d[updatedAt], test.UpdatedAt).(time.Time)).
+		ID(either(d[idKey], test.SessionID()).(string)).
+		UserID(either(d[userIDKey], test.UserID()).(string)).
+		RefreshToken(either(d[refreshTokenKey], test.SessionRefreshToken()).(string)).
+		Revoked(either(d[revokedKey], false).(bool)).
+		CreatedAt(either(d[createdAtKey], test.CreatedAt).(time.Time)).
+		UpdatedAt(either(d[updatedAtKey], test.UpdatedAt).(time.Time)).
 		Build()
 }
 

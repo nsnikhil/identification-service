@@ -1,5 +1,3 @@
-// build component_test
-
 package test
 
 import (
@@ -127,12 +125,12 @@ func (cat *clientAPITestSuite) TestRegisterClientFailureForDuplicateRecord() {
 }
 
 func (cat *clientAPITestSuite) TestRevokeClientSuccess() {
-	registerClientAndGetHeaders(cat.T(), cat.deps.cfg.AuthConfig(), cat.deps.cl)
+	authHeaders := registerClientAndGetHeaders(cat.T(), cat.deps.cfg.AuthConfig(), cat.deps.cl)
 
 	var clientID string
 
 	err := cat.deps.db.QueryRowContext(
-		cat.deps.ctx, `select id from clients where name = $1`, ClientName,
+		cat.deps.ctx, `select id from clients where name = $1`, authHeaders["CLIENT-ID"],
 	).Scan(&clientID)
 
 	require.NoError(cat.T(), err)
@@ -154,7 +152,7 @@ func (cat *clientAPITestSuite) TestRevokeClientFailure() {
 		},
 	}
 
-	testRevokeClient(cat, http.StatusNotFound, expectedRespData, ClientID)
+	testRevokeClient(cat, http.StatusNotFound, expectedRespData, ClientID())
 }
 
 func getRegisterClientReqBody(data map[string]interface{}) contract.CreateClientRequest {
@@ -167,7 +165,7 @@ func getRegisterClientReqBody(data map[string]interface{}) contract.CreateClient
 	}
 
 	return contract.CreateClientRequest{
-		Name:              either(data[clientNameKey], ClientName).(string),
+		Name:              either(data[clientNameKey], ClientName()).(string),
 		AccessTokenTTL:    either(data[clientAccessTokenTTLKey], ClientAccessTokenTTL).(int),
 		SessionTTL:        either(data[clientSessionTTLKey], ClientSessionTTL).(int),
 		MaxActiveSessions: either(data[clientMaxActiveSessionsKey], ClientMaxActiveSessions).(int),

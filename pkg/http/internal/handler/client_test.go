@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -21,8 +22,10 @@ import (
 )
 
 func TestClientHandlerCreateSuccess(t *testing.T) {
+	clientSecret := test.ClientSecret()
+
 	req := contract.CreateClientRequest{
-		Name:              test.ClientName,
+		Name:              test.ClientName(),
 		AccessTokenTTL:    test.ClientAccessTokenTTL,
 		SessionTTL:        test.ClientSessionTTL,
 		MaxActiveSessions: test.ClientMaxActiveSessions,
@@ -36,21 +39,24 @@ func TestClientHandlerCreateSuccess(t *testing.T) {
 	mockClientService.On(
 		"CreateClient",
 		mock.AnythingOfType("*context.emptyCtx"),
-		test.ClientName,
+		test.ClientName(),
 		test.ClientAccessTokenTTL,
 		test.ClientSessionTTL,
 		test.ClientMaxActiveSessions,
 		test.ClientSessionStrategyRevokeOld,
-	).Return(test.ClientEncodedPublicKey, test.ClientSecret, nil)
+	).Return(test.ClientEncodedPublicKey, clientSecret, nil)
 
-	expectedBody := `{"data":{"public_key":"8lchzCKRbdXEHsG/hJNMjMqdJLbIvAvDoViJtlcwWWo","secret":"86d690dd-92a0-40ac-ad48-110c951e3cb8"},"success":true}`
+	expectedBody := fmt.Sprintf(
+		`{"data":{"public_key":"8lchzCKRbdXEHsG/hJNMjMqdJLbIvAvDoViJtlcwWWo","secret":"%s"},"success":true}`,
+		clientSecret,
+	)
 
 	testClientHandlerCreate(t, http.StatusCreated, expectedBody, bytes.NewBuffer(body), mockClientService)
 }
 
 func TestClientHandlerCreateFailure(t *testing.T) {
 	req := contract.CreateClientRequest{
-		Name:              test.ClientName,
+		Name:              test.ClientName(),
 		AccessTokenTTL:    test.ClientAccessTokenTTL,
 		SessionTTL:        test.ClientSessionTTL,
 		MaxActiveSessions: test.ClientMaxActiveSessions,
@@ -64,7 +70,7 @@ func TestClientHandlerCreateFailure(t *testing.T) {
 	mockClientService.On(
 		"CreateClient",
 		mock.AnythingOfType("*context.emptyCtx"),
-		test.ClientName,
+		test.ClientName(),
 		test.ClientAccessTokenTTL,
 		test.ClientSessionTTL,
 		test.ClientMaxActiveSessions,
@@ -90,7 +96,9 @@ func testClientHandlerCreate(t *testing.T, expectedCode int, expectedBody string
 }
 
 func TestClientRevokeSuccess(t *testing.T) {
-	req := contract.ClientRevokeRequest{ID: test.ClientID}
+	clientID := test.ClientID()
+
+	req := contract.ClientRevokeRequest{ID: clientID}
 
 	body, err := json.Marshal(&req)
 	require.NoError(t, err)
@@ -99,7 +107,7 @@ func TestClientRevokeSuccess(t *testing.T) {
 	mockClientService.On(
 		"RevokeClient",
 		mock.AnythingOfType("*context.emptyCtx"),
-		test.ClientID,
+		clientID,
 	).Return(nil)
 
 	expectedBody := `{"data":{"message":"client revoked successfully"},"success":true}`
@@ -108,7 +116,9 @@ func TestClientRevokeSuccess(t *testing.T) {
 }
 
 func TestClientRevokeFailure(t *testing.T) {
-	req := contract.ClientRevokeRequest{ID: test.ClientID}
+	clientID := test.ClientID()
+
+	req := contract.ClientRevokeRequest{ID: clientID}
 
 	body, err := json.Marshal(&req)
 	require.NoError(t, err)
@@ -117,7 +127,7 @@ func TestClientRevokeFailure(t *testing.T) {
 	mockClientService.On(
 		"RevokeClient",
 		mock.AnythingOfType("*context.emptyCtx"),
-		test.ClientID,
+		clientID,
 	).Return(liberr.WithArgs(errors.New("failed to revoke client")))
 
 	expectedBody := `{"error":{"message":"internal server error"},"success":false}`

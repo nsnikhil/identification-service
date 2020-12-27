@@ -1,5 +1,3 @@
-// build integration_test
-
 package cache_test
 
 import (

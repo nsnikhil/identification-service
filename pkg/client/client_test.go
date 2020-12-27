@@ -62,9 +62,9 @@ func buildClient(d map[string]interface{}) (client.Client, error) {
 	}
 
 	return client.NewClientBuilder().
-		ID(either(d[id], test.ClientID).(string)).
-		Name(either(d[name], test.ClientName).(string)).
-		Secret(either(d[secret], test.ClientSecret).(string)).
+		ID(either(d[id], test.ClientID()).(string)).
+		Name(either(d[name], test.ClientName()).(string)).
+		Secret(either(d[secret], test.ClientSecret()).(string)).
 		Revoked(either(d[revoked], false).(bool)).
 		AccessTokenTTL(either(d[accessTokenTTL], test.ClientAccessTokenTTL).(int)).
 		SessionTTL(either(d[sessionTTL], test.ClientSessionTTL).(int)).

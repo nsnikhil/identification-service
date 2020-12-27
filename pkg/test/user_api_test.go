@@ -1,5 +1,3 @@
-// build component_test
-
 package test
 
 import (
@@ -80,7 +78,8 @@ func (uat *userAPITestSuite) TestSignUpUserFailureWhenClientCredentialsAreMissin
 		uat.deps.cl,
 		uat.deps.ch,
 		http.StatusUnauthorized,
-		expectedRespData, map[string]string{},
+		expectedRespData,
+		map[string]string{},
 		reqBody,
 		false,
 	)
@@ -303,8 +302,8 @@ func getCreateUserReqBody(data map[string]interface{}) contract.CreateUserReques
 	}
 
 	return contract.CreateUserRequest{
-		Name:     either(data[userNameKey], UserName).(string),
-		Email:    either(data[userEmailKey], UserEmail).(string),
+		Name:     either(data[userNameKey], UserName()).(string),
+		Email:    either(data[userEmailKey], UserEmail()).(string),
 		Password: either(data[userPasswordKey], UserPassword).(string),
 	}
 
@@ -320,7 +319,7 @@ func getUpdatePasswordReqBody(data map[string]interface{}) contract.UpdatePasswo
 	}
 
 	return contract.UpdatePasswordRequest{
-		Email:       either(data[userEmailKey], UserEmail).(string),
+		Email:       either(data[userEmailKey], UserEmail()).(string),
 		OldPassword: either(data[userPasswordKey], UserPassword).(string),
 		NewPassword: either(data[userNewPasswordKey], UserPasswordNew).(string),
 	}

@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"identification-service/pkg/app"
-	"identification-service/pkg/cache"
 	"identification-service/pkg/config"
 	"identification-service/pkg/database"
 	"identification-service/pkg/http/contract"
@@ -38,21 +37,9 @@ func setupTest(t *testing.T) testDeps {
 	configFile := "../../local.env"
 	cfg := config.NewConfig(configFile)
 
-	dbCfg := cfg.DatabaseConfig()
-
-	sqlDB, err := database.NewHandler(dbCfg).GetDB()
-	require.NoError(t, err)
-
-	db := database.NewSQLDatabase(sqlDB, dbCfg.QueryTTL())
-
-	cc, err := cache.NewHandler(cfg.CacheConfig()).GetCache()
-	require.NoError(t, err)
-
-	conn, err := amqp.Dial(cfg.AMPQConfig().Address())
-	require.NoError(t, err)
-
-	ch, err := conn.Channel()
-	require.NoError(t, err)
+	db := NewDB(t, cfg)
+	cc := NewCache(t, cfg)
+	ch := NewChannel(t, cfg)
 
 	go app.StartHTTPServer(configFile)
 	time.Sleep(time.Second)
@@ -68,11 +55,11 @@ func setupTest(t *testing.T) testDeps {
 }
 
 func tearDownTest(t *testing.T, deps testDeps) {
-	deps.cl.CloseIdleConnections()
+	//deps.cl.CloseIdleConnections()
 	require.NoError(t, os.Unsetenv("ENV"))
-	require.NoError(t, deps.ch.Close())
-	require.NoError(t, deps.db.Close())
-	require.NoError(t, deps.cc.Close())
+	//require.NoError(t, deps.ch.Close())
+	//require.NoError(t, deps.db.Close())
+	//require.NoError(t, deps.cc.Close())
 }
 
 func registerClientAndGetHeaders(t *testing.T, cfg config.AuthConfig, cl *http.Client) map[string]string {
@@ -81,7 +68,7 @@ func registerClientAndGetHeaders(t *testing.T, cfg config.AuthConfig, cl *http.C
 	clientResp := testRegisterClient(t, cfg, cl, http.StatusCreated, contract.APIResponse{Success: true}, reqBody)
 
 	return map[string]string{
-		"CLIENT-ID":     ClientName,
+		"CLIENT-ID":     ClientName(),
 		"CLIENT-SECRET": clientResp.Data.(map[string]interface{})["secret"].(string),
 	}
 }

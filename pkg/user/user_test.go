@@ -31,8 +31,8 @@ func TestCreateNewUserSuccess(t *testing.T) {
 	mockEncoder.On("ValidatePassword", test.UserPassword).Return(nil)
 
 	_, err := user.NewUserBuilder(mockEncoder).
-		Name(test.UserName).
-		Email(test.UserEmail).
+		Name(test.UserName()).
+		Email(test.UserEmail()).
 		Password(test.UserPassword).
 		Build()
 
@@ -76,9 +76,9 @@ func buildUser(d map[string]interface{}) (user.User, error) {
 	}
 
 	return user.NewUserBuilder(mockEncoder).
-		ID(either(d[id], test.UserID).(string)).
-		Name(either(d[name], test.UserName).(string)).
-		Email(either(d[email], test.UserEmail).(string)).
+		ID(either(d[id], test.UserID()).(string)).
+		Name(either(d[name], test.UserName()).(string)).
+		Email(either(d[email], test.UserEmail()).(string)).
 		Password(either(d[userPassword], test.UserPassword).(string)).
 		PasswordSalt(either(d[userPasswordSalt], test.UserPasswordSalt).([]byte)).
 		PasswordHash(either(d[userPasswordHash], test.UserPasswordHash).(string)).
@@ -95,8 +95,8 @@ func TestCreateNewUserFailureForInvalidPassword(t *testing.T) {
 	).Return(liberr.WithArgs(errors.New("invalid password")))
 
 	_, err := user.NewUserBuilder(mockEncoder).
-		Name(test.UserName).
-		Email(test.UserEmail).
+		Name(test.UserName()).
+		Email(test.UserEmail()).
 		Password(test.UserPasswordInvalid).
 		Build()
 

@@ -1,5 +1,3 @@
-// build integration_test
-
 package user_test
 
 import (
@@ -23,15 +21,7 @@ type userStoreIntegrationSuite struct {
 
 func (ust *userStoreIntegrationSuite) SetupSuite() {
 	cfg := config.NewConfig("../../local.env")
-
-	dbCfg := cfg.DatabaseConfig()
-
-	sqlDB, err := database.NewHandler(dbCfg).GetDB()
-	require.NoError(ust.T(), err)
-
-	db := database.NewSQLDatabase(sqlDB, dbCfg.QueryTTL())
-
-	ust.db = db
+	ust.db = test.NewDB(ust.T(), cfg)
 	ust.ctx = context.Background()
 	ust.store = user.NewStore(ust.db)
 }
@@ -57,12 +47,12 @@ func (ust *userStoreIntegrationSuite) TestGetUserSuccess() {
 	_, err := ust.store.CreateUser(ust.ctx, newUser(ust.T()))
 	require.NoError(ust.T(), err)
 
-	_, err = ust.store.GetUser(ust.ctx, test.UserEmail)
+	_, err = ust.store.GetUser(ust.ctx, test.UserEmail())
 	require.NoError(ust.T(), err)
 }
 
 func (ust *userStoreIntegrationSuite) TestGetUserFailureWhenEmailIsNotPresent() {
-	_, err := ust.store.GetUser(ust.ctx, test.UserEmail)
+	_, err := ust.store.GetUser(ust.ctx, test.UserEmail())
 	require.Error(ust.T(), err)
 }
 
@@ -77,7 +67,7 @@ func (ust *userStoreIntegrationSuite) TestUpdatePasswordSuccessWithDB() {
 func (ust *userStoreIntegrationSuite) TestUpdatePasswordFailureWhenUserIsNotPresent() {
 	_, err := ust.store.UpdatePassword(
 		ust.ctx,
-		test.UserEmail,
+		test.UserEmail(),
 		test.UserPasswordHash,
 		test.UserPasswordSalt,
 	)
@@ -97,8 +87,8 @@ func newUser(t *testing.T) user.User {
 	mockEncoder.On("ValidatePassword", test.UserPassword).Return(nil)
 
 	us, err := user.NewUserBuilder(mockEncoder).
-		Name(test.UserName).
-		Email(test.UserEmail).
+		Name(test.UserName()).
+		Email(test.UserEmail()).
 		Password(test.UserPassword).
 		Build()
 

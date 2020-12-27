@@ -2,6 +2,7 @@ package session_test
 
 import (
 	"context"
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -18,156 +19,136 @@ import (
 
 type sessionStoreIntegrationSuite struct {
 	suite.Suite
-	ctx         context.Context
-	db          database.SQLDatabase
-	store       session.Store
-	userService user.Service
+	ctx    context.Context
+	db     database.SQLDatabase
+	store  session.Store
+	userID string
 }
 
 func (sst *sessionStoreIntegrationSuite) SetupSuite() {
 	cfg := config.NewConfig("../../local.env")
 
-	dbCfg := cfg.DatabaseConfig()
-
-	sqlDB, err := database.NewHandler(dbCfg).GetDB()
-	require.NoError(sst.T(), err)
-
-	db := database.NewSQLDatabase(sqlDB, dbCfg.QueryTTL())
-
 	sst.ctx = context.Background()
-	sst.db = db
+	sst.db = test.NewDB(sst.T(), cfg)
 	sst.store = session.NewStore(sst.db)
-	encoder := password.NewEncoder(cfg.PasswordConfig())
-
-	mockPublisher := &publisher.MockPublisher{}
-	mockPublisher.On("Publish", mock.Anything, mock.AnythingOfType("string")).Return(nil)
-
-	sst.userService = user.NewService(user.NewStore(db), encoder, mockPublisher)
+	sst.userID = createUser(sst, cfg)
 }
 
 func (sst *sessionStoreIntegrationSuite) AfterTest(suiteName, testName string) {
-	truncate(sst)
+	truncate(sst, "sessions")
+}
+
+func (sst *sessionStoreIntegrationSuite) TearDownSuite() {
+	truncate(sst, "sessions", "users cascade")
 }
 
 func (sst *sessionStoreIntegrationSuite) TestCreateSessionSuccess() {
-	userID := createUser(sst)
-
-	_, err := sst.store.CreateSession(sst.ctx, newSession(sst.T(), userID, test.SessionRefreshToken))
+	_, err := sst.store.CreateSession(sst.ctx, newSession(sst.T(), sst.userID, test.SessionRefreshToken()))
 	require.NoError(sst.T(), err)
 }
 
 func (sst *sessionStoreIntegrationSuite) TestCreateSessionFailureWhenUserIsNotPresent() {
-	_, err := sst.store.CreateSession(sst.ctx, newSession(sst.T(), test.UserID, test.SessionRefreshToken))
+	_, err := sst.store.CreateSession(sst.ctx, newSession(sst.T(), test.UserID(), test.SessionRefreshToken()))
 	require.Error(sst.T(), err)
 }
 
 func (sst *sessionStoreIntegrationSuite) TestCreateSessionFailureForDuplicateRefreshToken() {
-	userID := createUser(sst)
+	refreshToken := test.SessionRefreshToken()
 
-	_, err := sst.store.CreateSession(sst.ctx, newSession(sst.T(), userID, test.SessionRefreshToken))
+	_, err := sst.store.CreateSession(sst.ctx, newSession(sst.T(), sst.userID, refreshToken))
 	require.NoError(sst.T(), err)
 
-	_, err = sst.store.CreateSession(sst.ctx, newSession(sst.T(), userID, test.SessionRefreshToken))
+	_, err = sst.store.CreateSession(sst.ctx, newSession(sst.T(), sst.userID, refreshToken))
 	require.Error(sst.T(), err)
 }
 
 func (sst *sessionStoreIntegrationSuite) TestGetSessionSuccess() {
-	userID := createUser(sst)
+	refreshToken := test.SessionRefreshToken()
 
-	_, err := sst.store.CreateSession(sst.ctx, newSession(sst.T(), userID, test.SessionRefreshToken))
+	_, err := sst.store.CreateSession(sst.ctx, newSession(sst.T(), sst.userID, refreshToken))
 	require.NoError(sst.T(), err)
 
-	_, err = sst.store.GetSession(sst.ctx, test.SessionRefreshToken)
+	_, err = sst.store.GetSession(sst.ctx, refreshToken)
 	require.NoError(sst.T(), err)
 }
 
 func (sst *sessionStoreIntegrationSuite) TestGetSessionFailure() {
-	_, err := sst.store.GetSession(sst.ctx, test.SessionRefreshToken)
+	_, err := sst.store.GetSession(sst.ctx, test.SessionRefreshToken())
 	require.Error(sst.T(), err)
 }
 
 func (sst *sessionStoreIntegrationSuite) TestGetActiveSessionsCountSuccess() {
-	userID := createUser(sst)
-
-	_, err := sst.store.CreateSession(sst.ctx, newSession(sst.T(), userID, test.SessionRefreshToken))
+	_, err := sst.store.CreateSession(sst.ctx, newSession(sst.T(), sst.userID, test.SessionRefreshToken()))
 	require.NoError(sst.T(), err)
 
-	_, err = sst.store.GetActiveSessionsCount(sst.ctx, test.UserID)
+	_, err = sst.store.GetActiveSessionsCount(sst.ctx, test.UserID())
 	require.NoError(sst.T(), err)
 }
 
 func (sst *sessionStoreIntegrationSuite) TestRevokeSessionsSuccess() {
-	userID := createUser(sst)
+	refreshToken := test.SessionRefreshToken()
 
-	_, err := sst.store.CreateSession(sst.ctx, newSession(sst.T(), userID, test.SessionRefreshToken))
+	_, err := sst.store.CreateSession(sst.ctx, newSession(sst.T(), sst.userID, refreshToken))
 	require.NoError(sst.T(), err)
 
-	_, err = sst.store.RevokeSessions(sst.ctx, test.SessionRefreshToken)
+	_, err = sst.store.RevokeSessions(sst.ctx, refreshToken)
 	require.NoError(sst.T(), err)
 }
 
 func (sst *sessionStoreIntegrationSuite) TestRevokeSessionsFailure() {
-	_, err := sst.store.RevokeSessions(sst.ctx, test.SessionRefreshToken)
+	_, err := sst.store.RevokeSessions(sst.ctx, test.SessionRefreshToken())
 	require.Error(sst.T(), err)
 }
 
 func (sst *sessionStoreIntegrationSuite) TestRevokeLastNSessionsSuccess() {
-	userID := createUser(sst)
-
 	rts := []string{
-		test.SessionRefreshToken,
-		test.SessionRefreshTokenTwo,
-		test.SessionRefreshTokenThree,
-		test.SessionRefreshTokenFour,
+		test.SessionRefreshToken(),
+		test.SessionRefreshToken(),
+		test.SessionRefreshToken(),
+		test.SessionRefreshToken(),
 	}
 
 	for _, rt := range rts {
-		_, err := sst.store.CreateSession(sst.ctx, newSession(sst.T(), userID, rt))
+		_, err := sst.store.CreateSession(sst.ctx, newSession(sst.T(), sst.userID, rt))
 		require.NoError(sst.T(), err)
 	}
 
-	c, err := sst.store.RevokeLastNSessions(sst.ctx, userID, 2)
+	c, err := sst.store.RevokeLastNSessions(sst.ctx, sst.userID, 2)
 	require.NoError(sst.T(), err)
 
 	assert.Equal(sst.T(), int64(2), c)
 }
 
 func (sst *sessionStoreIntegrationSuite) TestRevokeLastNSessionsFailure() {
-	userID := createUser(sst)
-
-	c, err := sst.store.RevokeLastNSessions(sst.ctx, userID, 2)
+	c, err := sst.store.RevokeLastNSessions(sst.ctx, sst.userID, 2)
 	require.Error(sst.T(), err)
 
 	assert.Equal(sst.T(), int64(0), c)
 }
 
 func (sst *sessionStoreIntegrationSuite) TestRevokeAllSessionsSuccess() {
-	userID := createUser(sst)
-
-	rts := []string{test.SessionRefreshToken, test.SessionRefreshTokenTwo}
+	rts := []string{test.SessionRefreshToken(), test.SessionRefreshToken()}
 
 	for _, rt := range rts {
-		_, err := sst.store.CreateSession(sst.ctx, newSession(sst.T(), userID, rt))
+		_, err := sst.store.CreateSession(sst.ctx, newSession(sst.T(), sst.userID, rt))
 		require.NoError(sst.T(), err)
 	}
 
-	c, err := sst.store.RevokeAllSessions(sst.ctx, userID)
+	c, err := sst.store.RevokeAllSessions(sst.ctx, sst.userID)
 	require.NoError(sst.T(), err)
 
 	assert.Equal(sst.T(), int64(2), c)
 }
 
 func (sst *sessionStoreIntegrationSuite) TestRevokeAllSessionsFailureWhenNoSessionsExists() {
-	userID := createUser(sst)
-
-	c, err := sst.store.RevokeAllSessions(sst.ctx, userID)
+	c, err := sst.store.RevokeAllSessions(sst.ctx, test.UserID())
 	require.Error(sst.T(), err)
 
 	assert.Equal(sst.T(), int64(0), c)
 }
 
 func (sst *sessionStoreIntegrationSuite) TestRevokeAllSessionsFailureWhenUserDoesNotExists() {
-	c, err := sst.store.RevokeAllSessions(sst.ctx, test.UserID)
+	c, err := sst.store.RevokeAllSessions(sst.ctx, test.UserID())
 	require.Error(sst.T(), err)
 
 	assert.Equal(sst.T(), int64(0), c)
@@ -184,8 +165,15 @@ func TestStoreIntegration(t *testing.T) {
 	suite.Run(t, new(sessionStoreIntegrationSuite))
 }
 
-func createUser(sst *sessionStoreIntegrationSuite) string {
-	userID, err := sst.userService.CreateUser(sst.ctx, test.UserName, test.UserEmail, test.UserPassword)
+func createUser(sst *sessionStoreIntegrationSuite, cfg config.Config) string {
+	mockPublisher := &publisher.MockPublisher{}
+	mockPublisher.On("Publish", mock.Anything, mock.AnythingOfType("string")).Return(nil)
+
+	encoder := password.NewEncoder(cfg.PasswordConfig())
+
+	userService := user.NewService(user.NewStore(sst.db), encoder, mockPublisher)
+
+	userID, err := userService.CreateUser(sst.ctx, test.UserName(), test.UserEmail(), test.UserPassword)
 	require.NoError(sst.T(), err)
 
 	return userID
@@ -195,10 +183,9 @@ func TestSessionStoreIntegration(t *testing.T) {
 	suite.Run(t, new(sessionStoreIntegrationSuite))
 }
 
-func truncate(sst *sessionStoreIntegrationSuite) {
-	_, err := sst.db.ExecContext(sst.ctx, "truncate sessions")
-	require.NoError(sst.T(), err)
-
-	_, err = sst.db.ExecContext(sst.ctx, "truncate users cascade ")
-	require.NoError(sst.T(), err)
+func truncate(sst *sessionStoreIntegrationSuite, tables ...string) {
+	for _, table := range tables {
+		_, err := sst.db.ExecContext(sst.ctx, fmt.Sprintf("truncate %s", table))
+		require.NoError(sst.T(), err)
+	}
 }

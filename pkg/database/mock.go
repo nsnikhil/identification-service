@@ -19,6 +19,11 @@ type MockSQLDatabase struct {
 	mock.Mock
 }
 
+//func (mock *MockSQLDatabase) BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error) {
+//	ag := mock.Called(ctx, opts)
+//	return ag.Get(0).(*sql.Tx), ag.Error(1)
+//}
+
 func (mock *MockSQLDatabase) QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
 	ag := mock.Called(ctx, query, args)
 	return ag.Get(0).(*sql.Rows), ag.Error(1)

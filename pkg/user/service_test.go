@@ -39,13 +39,13 @@ func (cst *createUserSuite) TestCreateUserSuccess() {
 		"CreateUser",
 		mock.AnythingOfType("*context.emptyCtx"),
 		mock.AnythingOfType("User"),
-	).Return(test.UserID, nil)
+	).Return(test.UserID(), nil)
 
 	cst.encoder.(*password.MockEncoder).On("ValidatePassword", test.UserPassword).Return(nil)
 
 	service := user.NewService(mockStore, cst.encoder, cst.publisher)
 
-	_, err := service.CreateUser(context.Background(), test.UserName, test.UserEmail, test.UserPassword)
+	_, err := service.CreateUser(context.Background(), test.UserName(), test.UserEmail(), test.UserPassword)
 	assert.Nil(cst.T(), err)
 }
 
@@ -61,7 +61,7 @@ func (cst *createUserSuite) TestCreateFailureWhenStoreCallFails() {
 
 	service := user.NewService(mockStore, cst.encoder, cst.publisher)
 
-	_, err := service.CreateUser(context.Background(), test.UserName, test.UserEmail, test.UserPassword)
+	_, err := service.CreateUser(context.Background(), test.UserName(), test.UserEmail(), test.UserPassword)
 	assert.NotNil(cst.T(), err)
 }
 
@@ -72,19 +72,19 @@ func (cst *createUserSuite) TestCreateFailureWhenInputIsInvalid() {
 	}{
 		"test failure when name is empty": {
 			input: func() (string, string, string) {
-				return test.EmptyString, test.UserEmail, test.UserPassword
+				return test.EmptyString, test.UserEmail(), test.UserPassword
 			},
 			err: errors.New("name cannot be empty"),
 		},
 		"test failure when email is empty": {
 			input: func() (string, string, string) {
-				return test.UserName, test.EmptyString, test.UserPassword
+				return test.UserName(), test.EmptyString, test.UserPassword
 			},
 			err: errors.New("email cannot be empty"),
 		},
 		"test failure when pass is empty": {
 			input: func() (string, string, string) {
-				return test.UserName, test.UserEmail, test.EmptyString
+				return test.UserName(), test.UserEmail(), test.EmptyString
 			},
 			err: errors.New("password cannot be empty"),
 		},
@@ -94,7 +94,7 @@ func (cst *createUserSuite) TestCreateFailureWhenInputIsInvalid() {
 					"ValidatePassword",
 					test.UserPasswordInvalid,
 				).Return(errors.New("invalid password"))
-				return test.UserName, test.UserEmail, test.UserPasswordInvalid
+				return test.UserName(), test.UserEmail(), test.UserPasswordInvalid
 			},
 			err: errors.New("invalid password"),
 		},
@@ -117,8 +117,10 @@ func TestCreateUser(t *testing.T) {
 }
 
 func TestGetUserIDSuccess(t *testing.T) {
+	userEmail := test.UserEmail()
+
 	mockStore := &user.MockStore{}
-	mockStore.On("GetUser", mock.AnythingOfType("*context.emptyCtx"), test.UserEmail).Return(user.User{}, nil)
+	mockStore.On("GetUser", mock.AnythingOfType("*context.emptyCtx"), userEmail).Return(user.User{}, nil)
 
 	mockEncoder := &password.MockEncoder{}
 	mockEncoder.On(
@@ -130,7 +132,7 @@ func TestGetUserIDSuccess(t *testing.T) {
 
 	service := user.NewService(mockStore, mockEncoder, &publisher.MockPublisher{})
 
-	_, err := service.GetUserID(context.Background(), test.UserEmail, test.UserPassword)
+	_, err := service.GetUserID(context.Background(), userEmail, test.UserPassword)
 	require.NoError(t, err)
 }
 
@@ -139,12 +141,12 @@ func TestGetUserIDFailureWhenStoreCallsFails(t *testing.T) {
 	mockStore.On(
 		"GetUser",
 		mock.AnythingOfType("*context.emptyCtx"),
-		test.UserEmail,
+		test.UserEmail(),
 	).Return(user.User{}, errors.New("failed to get user"))
 
 	service := user.NewService(mockStore, &password.MockEncoder{}, &publisher.MockPublisher{})
 
-	_, err := service.GetUserID(context.Background(), test.UserEmail, test.UserPassword)
+	_, err := service.GetUserID(context.Background(), test.UserEmail(), test.UserPassword)
 	require.Error(t, err)
 }
 
@@ -153,7 +155,7 @@ func TestGetUserIDFailureWhenPasswordVerificationFails(t *testing.T) {
 	mockStore.On(
 		"GetUser",
 		mock.AnythingOfType("*context.emptyCtx"),
-		test.UserEmail,
+		test.UserEmail(),
 	).Return(user.User{}, nil)
 
 	mockEncoder := &password.MockEncoder{}
@@ -166,13 +168,15 @@ func TestGetUserIDFailureWhenPasswordVerificationFails(t *testing.T) {
 
 	service := user.NewService(mockStore, mockEncoder, &publisher.MockPublisher{})
 
-	_, err := service.GetUserID(context.Background(), test.UserEmail, test.UserPassword)
+	_, err := service.GetUserID(context.Background(), test.UserEmail(), test.UserPassword)
 	require.Error(t, err)
 }
 
 func TestUpdatePasswordSuccess(t *testing.T) {
+	userEmail := test.UserEmail()
+
 	mockStore := &user.MockStore{}
-	mockStore.On("GetUser", mock.AnythingOfType("*context.emptyCtx"), test.UserEmail).Return(user.User{}, nil)
+	mockStore.On("GetUser", mock.AnythingOfType("*context.emptyCtx"), userEmail).Return(user.User{}, nil)
 	mockStore.On(
 		"UpdatePassword",
 		mock.AnythingOfType("*context.emptyCtx"),
@@ -195,7 +199,7 @@ func TestUpdatePasswordSuccess(t *testing.T) {
 
 	service := user.NewService(mockStore, mockEncoder, mockPublisher)
 
-	err := service.UpdatePassword(context.Background(), test.UserEmail, test.UserPassword, test.UserPasswordNew)
+	err := service.UpdatePassword(context.Background(), userEmail, test.UserPassword, test.UserPasswordNew)
 	require.NoError(t, err)
 }
 
@@ -224,7 +228,7 @@ func TestUpdatePasswordFailure(t *testing.T) {
 				mockStore.On(
 					"GetUser",
 					mock.AnythingOfType("*context.emptyCtx"),
-					test.UserEmail,
+					test.UserEmail(),
 				).Return(user.User{}, errors.New("failed to get user"))
 
 				return mockStore
@@ -243,7 +247,7 @@ func TestUpdatePasswordFailure(t *testing.T) {
 				mockStore.On(
 					"GetUser",
 					mock.AnythingOfType("*context.emptyCtx"),
-					test.UserEmail,
+					test.UserEmail(),
 				).Return(user.User{}, nil)
 
 				return mockStore
@@ -273,7 +277,7 @@ func TestUpdatePasswordFailure(t *testing.T) {
 				mockStore.On(
 					"GetUser",
 					mock.AnythingOfType("*context.emptyCtx"),
-					test.UserEmail,
+					test.UserEmail(),
 				).Return(user.User{}, nil)
 				mockStore.On(
 					"UpdatePassword",
@@ -309,7 +313,7 @@ func TestUpdatePasswordFailure(t *testing.T) {
 
 			service := user.NewService(testCase.store(), testCase.encoder(), &publisher.MockPublisher{})
 
-			err := service.UpdatePassword(context.Background(), test.UserEmail, test.UserPassword, testCase.newPassword)
+			err := service.UpdatePassword(context.Background(), test.UserEmail(), test.UserPassword, testCase.newPassword)
 			require.Error(t, err)
 		})
 	}

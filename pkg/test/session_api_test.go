@@ -1,5 +1,3 @@
-// build component_test
-
 package test
 
 import (
@@ -78,7 +76,7 @@ func (sat *sessionAPITestSuite) TestLoginSuccessWithRevokeOld() {
 	err := sat.deps.db.QueryRowContext(
 		context.Background(),
 		`select id from users where email=$1`,
-		UserEmail,
+		UserEmail(),
 	).Scan(&userID)
 
 	require.NoError(sat.T(), err)
@@ -141,7 +139,7 @@ func (sat *sessionAPITestSuite) TestRefreshTokenSuccess() {
 	err := sat.deps.db.QueryRowContext(
 		sat.deps.ctx,
 		"select id from users where email = $1",
-		UserEmail,
+		UserEmail(),
 	).Scan(&userID)
 
 	require.NoError(sat.T(), err)
@@ -165,7 +163,7 @@ func (sat *sessionAPITestSuite) TestRefreshTokenSuccess() {
 }
 
 func (sat *sessionAPITestSuite) TestRefreshTokenFailureWhenClientCredentialsAreMissing() {
-	reqBody := getRefreshTokenReqBody(map[string]interface{}{sessionRefreshTokenKey: SessionRefreshToken})
+	reqBody := getRefreshTokenReqBody(map[string]interface{}{sessionRefreshTokenKey: SessionRefreshToken()})
 
 	expectedRespData := contract.APIResponse{
 		Success: false,
@@ -180,7 +178,7 @@ func (sat *sessionAPITestSuite) TestRefreshTokenFailureWhenRefreshTokenIsIncorre
 	signUpUser(sat.T(), sat.deps.cfg.PublisherConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
 	loginUser(sat.T(), sat.deps.cl, authHeaders)
 
-	reqBody := contract.RefreshTokenRequest{RefreshToken: SessionRefreshToken}
+	reqBody := contract.RefreshTokenRequest{RefreshToken: SessionRefreshToken()}
 
 	expectedRespData := contract.APIResponse{
 		Success: false,
@@ -199,7 +197,7 @@ func (sat *sessionAPITestSuite) TestRefreshTokenFailureWhenSessionExpires() {
 	err := sat.deps.db.QueryRowContext(
 		sat.deps.ctx,
 		"select id from users where email = $1",
-		UserEmail,
+		UserEmail(),
 	).Scan(&userID)
 
 	require.NoError(sat.T(), err)
@@ -245,7 +243,7 @@ func (sat *sessionAPITestSuite) TestLogoutUserSuccess() {
 	err := sat.deps.db.QueryRowContext(
 		sat.deps.ctx,
 		"select id from users where email = $1",
-		UserEmail,
+		UserEmail(),
 	).Scan(&userID)
 
 	require.NoError(sat.T(), err)
@@ -273,7 +271,7 @@ func (sat *sessionAPITestSuite) TestLogoutUserSuccess() {
 }
 
 func (sat *sessionAPITestSuite) TestLogoutFailureWhenClientCredentialsAreMissing() {
-	reqBody := getLogoutReqBody(map[string]interface{}{sessionRefreshTokenKey: SessionRefreshToken})
+	reqBody := getLogoutReqBody(map[string]interface{}{sessionRefreshTokenKey: SessionRefreshToken()})
 
 	expectedRespData := contract.APIResponse{
 		Success: false,
@@ -286,7 +284,7 @@ func (sat *sessionAPITestSuite) TestLogoutFailureWhenClientCredentialsAreMissing
 func (sat *sessionAPITestSuite) TestLogoutUserFailureForIncorrectRefreshToken() {
 	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl)
 
-	reqBody := getLogoutReqBody(map[string]interface{}{sessionRefreshTokenKey: SessionRefreshToken})
+	reqBody := getLogoutReqBody(map[string]interface{}{sessionRefreshTokenKey: SessionRefreshToken()})
 
 	expectedRespData := contract.APIResponse{
 		Success: false,
@@ -385,7 +383,7 @@ func getLoginReqBody(data map[string]interface{}) contract.LoginRequest {
 	}
 
 	return contract.LoginRequest{
-		Email:    either(data[userEmailKey], UserEmail).(string),
+		Email:    either(data[userEmailKey], UserEmail()).(string),
 		Password: either(data[userPasswordKey], UserPassword).(string),
 	}
 }
