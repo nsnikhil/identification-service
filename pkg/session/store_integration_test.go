@@ -116,24 +116,30 @@ func (sst *sessionStoreIntegrationSuite) TestRevokeLastNSessionsSuccess() {
 }
 
 func (sst *sessionStoreIntegrationSuite) TestRevokeLastNSessionsFailure() {
-	//c, err := sst.store.RevokeLastNSessions(sst.ctx, sst.userID, 2)
-	//require.Error(sst.T(), err)
-	//
-	//assert.Equal(sst.T(), int64(0), c)
+	//TODO: REFACTOR THIS
+	newUserID := createUser(sst, config.NewConfig("../../local.env"))
+
+	c, err := sst.store.RevokeLastNSessions(sst.ctx, newUserID, 2)
+	require.Error(sst.T(), err)
+
+	assert.Equal(sst.T(), int64(0), c)
 }
 
 func (sst *sessionStoreIntegrationSuite) TestRevokeAllSessionsSuccess() {
-	//rts := []string{test.SessionRefreshToken(), test.SessionRefreshToken()}
-	//
-	//for _, rt := range rts {
-	//	_, err := sst.store.CreateSession(sst.ctx, newSession(sst.T(), sst.userID, rt))
-	//	require.NoError(sst.T(), err)
-	//}
-	//
-	//c, err := sst.store.RevokeAllSessions(sst.ctx, sst.userID)
-	//require.NoError(sst.T(), err)
+	//TODO: REFACTOR THIS
+	newUserID := createUser(sst, config.NewConfig("../../local.env"))
 
-	//assert.Equal(sst.T(), int64(2), c)
+	rts := []string{test.SessionRefreshToken(), test.SessionRefreshToken()}
+
+	for _, rt := range rts {
+		_, err := sst.store.CreateSession(sst.ctx, newSession(sst.T(), newUserID, rt))
+		require.NoError(sst.T(), err)
+	}
+
+	c, err := sst.store.RevokeAllSessions(sst.ctx, newUserID)
+	require.NoError(sst.T(), err)
+
+	assert.Equal(sst.T(), int64(2), c)
 }
 
 func (sst *sessionStoreIntegrationSuite) TestRevokeAllSessionsFailureWhenNoSessionsExists() {
