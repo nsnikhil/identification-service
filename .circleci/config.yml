@@ -1,6 +1,7 @@
-version: 2
+version: 2.1
+
 jobs:
-  build:
+  test:
     docker:
       - image: golang:1.15.6-alpine
 
@@ -20,3 +21,23 @@ jobs:
       - checkout
       - run: apk add --no-cache make build-base
       - run: make ci-test
+
+  publish:
+    docker:
+      - image: circleci/buildpack-deps:stretch
+    steps:
+      - setup_remote_docker
+      - echo "$DOCKERHUB_PASS" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+      - run: make docker-push
+
+workflows:
+  version: 2
+  jobs:
+    - test
+    - publish:
+        requires:
+          - test
+        filter:
+          tags:
+            only: ^\d+\.\d+(\.\d+)?$
+
