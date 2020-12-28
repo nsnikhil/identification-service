@@ -38,7 +38,7 @@ workflows:
       - publish:
           requires:
             - test
-          filter:
+          filters:
             tags:
-              only: ^\d+\.\d+(\.\d+)?$
+              only: /^\d+\.\d+(\.\d+)?$/
 
