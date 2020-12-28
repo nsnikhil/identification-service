@@ -32,12 +32,13 @@ jobs:
 
 workflows:
   version: 2
-  jobs:
-    - test
-    - publish:
-        requires:
-          - test
-        filter:
-          tags:
-            only: ^\d+\.\d+(\.\d+)?$
+  test-deploy:
+    jobs:
+      - test
+      - publish:
+          requires:
+            - test
+          filter:
+            tags:
+              only: ^\d+\.\d+(\.\d+)?$
 
