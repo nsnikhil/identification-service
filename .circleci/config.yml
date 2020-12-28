@@ -27,8 +27,9 @@ jobs:
       - image: circleci/buildpack-deps:stretch
     steps:
       - setup_remote_docker
-      - echo "$DOCKERHUB_PASS" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
-      - run: make docker-push
+      - run: |
+          echo "$DOCKERHUB_PASS" | docker login --username $DOCKERHUB_USERNAME --password-stdin
+          make docker-push
 
 workflows:
   version: 2
