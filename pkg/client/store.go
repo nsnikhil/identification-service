@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-redis/redis/v8"
+	"github.com/lib/pq"
 	"identification-service/pkg/database"
 	"identification-service/pkg/liberr"
 	"time"
@@ -27,18 +28,32 @@ type clientStore struct {
 }
 
 func (cs *clientStore) CreateClient(ctx context.Context, client Client) (string, error) {
-	var secret string
 
-	//TODO: RETURN DIFFERENT ERROR KIND FOR DUPLICATE RECORD
-	err := cs.db.QueryRowContext(ctx, createClient,
+	row := cs.db.QueryRowContext(
+		ctx,
+		createClient,
 		client.Name,
 		client.internalClient.AccessTokenTTL,
 		client.internalClient.SessionTTL,
 		client.internalClient.MaxActiveSessions,
 		client.internalClient.SessionStrategyName,
 		client.PrivateKey,
-	).Scan(&secret)
+	)
 
+	//TODO: REMOVE THIS HARD CODING
+	if row.Err() != nil {
+		if pgErr, ok := row.Err().(*pq.Error); ok {
+			if pgErr.Code == "23505" {
+				return "", liberr.WithArgs(liberr.Operation("Store.CreateClient"), liberr.DuplicateRecordError, row.Err())
+			}
+		}
+
+		return "", liberr.WithOp("Store.CreateClient", row.Err())
+	}
+
+	var secret string
+
+	err := row.Scan(&secret)
 	if err != nil {
 		return "", liberr.WithOp("Store.CreateClient", err)
 	}

@@ -113,9 +113,9 @@ func (cat *clientAPITestSuite) TestRegisterClientFailureForDuplicateRecord() {
 		cat.T(),
 		cat.deps.cfg.AuthConfig(),
 		cat.deps.cl,
-		http.StatusInternalServerError,
+		http.StatusConflict,
 		contract.APIResponse{
-			Success: false, Error: &contract.Error{Message: "internal server error"},
+			Success: false, Error: &contract.Error{Message: "duplicate record"},
 		},
 		reqBody,
 	)

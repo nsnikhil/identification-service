@@ -57,7 +57,7 @@ func (pe *pbkdfPasswordEncoder) VerifyPassword(password, userPasswordHash string
 
 func (pe *pbkdfPasswordEncoder) ValidatePassword(password string) error {
 	wrap := func(err error) error {
-		return liberr.WithArgs(liberr.WithArgs("Encoder.ValidatePassword"), liberr.ValidationError, err)
+		return liberr.WithArgs(liberr.Operation("Encoder.ValidatePassword"), liberr.ValidationError, err)
 	}
 
 	if len(password) < 8 {

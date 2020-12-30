@@ -27,6 +27,8 @@ func MapError(err error) ResponseError {
 		return NewResponseError(http.StatusUnauthorized, "authentication failed")
 	case liberr.InvalidCredentialsError:
 		return NewResponseError(http.StatusUnauthorized, "invalid credentials")
+	case liberr.DuplicateRecordError:
+		return NewResponseError(http.StatusConflict, "duplicate record")
 	default:
 		return NewResponseError(defaultStatusCode, defaultMessage)
 	}

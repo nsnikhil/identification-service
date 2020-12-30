@@ -30,6 +30,10 @@ func TestErrorMap(t *testing.T) {
 			err:             liberr.WithArgs(liberr.InvalidCredentialsError, errors.New("invalid user name or password")),
 			expectedRespErr: resperr.NewResponseError(http.StatusUnauthorized, "invalid credentials"),
 		},
+		"test mapping for duplicate record error": {
+			err:             liberr.WithArgs(liberr.DuplicateRecordError, errors.New("duplicate record")),
+			expectedRespErr: resperr.NewResponseError(http.StatusConflict, "duplicate record"),
+		},
 		"test mapping for lib error with no kind": {
 			err:             liberr.WithArgs(errors.New("database error")),
 			expectedRespErr: resperr.NewResponseError(http.StatusInternalServerError, "internal server error"),
