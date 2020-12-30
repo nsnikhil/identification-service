@@ -3,8 +3,8 @@ package liberr
 type Severity string
 
 const (
-	SeverityError = "error"
-	SeverityWarn  = "warn"
-	SeverityInfo  = "info"
-	SeverityDebug = "debug"
+	SeverityError Severity = "error"
+	SeverityWarn  Severity = "warn"
+	SeverityInfo  Severity = "info"
+	SeverityDebug Severity = "debug"
 )

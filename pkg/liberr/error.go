@@ -31,52 +31,57 @@ func (e *Error) Kind() Kind {
 
 //TODO: CHANGE IMPLEMENTATION
 func (e *Error) EncodedStack() string {
-	var encode func(d map[string]interface{}) string
-	encode = func(d map[string]interface{}) string {
+	var encode func(d []pair) string
+	encode = func(d []pair) string {
 		b := new(strings.Builder)
 
-		for k, v := range d {
-			t, ok := v.(map[string]interface{})
+		for _, v := range d {
+			t, ok := v.value.([]pair)
 
 			var val string
 
 			if ok {
 				val = encode(t)
 			} else {
-				val = fmt.Sprintf("%s", v)
+				val = fmt.Sprintf("%s", v.value)
 			}
 
-			b.WriteString(fmt.Sprintf(" %s:%s ", k, val))
+			b.WriteString(fmt.Sprintf(" %s:%s ", v.key, val))
 		}
 
 		return fmt.Sprintf("[%s]", strings.TrimSpace(b.String()))
 	}
 
-	return encode(e.Stack())
+	return encode(e.stack())
+}
+
+type pair struct {
+	key   string
+	value interface{}
 }
 
 //TODO: CHANGE IMPLEMENTATION
-func (e *Error) Stack() map[string]interface{} {
-	res := make(map[string]interface{})
+func (e *Error) stack() []pair {
+	res := make([]pair, 0)
 
 	if len(e.kind) != 0 {
-		res["kind"] = e.kind
+		res = append(res, pair{key: "kind", value: e.kind})
 	}
 
 	if len(e.operation) != 0 {
-		res["operation"] = string(e.operation)
+		res = append(res, pair{key: "operation", value: e.operation})
 	}
 
 	if len(e.severity) != 0 {
-		res["severity"] = string(e.severity)
+		res = append(res, pair{key: "severity", value: e.severity})
 	}
 
 	if e.cause != nil {
 		t, ok := e.cause.(*Error)
 		if ok {
-			res["cause"] = t.Stack()
+			res = append(res, pair{key: "cause", value: t.stack()})
 		} else {
-			res["cause"] = e.cause.Error()
+			res = append(res, pair{key: "cause", value: e.cause.Error()})
 		}
 	}
 
@@ -98,12 +103,28 @@ func WithArgs(args ...interface{}) *Error {
 	for _, arg := range args {
 		switch t := arg.(type) {
 		case Operation:
+			if len(e.operation) != 0 {
+				return nil
+			}
+
 			e.operation = t
 		case Kind:
+			if len(e.kind) != 0 {
+				return nil
+			}
+
 			e.kind = t
 		case Severity:
+			if len(e.severity) != 0 {
+				return nil
+			}
+
 			e.severity = t
 		case error:
+			if e.cause != nil {
+				return nil
+			}
+
 			e.cause = t
 		}
 	}
