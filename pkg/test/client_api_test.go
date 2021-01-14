@@ -122,7 +122,7 @@ func (cat *clientAPITestSuite) TestRegisterClientFailureForDuplicateRecord() {
 }
 
 func (cat *clientAPITestSuite) TestRevokeClientSuccess() {
-	authHeaders := registerClientAndGetHeaders(cat.T(), cat.deps.cfg.AuthConfig(), cat.deps.cl)
+	authHeaders := registerClientAndGetHeaders(cat.T(), cat.deps.cfg.AuthConfig(), cat.deps.cl, nil)
 
 	var clientID string
 
@@ -149,7 +149,7 @@ func (cat *clientAPITestSuite) TestRevokeClientFailure() {
 		},
 	}
 
-	testRevokeClient(cat, http.StatusNotFound, expectedRespData, ClientID())
+	testRevokeClient(cat, http.StatusNotFound, expectedRespData, NewUUID())
 }
 
 func getRegisterClientReqBody(data map[string]interface{}) contract.CreateClientRequest {
@@ -162,10 +162,10 @@ func getRegisterClientReqBody(data map[string]interface{}) contract.CreateClient
 	}
 
 	return contract.CreateClientRequest{
-		Name:              either(data[clientNameKey], ClientName()).(string),
-		AccessTokenTTL:    either(data[clientAccessTokenTTLKey], ClientAccessTokenTTL).(int),
-		SessionTTL:        either(data[clientSessionTTLKey], ClientSessionTTL).(int),
-		MaxActiveSessions: either(data[clientMaxActiveSessionsKey], ClientMaxActiveSessions).(int),
+		Name:              either(data[clientNameKey], RandString(8)).(string),
+		AccessTokenTTL:    either(data[clientAccessTokenTTLKey], RandInt(1, 10)).(int),
+		SessionTTL:        either(data[clientSessionTTLKey], RandInt(1440, 86701)).(int),
+		MaxActiveSessions: either(data[clientMaxActiveSessionsKey], RandInt(1, 10)).(int),
 		SessionStrategy:   either(data[clientSessionStrategyNameKey], ClientSessionStrategyRevokeOld).(string),
 	}
 }

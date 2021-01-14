@@ -39,7 +39,7 @@ func TestUserAPI(t *testing.T) {
 }
 
 func (uat *userAPITestSuite) TestSignUpUserSuccess() {
-	authHeaders := registerClientAndGetHeaders(uat.T(), uat.deps.cfg.AuthConfig(), uat.deps.cl)
+	authHeaders := registerClientAndGetHeaders(uat.T(), uat.deps.cfg.AuthConfig(), uat.deps.cl, map[string]interface{}{})
 
 	reqBody := getCreateUserReqBody(map[string]interface{}{})
 
@@ -83,7 +83,7 @@ func (uat *userAPITestSuite) TestSignUpUserFailureWhenClientCredentialsAreMissin
 }
 
 func (uat *userAPITestSuite) TestSignUpUserValidationFailure() {
-	authHeaders := registerClientAndGetHeaders(uat.T(), uat.deps.cfg.AuthConfig(), uat.deps.cl)
+	authHeaders := registerClientAndGetHeaders(uat.T(), uat.deps.cfg.AuthConfig(), uat.deps.cl, map[string]interface{}{})
 
 	expectedRespData := func(msg string) contract.APIResponse {
 		return contract.APIResponse{
@@ -109,7 +109,7 @@ func (uat *userAPITestSuite) TestSignUpUserValidationFailure() {
 			errorMessage: "password cannot be empty",
 		},
 		"test failure when password is invalid": {
-			data:         map[string]interface{}{userPasswordKey: UserPasswordInvalid},
+			data:         map[string]interface{}{userPasswordKey: RandString(12)},
 			errorMessage: "password must have at least 1 number, 1 lower character, 1 upper character and 1 symbol",
 		},
 	}
@@ -133,7 +133,7 @@ func (uat *userAPITestSuite) TestSignUpUserValidationFailure() {
 
 //TODO: WHY DOES DUPLICATE RECORD RETURN INTERNAL SERVER ERROR ?
 func (uat *userAPITestSuite) TestSignUpUserFailureForDuplicateRecord() {
-	authHeaders := registerClientAndGetHeaders(uat.T(), uat.deps.cfg.AuthConfig(), uat.deps.cl)
+	authHeaders := registerClientAndGetHeaders(uat.T(), uat.deps.cfg.AuthConfig(), uat.deps.cl, map[string]interface{}{})
 
 	reqBody := getCreateUserReqBody(map[string]interface{}{})
 
@@ -173,10 +173,15 @@ func (uat *userAPITestSuite) TestSignUpUserFailureForDuplicateRecord() {
 }
 
 func (uat *userAPITestSuite) TestUpdatePasswordSuccess() {
-	authHeaders := registerClientAndGetHeaders(uat.T(), uat.deps.cfg.AuthConfig(), uat.deps.cl)
+	authHeaders := registerClientAndGetHeaders(uat.T(), uat.deps.cfg.AuthConfig(), uat.deps.cl, map[string]interface{}{})
 	userDetails := signUpUser(uat.T(), uat.deps.cfg.PublisherConfig(), uat.deps.cl, uat.deps.ch, authHeaders)
 
-	reqBody := getUpdatePasswordReqBody(map[string]interface{}{userEmailKey: userDetails.Email})
+	reqBody := getUpdatePasswordReqBody(
+		map[string]interface{}{
+			userEmailKey:    userDetails.Email,
+			userPasswordKey: userDetails.Password,
+		},
+	)
 
 	expectedRespData := contract.APIResponse{
 		Success: true,
@@ -187,7 +192,7 @@ func (uat *userAPITestSuite) TestUpdatePasswordSuccess() {
 }
 
 func (uat *userAPITestSuite) TestUpdatePasswordFailure() {
-	authHeaders := registerClientAndGetHeaders(uat.T(), uat.deps.cfg.AuthConfig(), uat.deps.cl)
+	authHeaders := registerClientAndGetHeaders(uat.T(), uat.deps.cfg.AuthConfig(), uat.deps.cl, map[string]interface{}{})
 	signUpUser(uat.T(), uat.deps.cfg.PublisherConfig(), uat.deps.cl, uat.deps.ch, authHeaders)
 
 	expectedRespData := func(msg string) contract.APIResponse {
@@ -213,7 +218,7 @@ func (uat *userAPITestSuite) TestUpdatePasswordFailure() {
 			errMsg:     "invalid credentials",
 		},
 		"test failure when new password does not match spec": {
-			data:       map[string]interface{}{userNewPasswordKey: UserPasswordInvalid},
+			data:       map[string]interface{}{userNewPasswordKey: RandString(8)},
 			statusCode: http.StatusBadRequest,
 			errMsg:     "password must have at least 1 number, 1 lower character, 1 upper character and 1 symbol",
 		},
@@ -299,9 +304,9 @@ func getCreateUserReqBody(data map[string]interface{}) contract.CreateUserReques
 	}
 
 	return contract.CreateUserRequest{
-		Name:     either(data[userNameKey], UserName()).(string),
-		Email:    either(data[userEmailKey], UserEmail()).(string),
-		Password: either(data[userPasswordKey], UserPassword).(string),
+		Name:     either(data[userNameKey], RandString(8)).(string),
+		Email:    either(data[userEmailKey], NewEmail()).(string),
+		Password: either(data[userPasswordKey], NewPassword()).(string),
 	}
 
 }
@@ -316,9 +321,9 @@ func getUpdatePasswordReqBody(data map[string]interface{}) contract.UpdatePasswo
 	}
 
 	return contract.UpdatePasswordRequest{
-		Email:       either(data[userEmailKey], UserEmail()).(string),
-		OldPassword: either(data[userPasswordKey], UserPassword).(string),
-		NewPassword: either(data[userNewPasswordKey], UserPasswordNew).(string),
+		Email:       either(data[userEmailKey], NewEmail()).(string),
+		OldPassword: either(data[userPasswordKey], NewPassword()).(string),
+		NewPassword: either(data[userNewPasswordKey], NewPassword()).(string),
 	}
 
 }

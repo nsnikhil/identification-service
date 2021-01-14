@@ -62,13 +62,13 @@ func buildClient(d map[string]interface{}) (client.Client, error) {
 	}
 
 	return client.NewClientBuilder().
-		ID(either(d[id], test.ClientID()).(string)).
-		Name(either(d[name], test.ClientName()).(string)).
-		Secret(either(d[secret], test.ClientSecret()).(string)).
+		ID(either(d[id], test.NewUUID()).(string)).
+		Name(either(d[name], test.RandString(8)).(string)).
+		Secret(either(d[secret], test.NewUUID()).(string)).
 		Revoked(either(d[revoked], false).(bool)).
-		AccessTokenTTL(either(d[accessTokenTTL], test.ClientAccessTokenTTL).(int)).
-		SessionTTL(either(d[sessionTTL], test.ClientSessionTTL).(int)).
-		MaxActiveSessions(either(d[maxActiveSessions], test.ClientMaxActiveSessions).(int)).
+		AccessTokenTTL(either(d[accessTokenTTL], test.RandInt(1, 10)).(int)).
+		SessionTTL(either(d[sessionTTL], test.RandInt(1440, 86701)).(int)).
+		MaxActiveSessions(either(d[maxActiveSessions], test.RandInt(1, 10)).(int)).
 		SessionStrategy(either(d[sessionStrategyName], test.ClientSessionStrategyRevokeOld).(string)).
 		PrivateKey(either(d[privateKey], test.ClientPriKeyBytes()).([]byte)).
 		CreatedAt(either(d[createdAt], test.CreatedAt).(time.Time)).
@@ -100,7 +100,15 @@ func TestClientFromContextFailure(t *testing.T) {
 }
 
 func TestClientGetters(t *testing.T) {
-	cl, err := buildClient(map[string]interface{}{})
+	accessTokenTTLVal := test.RandInt(1, 10)
+	sessionTTLVal := test.RandInt(1440, 86701)
+	maxActiveSessionsVal := test.RandInt(1, 10)
+
+	cl, err := buildClient(map[string]interface{}{
+		accessTokenTTL:    accessTokenTTLVal,
+		sessionTTL:        sessionTTLVal,
+		maxActiveSessions: maxActiveSessionsVal,
+	})
 	require.NoError(t, err)
 
 	testCases := map[string]struct {
@@ -113,11 +121,11 @@ func TestClientGetters(t *testing.T) {
 		},
 		"test get access token ttl": {
 			actualData:   cl.AccessTokenTTL(),
-			expectedData: test.ClientAccessTokenTTL,
+			expectedData: accessTokenTTLVal,
 		},
 		"test get session ttl": {
 			actualData:   cl.SessionTTL(),
-			expectedData: test.ClientSessionTTL,
+			expectedData: sessionTTLVal,
 		},
 		"test get session strategy name": {
 			actualData:   cl.SessionStrategyName(),
@@ -125,7 +133,7 @@ func TestClientGetters(t *testing.T) {
 		},
 		"test get max active sessions": {
 			actualData:   cl.MaxActiveSessions(),
-			expectedData: test.ClientMaxActiveSessions,
+			expectedData: maxActiveSessionsVal,
 		},
 	}
 

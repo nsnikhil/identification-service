@@ -62,8 +62,8 @@ func tearDownTest(t *testing.T, deps testDeps) {
 	//require.NoError(t, deps.cc.Close())
 }
 
-func registerClientAndGetHeaders(t *testing.T, cfg config.AuthConfig, cl *http.Client) map[string]string {
-	reqBody := getRegisterClientReqBody(map[string]interface{}{})
+func registerClientAndGetHeaders(t *testing.T, cfg config.AuthConfig, cl *http.Client, clientData map[string]interface{}) map[string]string {
+	reqBody := getRegisterClientReqBody(clientData)
 
 	clientResp := testRegisterClient(t, cfg, cl, http.StatusCreated, contract.APIResponse{Success: true}, reqBody)
 

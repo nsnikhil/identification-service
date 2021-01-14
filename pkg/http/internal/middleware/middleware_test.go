@@ -324,11 +324,11 @@ func testWithBasicAuth(t *testing.T, expectedCode int, user, password string) {
 
 func TestWithClientAuthenticationSuccess(t *testing.T) {
 	cl, err := client.NewClientBuilder().
-		Name(test.ClientName()).
-		AccessTokenTTL(test.ClientAccessTokenTTL).
-		SessionTTL(test.ClientSessionTTL).
+		Name(test.RandString(8)).
+		AccessTokenTTL(test.RandInt(1, 10)).
+		SessionTTL(test.RandInt(1440, 86701)).
 		SessionStrategy(test.ClientSessionStrategyRevokeOld).
-		MaxActiveSessions(test.ClientMaxActiveSessions).
+		MaxActiveSessions(test.RandInt(1, 10)).
 		PrivateKey(test.ClientPriKey()).
 		Build()
 
@@ -358,11 +358,11 @@ func TestWithClientAuthenticationFailureWhenSvcCallFails(t *testing.T) {
 
 func TestWithClientAuthenticationFailureWhenClientIsRevoked(t *testing.T) {
 	cl, err := client.NewClientBuilder().
-		Name(test.ClientName()).
-		AccessTokenTTL(test.ClientAccessTokenTTL).
-		SessionTTL(test.ClientSessionTTL).
+		Name(test.RandString(8)).
+		AccessTokenTTL(test.RandInt(1, 10)).
+		SessionTTL(test.RandInt(1440, 86701)).
 		SessionStrategy(test.ClientSessionStrategyRevokeOld).
-		MaxActiveSessions(test.ClientMaxActiveSessions).
+		MaxActiveSessions(test.RandInt(1, 10)).
 		PrivateKey(test.ClientPriKey()).
 		Revoked(true).
 		Build()
@@ -398,8 +398,9 @@ func testWithClientAuthentication(t *testing.T, expectedCode int, service client
 		cl, err := client.FromContext(req.Context())
 		assert.Nil(t, err)
 
-		assert.Equal(t, test.ClientAccessTokenTTL, cl.AccessTokenTTL())
-		assert.Equal(t, test.ClientSessionTTL, cl.SessionTTL())
+		assert.True(t, cl.AccessTokenTTL() > 0)
+		assert.True(t, cl.SessionTTL() > 0)
+		assert.True(t, cl.SessionTTL() > cl.AccessTokenTTL())
 
 		resp.WriteHeader(http.StatusOK)
 	}

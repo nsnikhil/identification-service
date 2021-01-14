@@ -32,13 +32,13 @@ func (st *sessionStoreSuite) SetupSuite() {
 }
 
 func (st *sessionStoreSuite) TestCreateSessionSuccess() {
-	userID, refreshToken := test.UserID(), test.SessionRefreshToken()
+	userID, refreshToken := test.NewUUID(), test.NewUUID()
 
 	query := `insert into sessions (user_id, refresh_token) values ($1, $2) returning id`
 
 	st.mock.ExpectQuery(regexp.QuoteMeta(query)).
 		WithArgs(userID, refreshToken).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(test.SessionID()))
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(test.NewUUID()))
 
 	s, err := session.NewSessionBuilder().UserID(userID).RefreshToken(refreshToken).Build()
 	require.NoError(st.T(), err)
@@ -50,7 +50,7 @@ func (st *sessionStoreSuite) TestCreateSessionSuccess() {
 }
 
 func (st *sessionStoreSuite) TestCreateSessionFailure() {
-	userID, refreshToken := test.UserID(), test.SessionRefreshToken()
+	userID, refreshToken := test.NewUUID(), test.NewUUID()
 
 	query := `insert into sessions (user_id, refresh_token) values ($1, $2) returning id`
 
@@ -68,12 +68,12 @@ func (st *sessionStoreSuite) TestCreateSessionFailure() {
 }
 
 func (st *sessionStoreSuite) TestGetSessionSuccess() {
-	refreshToken := test.SessionRefreshToken()
+	refreshToken := test.NewUUID()
 
 	query := `select id, user_id, revoked, created_at, updated_at from sessions where refresh_token=$1`
 
 	rows := sqlmock.NewRows([]string{"id", "user_id", "revoked", "created_at", "updated_at"}).
-		AddRow(test.SessionID(), test.UserID(), false, time.Time{}, time.Time{})
+		AddRow(test.NewUUID(), test.NewUUID(), false, time.Time{}, time.Time{})
 
 	st.mock.ExpectQuery(regexp.QuoteMeta(query)).
 		WithArgs(refreshToken).
@@ -86,7 +86,7 @@ func (st *sessionStoreSuite) TestGetSessionSuccess() {
 }
 
 func (st *sessionStoreSuite) TestGetSessionFailure() {
-	refreshToken := test.SessionRefreshToken()
+	refreshToken := test.NewUUID()
 
 	query := `select id, user_id, revoked, created_at, updated_at from sessions where refresh_token=$1`
 
@@ -101,7 +101,7 @@ func (st *sessionStoreSuite) TestGetSessionFailure() {
 }
 
 func (st *sessionStoreSuite) TestGetActiveSessionsCountSuccess() {
-	userID := test.UserID()
+	userID := test.NewUUID()
 
 	query := `select count(*) from sessions where user_id=$1 and revoked=false`
 
@@ -116,7 +116,7 @@ func (st *sessionStoreSuite) TestGetActiveSessionsCountSuccess() {
 }
 
 func (st *sessionStoreSuite) TestGetActiveSessionsCountFailure() {
-	userID := test.UserID()
+	userID := test.NewUUID()
 
 	query := `select count(*) from sessions where user_id=$1 and revoked=false`
 
@@ -131,7 +131,7 @@ func (st *sessionStoreSuite) TestGetActiveSessionsCountFailure() {
 }
 
 func (st *sessionStoreSuite) TestRevokeSessionsSuccess() {
-	refreshToken := test.SessionRefreshToken()
+	refreshToken := test.NewUUID()
 
 	query := `update sessions set revoked=true where refresh_token = ANY($1::uuid[])`
 
@@ -146,7 +146,7 @@ func (st *sessionStoreSuite) TestRevokeSessionsSuccess() {
 }
 
 func (st *sessionStoreSuite) TestRevokeSessionsFailure() {
-	refreshToken := test.SessionRefreshToken()
+	refreshToken := test.NewUUID()
 
 	query := `update sessions set revoked=true where refresh_token = ANY($1::uuid[])`
 
@@ -161,8 +161,8 @@ func (st *sessionStoreSuite) TestRevokeSessionsFailure() {
 }
 
 func (st *sessionStoreSuite) TestRevokeLastNSessionsSuccess() {
-	userID := test.UserID()
-	refreshToken := test.SessionRefreshToken()
+	userID := test.NewUUID()
+	refreshToken := test.NewUUID()
 
 	fetchQuery := `select refresh_token from sessions where user_id=$1 and revoked=false order by created_at asc limit $2`
 
@@ -186,7 +186,7 @@ func (st *sessionStoreSuite) TestRevokeLastNSessionsSuccess() {
 }
 
 func (st *sessionStoreSuite) TestRevokeLastNSessionsFailureWhenFetchFails() {
-	userID := test.UserID()
+	userID := test.NewUUID()
 
 	fetchQuery := `select refresh_token from sessions where user_id=$1 and revoked=false order by created_at asc limit $2`
 
@@ -201,8 +201,8 @@ func (st *sessionStoreSuite) TestRevokeLastNSessionsFailureWhenFetchFails() {
 }
 
 func (st *sessionStoreSuite) TestRevokeLastNSessionsFailureWhenUpdateFails() {
-	userID := test.UserID()
-	refreshToken := test.SessionRefreshToken()
+	userID := test.NewUUID()
+	refreshToken := test.NewUUID()
 
 	fetchQuery := `select refresh_token from sessions where user_id=$1 and revoked=false order by created_at asc limit $2`
 
@@ -226,7 +226,7 @@ func (st *sessionStoreSuite) TestRevokeLastNSessionsFailureWhenUpdateFails() {
 }
 
 func (st *sessionStoreSuite) TestRevokeAllSessionsSuccess() {
-	userID := test.UserID()
+	userID := test.NewUUID()
 
 	query := `update sessions set revoked=true where user_id=$1`
 
@@ -241,7 +241,7 @@ func (st *sessionStoreSuite) TestRevokeAllSessionsSuccess() {
 }
 
 func (st *sessionStoreSuite) TestRevokeAllSessionsFailure() {
-	userID := test.UserID()
+	userID := test.NewUUID()
 
 	query := `update sessions set revoked=true where user_id=$1`
 

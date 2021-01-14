@@ -32,25 +32,26 @@ func (ust *userStoreSuite) SetupSuite() {
 }
 
 func (ust *userStoreSuite) TestCreateUserSuccess() {
-	name, email := test.UserName(), test.UserEmail()
+	name, email := test.RandString(8), test.NewEmail()
 
-	passwordSalt := test.UserPasswordSalt()
-	passwordKey := test.UserPasswordKey()
-	passwordHash := test.UserPasswordHash()
+	passwordSalt := test.RandBytes(86)
+	passwordKey := test.RandBytes(32)
+	passwordHash := test.RandString(44)
+	userPassword := test.NewPassword()
 
 	query := `insert into users (name, email, password_hash, password_salt) values ($1, $2, $3, $4) returning id`
 
 	ust.mock.ExpectQuery(regexp.QuoteMeta(query)).
 		WithArgs(name, email, passwordHash, passwordSalt).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(test.UserID()))
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(test.NewUUID()))
 
 	mockEncoder := &password.MockEncoder{}
 	mockEncoder.On("GenerateSalt").Return(passwordSalt, nil)
-	mockEncoder.On("GenerateKey", test.UserPassword, passwordSalt).Return(passwordKey)
+	mockEncoder.On("GenerateKey", userPassword, passwordSalt).Return(passwordKey)
 	mockEncoder.On("EncodeKey", passwordKey).Return(passwordHash)
-	mockEncoder.On("ValidatePassword", test.UserPassword).Return(nil)
+	mockEncoder.On("ValidatePassword", userPassword).Return(nil)
 
-	currUser, err := user.NewUserBuilder(mockEncoder).Name(name).Email(email).Password(test.UserPassword).Build()
+	currUser, err := user.NewUserBuilder(mockEncoder).Name(name).Email(email).Password(userPassword).Build()
 	require.NoError(ust.T(), err)
 
 	_, err = ust.store.CreateUser(context.Background(), currUser)
@@ -60,11 +61,12 @@ func (ust *userStoreSuite) TestCreateUserSuccess() {
 }
 
 func (ust *userStoreSuite) TestCreateUserFailure() {
-	name, email := test.UserName(), test.UserEmail()
+	name, email := test.RandString(8), test.NewEmail()
 
-	passwordSalt := test.UserPasswordSalt()
-	passwordKey := test.UserPasswordKey()
-	passwordHash := test.UserPasswordHash()
+	passwordSalt := test.RandBytes(86)
+	passwordKey := test.RandBytes(32)
+	passwordHash := test.RandString(44)
+	userPassword := test.NewPassword()
 
 	query := `insert into users (name, email, password_hash, password_salt) values ($1, $2, $3, $4) returning id`
 
@@ -74,11 +76,11 @@ func (ust *userStoreSuite) TestCreateUserFailure() {
 
 	mockEncoder := &password.MockEncoder{}
 	mockEncoder.On("GenerateSalt").Return(passwordSalt, nil)
-	mockEncoder.On("GenerateKey", test.UserPassword, passwordSalt).Return(passwordKey)
+	mockEncoder.On("GenerateKey", userPassword, passwordSalt).Return(passwordKey)
 	mockEncoder.On("EncodeKey", passwordKey).Return(passwordHash)
-	mockEncoder.On("ValidatePassword", test.UserPassword).Return(nil)
+	mockEncoder.On("ValidatePassword", userPassword).Return(nil)
 
-	currUser, err := user.NewUserBuilder(mockEncoder).Name(name).Email(email).Password(test.UserPassword).Build()
+	currUser, err := user.NewUserBuilder(mockEncoder).Name(name).Email(email).Password(userPassword).Build()
 	require.NoError(ust.T(), err)
 
 	_, err = ust.store.CreateUser(context.Background(), currUser)
@@ -88,7 +90,7 @@ func (ust *userStoreSuite) TestCreateUserFailure() {
 }
 
 func (ust *userStoreSuite) TestGetUserSuccess() {
-	userEmail := test.UserEmail()
+	userEmail := test.NewEmail()
 
 	query := `select id, name, email, password_hash, password_salt from users where email = $1`
 
@@ -111,7 +113,7 @@ func (ust *userStoreSuite) TestGetUserSuccess() {
 }
 
 func (ust *userStoreSuite) TestGetUserFailure() {
-	userEmail := test.UserEmail()
+	userEmail := test.NewEmail()
 
 	query := `select id, name, email, password_hash, password_salt from users where email = $1`
 
@@ -128,9 +130,9 @@ func (ust *userStoreSuite) TestGetUserFailure() {
 }
 
 func (ust *userStoreSuite) TestUpdatePasswordSuccess() {
-	email := test.UserEmail()
-	passwordSalt := test.UserPasswordSalt()
-	passwordHash := test.UserPasswordHash()
+	email := test.NewEmail()
+	passwordSalt := test.RandBytes(86)
+	passwordHash := test.RandString(44)
 
 	query := `update users set password_hash=$1, password_salt=$2 where id=$3`
 
@@ -147,9 +149,9 @@ func (ust *userStoreSuite) TestUpdatePasswordSuccess() {
 }
 
 func (ust *userStoreSuite) TestUpdatePasswordFailure() {
-	email := test.UserEmail()
-	passwordSalt := test.UserPasswordSalt()
-	passwordHash := test.UserPasswordHash()
+	email := test.NewEmail()
+	passwordSalt := test.RandBytes(86)
+	passwordHash := test.RandString(44)
 
 	query := `update users set password_hash=$1, password_salt=$2 where id=$3`
 

@@ -42,7 +42,7 @@ func (pts *publisherIntegrationTestSuite) AfterTest(suiteName, testName string) 
 }
 
 func (pts *publisherIntegrationTestSuite) TestPublisherPublishSuccess() {
-	err := pts.pb.Publish(event.SignUp, test.UserID())
+	err := pts.pb.Publish(event.SignUp, test.NewUUID())
 	assert.Nil(pts.T(), err)
 }
 

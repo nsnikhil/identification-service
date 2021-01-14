@@ -58,7 +58,7 @@ func (ust *userStoreIntegrationSuite) TestGetUserSuccess() {
 }
 
 func (ust *userStoreIntegrationSuite) TestGetUserFailureWhenEmailIsNotPresent() {
-	_, err := ust.store.GetUser(ust.ctx, test.UserEmail())
+	_, err := ust.store.GetUser(ust.ctx, test.NewEmail())
 	require.Error(ust.T(), err)
 }
 
@@ -68,16 +68,16 @@ func (ust *userStoreIntegrationSuite) TestUpdatePasswordSuccessWithDB() {
 	id, err := ust.store.CreateUser(ust.ctx, nu)
 	require.NoError(ust.T(), err)
 
-	_, err = ust.store.UpdatePassword(ust.ctx, id, test.UserPasswordHash(), test.UserPasswordSalt())
+	_, err = ust.store.UpdatePassword(ust.ctx, id, test.RandString(44), test.RandBytes(86))
 	require.NoError(ust.T(), err)
 }
 
 func (ust *userStoreIntegrationSuite) TestUpdatePasswordFailureWhenUserIsNotPresent() {
 	_, err := ust.store.UpdatePassword(
 		ust.ctx,
-		test.UserEmail(),
-		test.UserPasswordHash(),
-		test.UserPasswordSalt(),
+		test.NewEmail(),
+		test.RandString(44),
+		test.RandBytes(86),
 	)
 
 	require.Error(ust.T(), err)
@@ -88,21 +88,22 @@ func TestStoreIntegration(t *testing.T) {
 }
 
 func newUser(t *testing.T) (user.User, string) {
-	userEmail := test.UserEmail()
-	passwordSalt := test.UserPasswordSalt()
-	passwordKey := test.UserPasswordKey()
-	passwordHash := test.UserPasswordHash()
+	userEmail := test.NewEmail()
+	passwordSalt := test.RandBytes(86)
+	passwordKey := test.RandBytes(32)
+	passwordHash := test.RandString(44)
+	userPassword := test.NewPassword()
 
 	mockEncoder := &password.MockEncoder{}
 	mockEncoder.On("GenerateSalt").Return(passwordSalt, nil)
-	mockEncoder.On("GenerateKey", test.UserPassword, passwordSalt).Return(passwordKey)
+	mockEncoder.On("GenerateKey", userPassword, passwordSalt).Return(passwordKey)
 	mockEncoder.On("EncodeKey", passwordKey).Return(passwordHash)
-	mockEncoder.On("ValidatePassword", test.UserPassword).Return(nil)
+	mockEncoder.On("ValidatePassword", userPassword).Return(nil)
 
 	us, err := user.NewUserBuilder(mockEncoder).
-		Name(test.UserName()).
+		Name(test.RandString(8)).
 		Email(userEmail).
-		Password(test.UserPassword).
+		Password(userPassword).
 		Build()
 
 	require.NoError(t, err)

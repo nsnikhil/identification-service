@@ -22,15 +22,18 @@ import (
 )
 
 func TestClientHandlerCreateSuccess(t *testing.T) {
-	clientName := test.ClientName()
-	clientEncodedPublicKey := test.ClientEncodedPublicKey()
-	clientSecret := test.ClientSecret()
+	clientName := test.RandString(8)
+	clientEncodedPublicKey := test.RandString(44)
+	clientSecret := test.NewUUID()
+	accessTokenTTL := test.RandInt(1, 10)
+	sessionTokenTTL := test.RandInt(1, 10)
+	maxActiveSession := test.RandInt(1, 10)
 
 	req := contract.CreateClientRequest{
 		Name:              clientName,
-		AccessTokenTTL:    test.ClientAccessTokenTTL,
-		SessionTTL:        test.ClientSessionTTL,
-		MaxActiveSessions: test.ClientMaxActiveSessions,
+		AccessTokenTTL:    accessTokenTTL,
+		SessionTTL:        sessionTokenTTL,
+		MaxActiveSessions: maxActiveSession,
 		SessionStrategy:   test.ClientSessionStrategyRevokeOld,
 	}
 
@@ -42,9 +45,9 @@ func TestClientHandlerCreateSuccess(t *testing.T) {
 		"CreateClient",
 		mock.AnythingOfType("*context.emptyCtx"),
 		clientName,
-		test.ClientAccessTokenTTL,
-		test.ClientSessionTTL,
-		test.ClientMaxActiveSessions,
+		accessTokenTTL,
+		sessionTokenTTL,
+		maxActiveSession,
 		test.ClientSessionStrategyRevokeOld,
 	).Return(clientEncodedPublicKey, clientSecret, nil)
 
@@ -58,13 +61,16 @@ func TestClientHandlerCreateSuccess(t *testing.T) {
 }
 
 func TestClientHandlerCreateFailure(t *testing.T) {
-	clientName := test.ClientName()
+	clientName := test.RandString(8)
+	accessTokenTTL := test.RandInt(1, 10)
+	sessionTokenTTL := test.RandInt(1, 10)
+	maxActiveSession := test.RandInt(1, 10)
 
 	req := contract.CreateClientRequest{
 		Name:              clientName,
-		AccessTokenTTL:    test.ClientAccessTokenTTL,
-		SessionTTL:        test.ClientSessionTTL,
-		MaxActiveSessions: test.ClientMaxActiveSessions,
+		AccessTokenTTL:    accessTokenTTL,
+		SessionTTL:        sessionTokenTTL,
+		MaxActiveSessions: maxActiveSession,
 		SessionStrategy:   test.ClientSessionStrategyRevokeOld,
 	}
 
@@ -76,9 +82,9 @@ func TestClientHandlerCreateFailure(t *testing.T) {
 		"CreateClient",
 		mock.AnythingOfType("*context.emptyCtx"),
 		clientName,
-		test.ClientAccessTokenTTL,
-		test.ClientSessionTTL,
-		test.ClientMaxActiveSessions,
+		accessTokenTTL,
+		sessionTokenTTL,
+		maxActiveSession,
 		test.ClientSessionStrategyRevokeOld,
 	).Return("", "", liberr.WithArgs(errors.New("failed to create client")))
 
@@ -101,7 +107,7 @@ func testClientHandlerCreate(t *testing.T, expectedCode int, expectedBody string
 }
 
 func TestClientRevokeSuccess(t *testing.T) {
-	clientID := test.ClientID()
+	clientID := test.NewUUID()
 
 	req := contract.ClientRevokeRequest{ID: clientID}
 
@@ -121,7 +127,7 @@ func TestClientRevokeSuccess(t *testing.T) {
 }
 
 func TestClientRevokeFailure(t *testing.T) {
-	clientID := test.ClientID()
+	clientID := test.NewUUID()
 
 	req := contract.ClientRevokeRequest{ID: clientID}
 

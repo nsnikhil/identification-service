@@ -19,7 +19,7 @@ const (
 )
 
 func TestCreateNewSessionSuccess(t *testing.T) {
-	_, err := session.NewSessionBuilder().UserID(test.UserID()).RefreshToken(test.SessionRefreshToken()).Build()
+	_, err := session.NewSessionBuilder().UserID(test.NewUUID()).RefreshToken(test.NewUUID()).Build()
 	require.NoError(t, err)
 }
 
@@ -53,9 +53,9 @@ func buildSession(d map[string]interface{}) (session.Session, error) {
 	}
 
 	return session.NewSessionBuilder().
-		ID(either(d[idKey], test.SessionID()).(string)).
-		UserID(either(d[userIDKey], test.UserID()).(string)).
-		RefreshToken(either(d[refreshTokenKey], test.SessionRefreshToken()).(string)).
+		ID(either(d[idKey], test.NewUUID()).(string)).
+		UserID(either(d[userIDKey], test.NewUUID()).(string)).
+		RefreshToken(either(d[refreshTokenKey], test.NewUUID()).(string)).
 		Revoked(either(d[revokedKey], false).(bool)).
 		CreatedAt(either(d[createdAtKey], test.CreatedAt).(time.Time)).
 		UpdatedAt(either(d[updatedAtKey], test.UpdatedAt).(time.Time)).

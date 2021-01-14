@@ -21,11 +21,12 @@ import (
 )
 
 func TestLoginSuccess(t *testing.T) {
-	userEmail := test.UserEmail()
-	accessToken := test.SessionAccessToken()
-	refreshToken := test.SessionRefreshToken()
+	userEmail := test.NewEmail()
+	accessToken := test.NewPasetoToken()
+	refreshToken := test.NewUUID()
+	userPassword := test.NewPassword()
 
-	reqBody := contract.LoginRequest{Email: userEmail, Password: test.UserPassword}
+	reqBody := contract.LoginRequest{Email: userEmail, Password: userPassword}
 
 	expectedBody := fmt.Sprintf(
 		`{"data":{"access_token":"%s","refresh_token":"%s"},"success":true}`,
@@ -34,20 +35,21 @@ func TestLoginSuccess(t *testing.T) {
 	)
 
 	mockSessionService := &session.MockService{}
-	mockSessionService.On("LoginUser", mock.AnythingOfType("*context.emptyCtx"), userEmail, test.UserPassword).Return(accessToken, refreshToken, nil)
+	mockSessionService.On("LoginUser", mock.AnythingOfType("*context.emptyCtx"), userEmail, userPassword).Return(accessToken, refreshToken, nil)
 
 	testLogin(t, http.StatusCreated, expectedBody, mockSessionService, reqBody)
 }
 
 func TestLoginFailure(t *testing.T) {
-	userEmail := test.UserEmail()
+	userEmail := test.NewEmail()
+	userPassword := test.NewPassword()
 
-	reqBody := contract.LoginRequest{Email: userEmail, Password: test.UserPassword}
+	reqBody := contract.LoginRequest{Email: userEmail, Password: userPassword}
 
 	expectedBody := `{"error":{"message":"internal server error"},"success":false}`
 
 	mockSessionService := &session.MockService{}
-	mockSessionService.On("LoginUser", mock.AnythingOfType("*context.emptyCtx"), userEmail, test.UserPassword).Return("", "", liberr.WithArgs(errors.New("failed to login")))
+	mockSessionService.On("LoginUser", mock.AnythingOfType("*context.emptyCtx"), userEmail, userPassword).Return("", "", liberr.WithArgs(errors.New("failed to login")))
 
 	testLogin(t, http.StatusInternalServerError, expectedBody, mockSessionService, reqBody)
 }
@@ -70,8 +72,8 @@ func testLogin(t *testing.T, expectedCode int, expectedBody string, sessionServi
 }
 
 func TestRefreshTokenSuccess(t *testing.T) {
-	accessToken := test.SessionAccessToken()
-	refreshToken := test.SessionRefreshToken()
+	accessToken := test.NewPasetoToken()
+	refreshToken := test.NewUUID()
 
 	reqBody := contract.RefreshTokenRequest{RefreshToken: refreshToken}
 
@@ -84,7 +86,7 @@ func TestRefreshTokenSuccess(t *testing.T) {
 }
 
 func TestRefreshTokenFailure(t *testing.T) {
-	refreshToken := test.SessionRefreshToken()
+	refreshToken := test.NewUUID()
 
 	reqBody := contract.RefreshTokenRequest{RefreshToken: refreshToken}
 
@@ -114,7 +116,7 @@ func testRefreshToken(t *testing.T, expectedCode int, expectedBody string, sessi
 }
 
 func TestLogoutSuccess(t *testing.T) {
-	refreshToken := test.SessionRefreshToken()
+	refreshToken := test.NewUUID()
 
 	reqBody := contract.LogoutRequest{RefreshToken: refreshToken}
 
@@ -127,7 +129,7 @@ func TestLogoutSuccess(t *testing.T) {
 }
 
 func TestLogoutFailure(t *testing.T) {
-	refreshToken := test.SessionRefreshToken()
+	refreshToken := test.NewUUID()
 
 	reqBody := contract.LogoutRequest{RefreshToken: refreshToken}
 

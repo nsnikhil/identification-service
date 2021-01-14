@@ -36,10 +36,15 @@ func TestSessionAPI(t *testing.T) {
 }
 
 func (sat *sessionAPITestSuite) TestLoginSuccess() {
-	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl)
+	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl, map[string]interface{}{})
 	userDetails := signUpUser(sat.T(), sat.deps.cfg.PublisherConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
 
-	reqBody := getLoginReqBody(map[string]interface{}{userEmailKey: userDetails.Email})
+	reqBody := getLoginReqBody(
+		map[string]interface{}{
+			userEmailKey:    userDetails.Email,
+			userPasswordKey: userDetails.Password,
+		},
+	)
 
 	testLogin(sat.T(), sat.deps.cl, http.StatusCreated, contract.APIResponse{Success: true}, authHeaders, reqBody)
 }
@@ -58,10 +63,21 @@ func (sat *sessionAPITestSuite) TestLoginFailureWhenClientCredentialsAreMissing(
 }
 
 func (sat *sessionAPITestSuite) TestLoginSuccessWithRevokeOld() {
-	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl)
+	maxActiveSessions := RandInt(2, 2)
+	clientData := map[string]interface{}{
+		clientMaxActiveSessionsKey: maxActiveSessions,
+	}
+
+	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl, clientData)
 	userDetails := signUpUser(sat.T(), sat.deps.cfg.PublisherConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
 
-	reqBody := getLoginReqBody(map[string]interface{}{userEmailKey: userDetails.Email})
+	reqBody := getLoginReqBody(
+		map[string]interface{}{
+			userEmailKey:    userDetails.Email,
+			userPasswordKey: userDetails.Password,
+		},
+	)
+
 	expectedResp := contract.APIResponse{Success: true}
 
 	testLogin(sat.T(), sat.deps.cl, http.StatusCreated, expectedResp, authHeaders, reqBody)
@@ -91,7 +107,7 @@ func (sat *sessionAPITestSuite) TestLoginSuccessWithRevokeOld() {
 }
 
 func (sat *sessionAPITestSuite) TestLoginFailureWhenCredentialsAreIncorrect() {
-	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl)
+	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl, map[string]interface{}{})
 	signUpUser(sat.T(), sat.deps.cfg.PublisherConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
 
 	expectedRespData := contract.APIResponse{
@@ -127,9 +143,14 @@ func (sat *sessionAPITestSuite) TestLoginFailureWhenCredentialsAreIncorrect() {
 }
 
 func (sat *sessionAPITestSuite) TestRefreshTokenSuccess() {
-	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl)
+	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl, map[string]interface{}{})
 	userDetails := signUpUser(sat.T(), sat.deps.cfg.PublisherConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
-	loginUser(sat.T(), sat.deps.cl, authHeaders, map[string]interface{}{userEmailKey: userDetails.Email})
+	loginUser(sat.T(), sat.deps.cl, authHeaders,
+		map[string]interface{}{
+			userEmailKey:    userDetails.Email,
+			userPasswordKey: userDetails.Password,
+		},
+	)
 
 	var userID string
 
@@ -160,7 +181,7 @@ func (sat *sessionAPITestSuite) TestRefreshTokenSuccess() {
 }
 
 func (sat *sessionAPITestSuite) TestRefreshTokenFailureWhenClientCredentialsAreMissing() {
-	reqBody := getRefreshTokenReqBody(map[string]interface{}{sessionRefreshTokenKey: SessionRefreshToken()})
+	reqBody := getRefreshTokenReqBody(map[string]interface{}{sessionRefreshTokenKey: NewUUID()})
 
 	expectedRespData := contract.APIResponse{
 		Success: false,
@@ -171,11 +192,16 @@ func (sat *sessionAPITestSuite) TestRefreshTokenFailureWhenClientCredentialsAreM
 }
 
 func (sat *sessionAPITestSuite) TestRefreshTokenFailureWhenRefreshTokenIsIncorrect() {
-	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl)
+	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl, map[string]interface{}{})
 	userDetails := signUpUser(sat.T(), sat.deps.cfg.PublisherConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
-	loginUser(sat.T(), sat.deps.cl, authHeaders, map[string]interface{}{userEmailKey: userDetails.Email})
+	loginUser(sat.T(), sat.deps.cl, authHeaders,
+		map[string]interface{}{
+			userEmailKey:    userDetails.Email,
+			userPasswordKey: userDetails.Password,
+		},
+	)
 
-	reqBody := contract.RefreshTokenRequest{RefreshToken: SessionRefreshToken()}
+	reqBody := contract.RefreshTokenRequest{RefreshToken: NewUUID()}
 
 	expectedRespData := contract.APIResponse{
 		Success: false,
@@ -186,9 +212,14 @@ func (sat *sessionAPITestSuite) TestRefreshTokenFailureWhenRefreshTokenIsIncorre
 }
 
 func (sat *sessionAPITestSuite) TestRefreshTokenFailureWhenSessionExpires() {
-	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl)
+	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl, map[string]interface{}{})
 	userDetails := signUpUser(sat.T(), sat.deps.cfg.PublisherConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
-	loginUser(sat.T(), sat.deps.cl, authHeaders, map[string]interface{}{userEmailKey: userDetails.Email})
+	loginUser(sat.T(), sat.deps.cl, authHeaders,
+		map[string]interface{}{
+			userEmailKey:    userDetails.Email,
+			userPasswordKey: userDetails.Password,
+		},
+	)
 
 	var userID string
 	err := sat.deps.db.QueryRowContext(
@@ -231,9 +262,14 @@ func (sat *sessionAPITestSuite) TestRefreshTokenFailureWhenSessionExpires() {
 }
 
 func (sat *sessionAPITestSuite) TestLogoutUserSuccess() {
-	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl)
+	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl, map[string]interface{}{})
 	userDetails := signUpUser(sat.T(), sat.deps.cfg.PublisherConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
-	loginUser(sat.T(), sat.deps.cl, authHeaders, map[string]interface{}{userEmailKey: userDetails.Email})
+	loginUser(sat.T(), sat.deps.cl, authHeaders,
+		map[string]interface{}{
+			userEmailKey:    userDetails.Email,
+			userPasswordKey: userDetails.Password,
+		},
+	)
 
 	var userID string
 
@@ -268,7 +304,7 @@ func (sat *sessionAPITestSuite) TestLogoutUserSuccess() {
 }
 
 func (sat *sessionAPITestSuite) TestLogoutFailureWhenClientCredentialsAreMissing() {
-	reqBody := getLogoutReqBody(map[string]interface{}{sessionRefreshTokenKey: SessionRefreshToken()})
+	reqBody := getLogoutReqBody(map[string]interface{}{sessionRefreshTokenKey: NewUUID()})
 
 	expectedRespData := contract.APIResponse{
 		Success: false,
@@ -279,9 +315,9 @@ func (sat *sessionAPITestSuite) TestLogoutFailureWhenClientCredentialsAreMissing
 }
 
 func (sat *sessionAPITestSuite) TestLogoutUserFailureForIncorrectRefreshToken() {
-	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl)
+	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl, map[string]interface{}{})
 
-	reqBody := getLogoutReqBody(map[string]interface{}{sessionRefreshTokenKey: SessionRefreshToken()})
+	reqBody := getLogoutReqBody(map[string]interface{}{sessionRefreshTokenKey: NewUUID()})
 
 	expectedRespData := contract.APIResponse{
 		Success: false,
@@ -380,8 +416,8 @@ func getLoginReqBody(data map[string]interface{}) contract.LoginRequest {
 	}
 
 	return contract.LoginRequest{
-		Email:    either(data[userEmailKey], UserEmail()).(string),
-		Password: either(data[userPasswordKey], UserPassword).(string),
+		Email:    either(data[userEmailKey], NewEmail()).(string),
+		Password: either(data[userPasswordKey], NewPassword()).(string),
 	}
 }
 
@@ -395,7 +431,7 @@ func getRefreshTokenReqBody(data map[string]interface{}) contract.RefreshTokenRe
 	}
 
 	return contract.RefreshTokenRequest{
-		RefreshToken: either(data[sessionRefreshTokenKey], SessionRefreshToken).(string),
+		RefreshToken: either(data[sessionRefreshTokenKey], NewUUID()).(string),
 	}
 }
 
@@ -409,6 +445,6 @@ func getLogoutReqBody(data map[string]interface{}) contract.LogoutRequest {
 	}
 
 	return contract.LogoutRequest{
-		RefreshToken: either(data[sessionRefreshTokenKey], SessionRefreshToken).(string),
+		RefreshToken: either(data[sessionRefreshTokenKey], NewUUID()).(string),
 	}
 }

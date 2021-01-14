@@ -37,7 +37,7 @@ func TestPublisherPublishSuccess(t *testing.T) {
 	pb, err := publisher.NewPublisher(mockQueue, queueMap)
 	require.NoError(t, err)
 
-	err = pb.Publish(event.SignUp, test.UserID())
+	err = pb.Publish(event.SignUp, test.NewUUID())
 	assert.Nil(t, err)
 }
 
@@ -92,6 +92,6 @@ func TestPublishFailureWhenPushFails(t *testing.T) {
 	pb, err := publisher.NewPublisher(mockQueue, queueMap)
 	require.NoError(t, err)
 
-	err = pb.Publish(event.SignUp, test.UserID)
+	err = pb.Publish(event.SignUp, test.NewUUID())
 	assert.Error(t, err)
 }

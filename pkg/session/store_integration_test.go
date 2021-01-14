@@ -39,17 +39,17 @@ func (sst *sessionStoreIntegrationSuite) TearDownSuite() {
 }
 
 func (sst *sessionStoreIntegrationSuite) TestCreateSessionSuccess() {
-	_, err := sst.store.CreateSession(sst.ctx, newSession(sst.T(), sst.userID, test.SessionRefreshToken()))
+	_, err := sst.store.CreateSession(sst.ctx, newSession(sst.T(), sst.userID, test.NewUUID()))
 	require.NoError(sst.T(), err)
 }
 
 func (sst *sessionStoreIntegrationSuite) TestCreateSessionFailureWhenUserIsNotPresent() {
-	_, err := sst.store.CreateSession(sst.ctx, newSession(sst.T(), test.UserID(), test.SessionRefreshToken()))
+	_, err := sst.store.CreateSession(sst.ctx, newSession(sst.T(), test.NewUUID(), test.NewUUID()))
 	require.Error(sst.T(), err)
 }
 
 func (sst *sessionStoreIntegrationSuite) TestCreateSessionFailureForDuplicateRefreshToken() {
-	refreshToken := test.SessionRefreshToken()
+	refreshToken := test.NewUUID()
 
 	_, err := sst.store.CreateSession(sst.ctx, newSession(sst.T(), sst.userID, refreshToken))
 	require.NoError(sst.T(), err)
@@ -59,7 +59,7 @@ func (sst *sessionStoreIntegrationSuite) TestCreateSessionFailureForDuplicateRef
 }
 
 func (sst *sessionStoreIntegrationSuite) TestGetSessionSuccess() {
-	refreshToken := test.SessionRefreshToken()
+	refreshToken := test.NewUUID()
 
 	_, err := sst.store.CreateSession(sst.ctx, newSession(sst.T(), sst.userID, refreshToken))
 	require.NoError(sst.T(), err)
@@ -69,20 +69,20 @@ func (sst *sessionStoreIntegrationSuite) TestGetSessionSuccess() {
 }
 
 func (sst *sessionStoreIntegrationSuite) TestGetSessionFailure() {
-	_, err := sst.store.GetSession(sst.ctx, test.SessionRefreshToken())
+	_, err := sst.store.GetSession(sst.ctx, test.NewUUID())
 	require.Error(sst.T(), err)
 }
 
 func (sst *sessionStoreIntegrationSuite) TestGetActiveSessionsCountSuccess() {
-	_, err := sst.store.CreateSession(sst.ctx, newSession(sst.T(), sst.userID, test.SessionRefreshToken()))
+	_, err := sst.store.CreateSession(sst.ctx, newSession(sst.T(), sst.userID, test.NewUUID()))
 	require.NoError(sst.T(), err)
 
-	_, err = sst.store.GetActiveSessionsCount(sst.ctx, test.UserID())
+	_, err = sst.store.GetActiveSessionsCount(sst.ctx, test.NewUUID())
 	require.NoError(sst.T(), err)
 }
 
 func (sst *sessionStoreIntegrationSuite) TestRevokeSessionsSuccess() {
-	refreshToken := test.SessionRefreshToken()
+	refreshToken := test.NewUUID()
 
 	_, err := sst.store.CreateSession(sst.ctx, newSession(sst.T(), sst.userID, refreshToken))
 	require.NoError(sst.T(), err)
@@ -92,16 +92,16 @@ func (sst *sessionStoreIntegrationSuite) TestRevokeSessionsSuccess() {
 }
 
 func (sst *sessionStoreIntegrationSuite) TestRevokeSessionsFailure() {
-	_, err := sst.store.RevokeSessions(sst.ctx, test.SessionRefreshToken())
+	_, err := sst.store.RevokeSessions(sst.ctx, test.NewUUID())
 	require.Error(sst.T(), err)
 }
 
 func (sst *sessionStoreIntegrationSuite) TestRevokeLastNSessionsSuccess() {
 	rts := []string{
-		test.SessionRefreshToken(),
-		test.SessionRefreshToken(),
-		test.SessionRefreshToken(),
-		test.SessionRefreshToken(),
+		test.NewUUID(),
+		test.NewUUID(),
+		test.NewUUID(),
+		test.NewUUID(),
 	}
 
 	for _, rt := range rts {
@@ -129,7 +129,7 @@ func (sst *sessionStoreIntegrationSuite) TestRevokeAllSessionsSuccess() {
 	//TODO: REFACTOR THIS
 	newUserID := createUser(sst, config.NewConfig("../../local.env"))
 
-	rts := []string{test.SessionRefreshToken(), test.SessionRefreshToken()}
+	rts := []string{test.NewUUID(), test.NewUUID()}
 
 	for _, rt := range rts {
 		_, err := sst.store.CreateSession(sst.ctx, newSession(sst.T(), newUserID, rt))
@@ -143,14 +143,14 @@ func (sst *sessionStoreIntegrationSuite) TestRevokeAllSessionsSuccess() {
 }
 
 func (sst *sessionStoreIntegrationSuite) TestRevokeAllSessionsFailureWhenNoSessionsExists() {
-	c, err := sst.store.RevokeAllSessions(sst.ctx, test.UserID())
+	c, err := sst.store.RevokeAllSessions(sst.ctx, test.NewUUID())
 	require.Error(sst.T(), err)
 
 	assert.Equal(sst.T(), int64(0), c)
 }
 
 func (sst *sessionStoreIntegrationSuite) TestRevokeAllSessionsFailureWhenUserDoesNotExists() {
-	c, err := sst.store.RevokeAllSessions(sst.ctx, test.UserID())
+	c, err := sst.store.RevokeAllSessions(sst.ctx, test.NewUUID())
 	require.Error(sst.T(), err)
 
 	assert.Equal(sst.T(), int64(0), c)
@@ -175,7 +175,7 @@ func createUser(sst *sessionStoreIntegrationSuite, cfg config.Config) string {
 
 	userService := user.NewService(user.NewStore(sst.db), encoder, mockPublisher)
 
-	userID, err := userService.CreateUser(sst.ctx, test.UserName(), test.UserEmail(), test.UserPassword)
+	userID, err := userService.CreateUser(sst.ctx, test.RandString(8), test.NewEmail(), test.NewPassword())
 	require.NoError(sst.T(), err)
 	require.NotEmpty(sst.T(), userID)
 

@@ -38,25 +38,28 @@ func (cst *clientStoreSuite) SetupSuite() {
 }
 
 func (cst *clientStoreSuite) TestCreateClientSuccess() {
-	clientName, priKey := test.ClientName(), test.ClientPriKey()
+	accessTokenTTLVal := test.RandInt(1, 10)
+	sessionTTLVal := test.RandInt(1440, 86701)
+	maxActiveSessionsVal := test.RandInt(1, 10)
+	clientName, priKey := test.RandString(8), test.ClientPriKey()
 
 	query := `insert into clients (name, access_token_ttl, session_ttl, max_active_sessions, session_strategy, private_key) values ($1, $2, $3, $4, $5, $6) returning secret`
 
 	cst.mock.ExpectQuery(regexp.QuoteMeta(query)).
 		WithArgs(
 			clientName,
-			test.ClientAccessTokenTTL,
-			test.ClientSessionTTL,
-			test.ClientMaxActiveSessions,
+			accessTokenTTLVal,
+			sessionTTLVal,
+			maxActiveSessionsVal,
 			test.ClientSessionStrategyRevokeOld,
 			priKey,
-		).WillReturnRows(sqlmock.NewRows([]string{"secret"}).AddRow(test.ClientSecret()))
+		).WillReturnRows(sqlmock.NewRows([]string{"secret"}).AddRow(test.NewUUID()))
 
 	cl, err := client.NewClientBuilder().
 		Name(clientName).
-		AccessTokenTTL(test.ClientAccessTokenTTL).
-		SessionTTL(test.ClientSessionTTL).
-		MaxActiveSessions(test.ClientMaxActiveSessions).
+		AccessTokenTTL(accessTokenTTLVal).
+		SessionTTL(sessionTTLVal).
+		MaxActiveSessions(maxActiveSessionsVal).
 		SessionStrategy(test.ClientSessionStrategyRevokeOld).
 		PrivateKey(priKey).
 		Build()
@@ -70,25 +73,29 @@ func (cst *clientStoreSuite) TestCreateClientSuccess() {
 }
 
 func (cst *clientStoreSuite) TestCreateClientFailure() {
-	clientName, priKey := test.ClientName(), test.ClientPriKey()
+	accessTokenTTLVal := test.RandInt(1, 10)
+	sessionTTLVal := test.RandInt(1440, 86701)
+	maxActiveSessionsVal := test.RandInt(1, 10)
+
+	clientName, priKey := test.RandString(8), test.ClientPriKey()
 
 	query := `insert into clients (name, access_token_ttl, session_ttl, max_active_sessions, session_strategy, private_key) values ($1, $2, $3, $4, $5, $6) returning secret`
 
 	cst.mock.ExpectQuery(regexp.QuoteMeta(query)).
 		WithArgs(
 			clientName,
-			test.ClientAccessTokenTTL,
-			test.ClientSessionTTL,
-			test.ClientMaxActiveSessions,
+			accessTokenTTLVal,
+			sessionTTLVal,
+			maxActiveSessionsVal,
 			test.ClientSessionStrategyRevokeOld,
 			priKey,
 		).WillReturnError(errors.New("failed to create client"))
 
 	cl, err := client.NewClientBuilder().
 		Name(clientName).
-		AccessTokenTTL(test.ClientAccessTokenTTL).
-		SessionTTL(test.ClientSessionTTL).
-		MaxActiveSessions(test.ClientMaxActiveSessions).
+		AccessTokenTTL(accessTokenTTLVal).
+		SessionTTL(sessionTTLVal).
+		MaxActiveSessions(maxActiveSessionsVal).
 		SessionStrategy(test.ClientSessionStrategyRevokeOld).
 		PrivateKey(priKey).
 		Build()
@@ -102,7 +109,7 @@ func (cst *clientStoreSuite) TestCreateClientFailure() {
 }
 
 func (cst *clientStoreSuite) TestRevokeClientSuccess() {
-	clientID := test.ClientID()
+	clientID := test.NewUUID()
 
 	query := `update clients set revoked=true where id=$1`
 
@@ -117,7 +124,7 @@ func (cst *clientStoreSuite) TestRevokeClientSuccess() {
 }
 
 func (cst *clientStoreSuite) TestRevokeClientFailure() {
-	clientID := test.ClientID()
+	clientID := test.NewUUID()
 
 	query := `update clients set revoked=true where id=$1`
 
@@ -132,18 +139,21 @@ func (cst *clientStoreSuite) TestRevokeClientFailure() {
 }
 
 func (cst *clientStoreSuite) TestGetClientSuccess() {
-	name, secret := test.ClientName(), test.ClientSecret()
+	accessTokenTTLVal := test.RandInt(1, 10)
+	sessionTTLVal := test.RandInt(1440, 86701)
+	maxActiveSessionsVal := test.RandInt(1, 10)
+	name, secret := test.RandString(8), test.NewUUID()
 
 	query := `select id, revoked, access_token_ttl, session_ttl, max_active_sessions, session_strategy, private_key from clients where name=$1 and secret=$2`
 
 	rows := sqlmock.NewRows(
 		[]string{"id", "revoked", "access_token_ttl", "session_ttl", "max_active_sessions", "session_strategy", "private_key"},
 	).AddRow(
-		test.ClientID(),
+		test.NewUUID(),
 		false,
-		test.ClientAccessTokenTTL,
-		test.ClientSessionTTL,
-		test.ClientMaxActiveSessions,
+		accessTokenTTLVal,
+		sessionTTLVal,
+		maxActiveSessionsVal,
 		test.ClientSessionStrategyRevokeOld,
 		test.ClientPriKey(),
 	)
@@ -159,7 +169,7 @@ func (cst *clientStoreSuite) TestGetClientSuccess() {
 }
 
 func (cst *clientStoreSuite) TestGetClientFailure() {
-	name, secret := test.ClientName(), test.ClientSecret()
+	name, secret := test.RandString(8), test.NewUUID()
 
 	query := `select id, revoked, access_token_ttl, session_ttl, max_active_sessions, session_strategy, private_key from clients where name=$1 and secret=$2`
 

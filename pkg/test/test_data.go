@@ -3,7 +3,6 @@ package test
 import (
 	"crypto/ed25519"
 	cr "crypto/rand"
-	"fmt"
 	"github.com/google/uuid"
 	"github.com/o1egl/paseto"
 	"github.com/stretchr/testify/require"
@@ -16,68 +15,114 @@ import (
 )
 
 const (
-	EmptyString = ""
-	Zero        = 0
-	QueueName   = "test_queue"
-	letters     = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	QueryTTL    = 10000
+	EmptyString                    = ""
+	Zero                           = 0
+	QueueName                      = "test_queue"
+	letters                        = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	numbers                        = "0123456789"
+	symbols                        = "!@#$%^&*()"
+	QueryTTL                       = 10000
+	ClientTableName                = "clients"
+	ClientSessionStrategyRevokeOld = "revoke_old"
+	UserTableName                  = "users"
+	SessionTableName               = "sessions"
 )
 
-func randString(n int) string {
+func RandString(n int) string {
+	return randStringFrom(n, letters)
+}
+
+func randStringFrom(n int, values string) string {
 	rand.Seed(time.Now().UnixNano())
 
-	sz := len(letters)
+	sz := len(values)
 
 	sb := strings.Builder{}
 	sb.Grow(n)
 
 	for i := 0; i < n; i++ {
-		sb.WriteByte(letters[rand.Intn(sz)])
+		sb.WriteByte(values[rand.Intn(sz)])
 	}
 
 	return sb.String()
 }
 
-func randBytes(n int) []byte {
+func NewUUID() string {
+	return uuid.New().String()
+}
+
+func RandInt(min, max int) int {
+	rand.Seed(time.Now().UnixNano())
+	return rand.Intn(max-min+1) + min
+}
+
+func RandBytes(n int) []byte {
 	res := make([]byte, n)
+	rand.Seed(time.Now().UnixNano())
 	rand.Read(res)
 	return res
 }
 
-var ClientTableName = "clients"
-var ClientName = func() string { return fmt.Sprintf("client%s", randString(8)) }
-var ClientAccessTokenTTL = 10
-var ClientSessionTTL = 87601
-var ClientMaxActiveSessions = 2
-var ClientSessionStrategyRevokeOld = "revoke_old"
-var ClientID = func() string { return uuid.New().String() }
-var ClientSecret = func() string { return uuid.New().String() }
-var ClientEncodedPublicKey = func() string { return randString(44) }
+func NewPassword() string {
+	sb := strings.Builder{}
 
-var UserTableName = "users"
-var UserName = func() string { return fmt.Sprintf("Test %s", randString(8)) }
-var UserEmail = func() string { return fmt.Sprintf("%s@mail.com", randString(8)) }
-var UserPassword = "Password@1234"
-var UserPasswordNew = "NewPassword@1234"
-var UserPasswordInvalid = "password@1234"
-var UserID = func() string { return uuid.New().String() }
-var UserPasswordHash = func() string { return randString(44) }
-var UserPasswordSalt = func() []byte { return randBytes(86) }
-var UserPasswordKey = func() []byte { return randBytes(32) }
+	sb.WriteString(randStringFrom(4, letters[26:]))
+	sb.WriteString(randStringFrom(1, symbols))
+	sb.WriteString(randStringFrom(1, numbers))
+	sb.WriteString(randStringFrom(4, letters[:26]))
 
-var SessionTableName = "sessions"
-var SessionID = func() string { return uuid.New().String() }
-var SessionAccessToken = func() string { return generateToken() }
-var SessionRefreshToken = func() string { return uuid.New().String() }
+	return sb.String()
+}
 
-var NewClient = func(t *testing.T) client.Client {
+func NewEmail() string {
+	sb := strings.Builder{}
+
+	sb.WriteString(randStringFrom(6, letters))
+	sb.WriteString("@mail.com")
+
+	return sb.String()
+}
+
+type ClientData struct {
+	Name             string
+	AccessTokenTTL   int
+	SessionTokenTTL  int
+	SessionStrategy  int
+	MaxActiveSession int
+	PrivateKey       []byte
+}
+
+var NewClient = func(t *testing.T, data ...ClientData) client.Client {
+	either := func(a, b interface{}) interface{} {
+		switch v := a.(type) {
+		case string:
+			if len(v) != 0 {
+				return a
+			}
+		case int:
+			if v != 0 {
+				return a
+			}
+		case []byte:
+			if v != nil && len(v) != 0 {
+				return a
+			}
+		}
+
+		return b
+	}
+
+	if len(data) == 0 {
+		data = make([]ClientData, 1)
+	}
+
 	cl, err := client.NewClientBuilder().
-		Name(ClientName()).
-		AccessTokenTTL(ClientAccessTokenTTL).
-		SessionTTL(ClientSessionTTL).
+		Name(either(data[0].Name, RandString(8)).(string)).
+		AccessTokenTTL(either(data[0].AccessTokenTTL, RandInt(1, 10)).(int)).
+		SessionTTL(either(data[0].SessionTokenTTL, RandInt(1440, 86701)).(int)).
 		SessionStrategy(ClientSessionStrategyRevokeOld).
-		MaxActiveSessions(ClientMaxActiveSessions).
-		PrivateKey(ClientPriKey()).
+		MaxActiveSessions(either(data[0].MaxActiveSession, RandInt(1, 10)).(int)).
+		PrivateKey(either(data[0].PrivateKey, ClientPriKey()).(ed25519.PrivateKey)).
 		Build()
 
 	require.NoError(t, err)
@@ -88,7 +133,7 @@ var NewClient = func(t *testing.T) client.Client {
 var CreatedAt = time.Date(2020, 11, 23, 23, 45, 0, 0, time.UTC)
 var UpdatedAt = time.Date(2020, 11, 23, 23, 45, 0, 0, time.UTC)
 
-var generateToken = func() string {
+var NewPasetoToken = func() string {
 	key, err := paseto.NewV2().Sign(ClientPriKey(), paseto.JSONToken{}, nil)
 	if err != nil {
 		log.Fatal(err)

@@ -64,7 +64,7 @@ func (cst *clientStoreIntegrationSuite) TestRevokeClientSuccess() {
 }
 
 func (cst *clientStoreIntegrationSuite) TestRevokeClientFailure() {
-	_, err := cst.store.RevokeClient(cst.ctx, test.ClientID())
+	_, err := cst.store.RevokeClient(cst.ctx, test.NewUUID())
 	require.Error(cst.T(), err)
 }
 
@@ -95,7 +95,7 @@ func (cst *clientStoreIntegrationSuite) TestGetClientFromCacheSuccess() {
 }
 
 func (cst *clientStoreIntegrationSuite) TestGetClientFailureWhenRecordIsNotPresent() {
-	_, err := cst.store.GetClient(cst.ctx, test.ClientName(), test.ClientSecret())
+	_, err := cst.store.GetClient(cst.ctx, test.RandString(8), test.NewUUID())
 	require.Error(cst.T(), err)
 }
 

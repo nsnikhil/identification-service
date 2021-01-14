@@ -1,7 +1,6 @@
 package libcrypto_test
 
 import (
-	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"identification-service/pkg/libcrypto"
@@ -21,7 +20,6 @@ func (kts *keyGeneratorTestSuite) SetupSuite() {
 
 func (kts *keyGeneratorTestSuite) TestGenerateSuccess() {
 	_, _, err := kts.keyGenerator.Generate()
-	fmt.Println(kts.keyGenerator.Generate())
 	assert.Nil(kts.T(), err)
 }
 

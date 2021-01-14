@@ -19,16 +19,20 @@ func TestCreateNewClientSuccess(t *testing.T) {
 	mockKeyGenerator.On("Generate").Return(pub, pri, nil)
 
 	mockStore := &client.MockStore{}
-	mockStore.On("CreateClient", mock.AnythingOfType("*context.emptyCtx"), mock.AnythingOfType("client.Client")).Return(test.ClientID(), nil)
+	mockStore.On(
+		"CreateClient",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.AnythingOfType("client.Client"),
+	).Return(test.NewUUID(), nil)
 
 	svc := client.NewService(mockStore, mockKeyGenerator)
 
 	_, _, err := svc.CreateClient(
 		context.Background(),
-		test.ClientName(),
-		test.ClientAccessTokenTTL,
-		test.ClientSessionTTL,
-		test.ClientMaxActiveSessions,
+		test.RandString(8),
+		test.RandInt(1, 10),
+		test.RandInt(1440, 86701),
+		test.RandInt(1, 10),
 		test.ClientSessionStrategyRevokeOld,
 	)
 
@@ -46,9 +50,9 @@ func TestCreateNewClientFailureWhenClientValidationFails(t *testing.T) {
 	_, _, err := svc.CreateClient(
 		context.Background(),
 		"",
-		test.ClientAccessTokenTTL,
-		test.ClientSessionTTL,
-		test.ClientMaxActiveSessions,
+		test.RandInt(1, 10),
+		test.RandInt(1440, 86701),
+		test.RandInt(1, 10),
 		test.ClientSessionStrategyRevokeOld,
 	)
 
@@ -63,10 +67,10 @@ func TestCreateNewClientFailureWhenKeyGenerationFails(t *testing.T) {
 
 	_, _, err := svc.CreateClient(
 		context.Background(),
-		test.ClientName(),
-		test.ClientAccessTokenTTL,
-		test.ClientSessionTTL,
-		test.ClientMaxActiveSessions,
+		test.RandString(8),
+		test.RandInt(1, 10),
+		test.RandInt(1440, 86701),
+		test.RandInt(1, 10),
 		test.ClientSessionStrategyRevokeOld,
 	)
 
@@ -86,10 +90,10 @@ func TestCreateNewClientFailureWhenStoreReturnFailure(t *testing.T) {
 
 	_, _, err := svc.CreateClient(
 		context.Background(),
-		test.ClientName(),
-		test.ClientAccessTokenTTL,
-		test.ClientSessionTTL,
-		test.ClientMaxActiveSessions,
+		test.RandString(8),
+		test.RandInt(1, 10),
+		test.RandInt(1440, 86701),
+		test.RandInt(1, 10),
 		test.ClientSessionStrategyRevokeOld,
 	)
 
@@ -97,7 +101,7 @@ func TestCreateNewClientFailureWhenStoreReturnFailure(t *testing.T) {
 }
 
 func TestRevokeClientSuccess(t *testing.T) {
-	clientID := test.ClientID()
+	clientID := test.NewUUID()
 
 	mockStore := &client.MockStore{}
 	mockStore.On("RevokeClient", mock.AnythingOfType("*context.emptyCtx"), clientID).Return(int64(1), nil)
@@ -109,7 +113,7 @@ func TestRevokeClientSuccess(t *testing.T) {
 }
 
 func TestRevokeClientFailure(t *testing.T) {
-	clientID := test.ClientID()
+	clientID := test.NewUUID()
 
 	mockStore := &client.MockStore{}
 	mockStore.On("RevokeClient", mock.AnythingOfType("*context.emptyCtx"), clientID).Return(int64(0), errors.New("failed to revoke client"))
@@ -121,7 +125,7 @@ func TestRevokeClientFailure(t *testing.T) {
 }
 
 func TestGetClientSuccess(t *testing.T) {
-	clientName, clientSecret := test.ClientName(), test.ClientSecret()
+	clientName, clientSecret := test.RandString(8), test.NewUUID()
 
 	mockStore := &client.MockStore{}
 	mockStore.On("GetClient", mock.AnythingOfType("*context.emptyCtx"), clientName, clientSecret).Return(client.Client{}, nil)
@@ -133,7 +137,7 @@ func TestGetClientSuccess(t *testing.T) {
 }
 
 func TestGetClientFailure(t *testing.T) {
-	clientName, clientSecret := test.ClientName(), test.ClientSecret()
+	clientName, clientSecret := test.RandString(8), test.NewUUID()
 
 	mockStore := &client.MockStore{}
 	mockStore.On("GetClient", mock.AnythingOfType("*context.emptyCtx"), clientName, clientSecret).Return(client.Client{}, errors.New("failed to get client"))
