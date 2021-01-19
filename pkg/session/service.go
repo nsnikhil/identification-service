@@ -20,6 +20,7 @@ type Service interface {
 
 type sessionService struct {
 	store       Store
+	strategies  map[string]Strategy
 	userService user.Service
 	generator   token.Generator
 }
@@ -45,12 +46,12 @@ func (ss *sessionService) LoginUser(ctx context.Context, email, password string)
 	}
 
 	if activeSessionsCount >= cl.MaxActiveSessions() {
-		strategy, err := strategyFromName(cl.SessionStrategyName(), ss.store)
-		if err != nil {
-			return wrap(err)
+		strategy, ok := ss.strategies[cl.SessionStrategyName()]
+		if !ok {
+			return wrap(fmt.Errorf("invalid sesion strategy %s", cl.SessionStrategyName()))
 		}
 
-		err = strategy.apply(ctx, userID, activeSessionsCount, cl.MaxActiveSessions())
+		err = strategy.Apply(ctx, userID, activeSessionsCount, cl.MaxActiveSessions())
 		if err != nil {
 			return wrap(err)
 		}
@@ -148,10 +149,11 @@ func validateSession(ctx context.Context, sessionTTL int, session Session, store
 	return fmt.Errorf("session expired for %s", refreshToken)
 }
 
-func NewService(store Store, userService user.Service, generator token.Generator) Service {
+func NewService(store Store, userService user.Service, generator token.Generator, strategies map[string]Strategy) Service {
 	return &sessionService{
 		store:       store,
 		userService: userService,
 		generator:   generator,
+		strategies:  strategies,
 	}
 }

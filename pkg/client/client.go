@@ -7,6 +7,7 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"identification-service/pkg/config"
 	"identification-service/pkg/liberr"
 	"identification-service/pkg/util"
 	"time"
@@ -68,6 +69,7 @@ type Builder struct {
 	updatedAt           time.Time
 
 	err error
+	cfg config.ClientConfig
 }
 
 func (b *Builder) ID(id string) *Builder {
@@ -172,7 +174,11 @@ func (b *Builder) SessionStrategy(sessionStrategyName string) *Builder {
 		return b
 	}
 
-	//TODO: NO VALIDATION ON THE NAME HERE
+	if !b.cfg.Strategies()[sessionStrategyName] {
+		b.err = fmt.Errorf("invalid session strategy %s", sessionStrategyName)
+		return b
+	}
+
 	b.sessionStrategyName = sessionStrategyName
 	return b
 }
@@ -245,8 +251,10 @@ func (b *Builder) Build() (Client, error) {
 	}, nil
 }
 
-func NewClientBuilder() *Builder {
-	return &Builder{}
+func NewClientBuilder(cfg config.ClientConfig) *Builder {
+	return &Builder{
+		cfg: cfg,
+	}
 }
 
 func WithContext(ctx context.Context, cl Client) (context.Context, error) {

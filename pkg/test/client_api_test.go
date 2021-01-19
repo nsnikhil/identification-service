@@ -3,6 +3,7 @@ package test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"identification-service/pkg/config"
@@ -51,6 +52,8 @@ func (cat *clientAPITestSuite) TestRegisterClientSuccess() {
 }
 
 func (cat *clientAPITestSuite) TestRegisterClientValidationFailure() {
+	randomString := RandString(8)
+
 	testCases := map[string]struct {
 		data          map[string]interface{}
 		expectedError string
@@ -79,6 +82,10 @@ func (cat *clientAPITestSuite) TestRegisterClientValidationFailure() {
 			data:          map[string]interface{}{clientSessionStrategyNameKey: EmptyString},
 			expectedError: "session strategy name cannot be empty",
 		},
+		"test failure when session strategy is invalid": {
+			data:          map[string]interface{}{clientSessionStrategyNameKey: randomString},
+			expectedError: fmt.Sprintf("invalid session strategy %s", randomString),
+		},
 	}
 
 	for name, testCase := range testCases {
@@ -97,7 +104,6 @@ func (cat *clientAPITestSuite) TestRegisterClientValidationFailure() {
 	}
 }
 
-//TODO: WHY DOES DUPLICATE RECORD RETURN INTERNAL SERVER ERROR ?
 func (cat *clientAPITestSuite) TestRegisterClientFailureForDuplicateRecord() {
 	reqBody := getRegisterClientReqBody(map[string]interface{}{})
 	testRegisterClient(

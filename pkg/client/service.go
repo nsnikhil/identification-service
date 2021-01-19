@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"encoding/base64"
+	"identification-service/pkg/config"
 	"identification-service/pkg/libcrypto"
 	"identification-service/pkg/liberr"
 )
@@ -15,16 +16,25 @@ type Service interface {
 
 type clientService struct {
 	keyGenerator libcrypto.Ed25519Generator
+	cfg          config.ClientConfig
 	store        Store
 }
 
-func (cs *clientService) CreateClient(ctx context.Context, name string, accessTokenTTL, sessionTTL, maxActiveSessions int, sessionStrategy string) (string, string, error) {
+func (cs *clientService) CreateClient(
+	ctx context.Context,
+	name string,
+	accessTokenTTL,
+	sessionTTL,
+	maxActiveSessions int,
+	sessionStrategy string,
+) (string, string, error) {
+
 	pubKey, priKey, err := cs.keyGenerator.Generate()
 	if err != nil {
 		return "", "", liberr.WithOp("Service.CreateClient", err)
 	}
 
-	cl, err := NewClientBuilder().
+	cl, err := NewClientBuilder(cs.cfg).
 		Name(name).
 		AccessTokenTTL(accessTokenTTL).
 		SessionTTL(sessionTTL).
@@ -65,9 +75,10 @@ func (cs *clientService) GetClient(ctx context.Context, name, secret string) (Cl
 	return client, nil
 }
 
-func NewService(store Store, keyGenerator libcrypto.Ed25519Generator) Service {
+func NewService(cfg config.ClientConfig, store Store, keyGenerator libcrypto.Ed25519Generator) Service {
 	return &clientService{
 		keyGenerator: keyGenerator,
 		store:        store,
+		cfg:          cfg,
 	}
 }

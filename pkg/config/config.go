@@ -19,6 +19,7 @@ type Config struct {
 	publisherConfig  PublisherConfig
 	consumerConfig   ConsumerConfig
 	authConfig       AuthConfig
+	clientConfig     ClientConfig
 }
 
 func (c Config) HTTPServerConfig() HTTPServerConfig {
@@ -73,6 +74,10 @@ func (c Config) AMPQConfig() AMPQConfig {
 	return c.ampqConfig
 }
 
+func (c Config) ClientConfig() ClientConfig {
+	return c.clientConfig
+}
+
 //TODO: FIGURE OUT OF WAY TO KEEP ONE CONFIG FILE FOR LOCAL AND DOCKER
 func NewConfig(configFile string) Config {
 	viper.AutomaticEnv()
@@ -97,5 +102,6 @@ func NewConfig(configFile string) Config {
 		publisherConfig:  newPublisherConfig(),
 		consumerConfig:   newConsumerConfig(),
 		ampqConfig:       newAMPQConfig(),
+		clientConfig:     newClientConfig(),
 	}
 }

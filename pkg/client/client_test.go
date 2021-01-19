@@ -5,6 +5,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"identification-service/pkg/client"
+	"identification-service/pkg/config"
 	"identification-service/pkg/test"
 	"testing"
 	"time"
@@ -39,6 +40,7 @@ func TestClientBuilderBuildFailureValidation(t *testing.T) {
 		"test failure when session ttl is less than 1":         {sessionTTL: 0},
 		"test failure when max active sessions is less than 1": {maxActiveSessions: 0},
 		"test failure when session strategy is empty":          {sessionStrategyName: ""},
+		"test failure when session strategy is invalid":        {sessionStrategyName: "invalid"},
 		"test failure when private key is empty":               {privateKey: []byte{}},
 		"test failure when created at is set to zero value":    {createdAt: time.Time{}},
 		"test failure when updated at is set to zero value":    {updatedAt: time.Time{}},
@@ -61,7 +63,7 @@ func buildClient(d map[string]interface{}) (client.Client, error) {
 		return a
 	}
 
-	return client.NewClientBuilder().
+	return client.NewClientBuilder(config.NewConfig("../../local.env").ClientConfig()).
 		ID(either(d[id], test.NewUUID()).(string)).
 		Name(either(d[name], test.RandString(8)).(string)).
 		Secret(either(d[secret], test.NewUUID()).(string)).

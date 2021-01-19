@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"identification-service/pkg/client"
+	"identification-service/pkg/config"
 	"identification-service/pkg/database"
 	"identification-service/pkg/test"
 	"regexp"
@@ -55,7 +56,7 @@ func (cst *clientStoreSuite) TestCreateClientSuccess() {
 			priKey,
 		).WillReturnRows(sqlmock.NewRows([]string{"secret"}).AddRow(test.NewUUID()))
 
-	cl, err := client.NewClientBuilder().
+	cl, err := client.NewClientBuilder(config.NewConfig("../../local.env").ClientConfig()).
 		Name(clientName).
 		AccessTokenTTL(accessTokenTTLVal).
 		SessionTTL(sessionTTLVal).
@@ -91,7 +92,7 @@ func (cst *clientStoreSuite) TestCreateClientFailure() {
 			priKey,
 		).WillReturnError(errors.New("failed to create client"))
 
-	cl, err := client.NewClientBuilder().
+	cl, err := client.NewClientBuilder(config.NewConfig("../../local.env").ClientConfig()).
 		Name(clientName).
 		AccessTokenTTL(accessTokenTTLVal).
 		SessionTTL(sessionTTLVal).

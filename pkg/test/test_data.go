@@ -7,6 +7,7 @@ import (
 	"github.com/o1egl/paseto"
 	"github.com/stretchr/testify/require"
 	"identification-service/pkg/client"
+	"identification-service/pkg/config"
 	"log"
 	"math/rand"
 	"strings"
@@ -116,7 +117,7 @@ var NewClient = func(t *testing.T, data ...ClientData) client.Client {
 		data = make([]ClientData, 1)
 	}
 
-	cl, err := client.NewClientBuilder().
+	cl, err := client.NewClientBuilder(config.NewConfig("../../local.env").ClientConfig()).
 		Name(either(data[0].Name, RandString(8)).(string)).
 		AccessTokenTTL(either(data[0].AccessTokenTTL, RandInt(1, 10)).(int)).
 		SessionTTL(either(data[0].SessionTokenTTL, RandInt(1440, 86701)).(int)).

@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"identification-service/pkg/client"
+	"identification-service/pkg/config"
 	"identification-service/pkg/http/internal/middleware"
 	"identification-service/pkg/liberr"
 	reporters "identification-service/pkg/reporting"
@@ -323,7 +324,7 @@ func testWithBasicAuth(t *testing.T, expectedCode int, user, password string) {
 }
 
 func TestWithClientAuthenticationSuccess(t *testing.T) {
-	cl, err := client.NewClientBuilder().
+	cl, err := client.NewClientBuilder(config.NewConfig("../../../../local.env").ClientConfig()).
 		Name(test.RandString(8)).
 		AccessTokenTTL(test.RandInt(1, 10)).
 		SessionTTL(test.RandInt(1440, 86701)).
@@ -357,7 +358,7 @@ func TestWithClientAuthenticationFailureWhenSvcCallFails(t *testing.T) {
 }
 
 func TestWithClientAuthenticationFailureWhenClientIsRevoked(t *testing.T) {
-	cl, err := client.NewClientBuilder().
+	cl, err := client.NewClientBuilder(config.NewConfig("../../../../local.env").ClientConfig()).
 		Name(test.RandString(8)).
 		AccessTokenTTL(test.RandInt(1, 10)).
 		SessionTTL(test.RandInt(1440, 86701)).

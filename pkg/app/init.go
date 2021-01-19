@@ -65,16 +65,16 @@ func initServices(cfg config.Config) (client.Service, user.Service, session.Serv
 	tg, err := token.NewGenerator(cfg.TokenConfig(), kg)
 	logError(err)
 
-	cs := initClientService(db, cc, kg)
+	cs := initClientService(cfg.ClientConfig(), db, cc, kg)
 	us := initUserService(db, en, pr)
-	ss := initSessionService(db, us, tg)
+	ss := initSessionService(cfg.ClientConfig(), db, us, tg)
 
 	return cs, us, ss
 }
 
-func initClientService(db database.SQLDatabase, cc *redis.Client, kg libcrypto.Ed25519Generator) client.Service {
+func initClientService(cfg config.ClientConfig, db database.SQLDatabase, cc *redis.Client, kg libcrypto.Ed25519Generator) client.Service {
 	st := client.NewStore(db, cc)
-	return client.NewService(st, kg)
+	return client.NewService(cfg, st, kg)
 }
 
 func initUserService(db database.SQLDatabase, en password.Encoder, pr publisher.Publisher) user.Service {
@@ -82,9 +82,24 @@ func initUserService(db database.SQLDatabase, en password.Encoder, pr publisher.
 	return user.NewService(st, en, pr)
 }
 
-func initSessionService(db database.SQLDatabase, us user.Service, tg token.Generator) session.Service {
+func initSessionService(cfg config.ClientConfig, db database.SQLDatabase, us user.Service, tg token.Generator) session.Service {
 	st := session.NewStore(db)
-	return session.NewService(st, us, tg)
+	sts := initStrategies(cfg, st)
+	return session.NewService(st, us, tg, sts)
+}
+
+//TODO: NAME SHOULD COME FROM CONFIG
+func initStrategies(cfg config.ClientConfig, store session.Store) map[string]session.Strategy {
+	res := make(map[string]session.Strategy)
+
+	for strategy := range cfg.Strategies() {
+		switch strategy {
+		case "revoke_old":
+			res[strategy] = session.NewRevokeOldStrategy(store)
+		}
+	}
+
+	return res
 }
 
 func initLogger(cfg config.Config) reporters.Logger {
