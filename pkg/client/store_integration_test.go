@@ -14,18 +14,22 @@ import (
 
 type clientStoreIntegrationSuite struct {
 	suite.Suite
-	db    database.SQLDatabase
-	cache *redis.Client
-	store client.Store
-	ctx   context.Context
+	db          database.SQLDatabase
+	cache       *redis.Client
+	store       client.Store
+	ctx         context.Context
+	cfg         config.ClientConfig
+	defaultData map[string]interface{}
 }
 
 func (cst *clientStoreIntegrationSuite) SetupSuite() {
 	cfg := config.NewConfig("../../local.env")
+	cst.cfg = cfg.ClientConfig()
 	cst.db = test.NewDB(cst.T(), cfg)
 	cst.cache = test.NewCache(cst.T(), cfg)
 	cst.store = client.NewStore(cst.db, cst.cache)
 	cst.ctx = context.Background()
+	cst.defaultData = map[string]interface{}{}
 }
 
 func (cst *clientStoreIntegrationSuite) TearDownSuite() {
@@ -33,16 +37,16 @@ func (cst *clientStoreIntegrationSuite) TearDownSuite() {
 }
 
 func (cst *clientStoreIntegrationSuite) TestCreateClientSuccess() {
-	cl := test.NewClient(cst.T())
+	cl, err := test.NewClient(cst.cfg, cst.defaultData)
 
-	_, err := cst.store.CreateClient(cst.ctx, cl)
+	_, err = cst.store.CreateClient(cst.ctx, cl)
 	require.NoError(cst.T(), err)
 }
 
 func (cst *clientStoreIntegrationSuite) TestCreateClientFailureWhenRecordsAreDuplicate() {
-	cl := test.NewClient(cst.T())
+	cl, err := test.NewClient(cst.cfg, cst.defaultData)
 
-	_, err := cst.store.CreateClient(cst.ctx, cl)
+	_, err = cst.store.CreateClient(cst.ctx, cl)
 	require.NoError(cst.T(), err)
 
 	_, err = cst.store.CreateClient(cst.ctx, cl)
@@ -50,7 +54,7 @@ func (cst *clientStoreIntegrationSuite) TestCreateClientFailureWhenRecordsAreDup
 }
 
 func (cst *clientStoreIntegrationSuite) TestRevokeClientSuccess() {
-	cl := test.NewClient(cst.T())
+	cl, err := test.NewClient(cst.cfg, cst.defaultData)
 
 	secret, err := cst.store.CreateClient(cst.ctx, cl)
 	require.NoError(cst.T(), err)
@@ -69,7 +73,7 @@ func (cst *clientStoreIntegrationSuite) TestRevokeClientFailure() {
 }
 
 func (cst *clientStoreIntegrationSuite) TestGetClientSuccess() {
-	cl := test.NewClient(cst.T())
+	cl, err := test.NewClient(cst.cfg, cst.defaultData)
 
 	secret, err := cst.store.CreateClient(cst.ctx, cl)
 	require.NoError(cst.T(), err)
@@ -79,7 +83,7 @@ func (cst *clientStoreIntegrationSuite) TestGetClientSuccess() {
 }
 
 func (cst *clientStoreIntegrationSuite) TestGetClientFromCacheSuccess() {
-	cl := test.NewClient(cst.T())
+	cl, err := test.NewClient(cst.cfg, cst.defaultData)
 
 	secret, err := cst.store.CreateClient(cst.ctx, cl)
 	require.NoError(cst.T(), err)

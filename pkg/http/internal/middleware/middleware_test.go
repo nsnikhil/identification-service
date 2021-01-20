@@ -324,7 +324,11 @@ func testWithBasicAuth(t *testing.T, expectedCode int, user, password string) {
 }
 
 func TestWithClientAuthenticationSuccess(t *testing.T) {
-	cl, err := client.NewClientBuilder(config.NewConfig("../../../../local.env").ClientConfig()).
+	mockClientConfig := &config.MockClientConfig{}
+	mockClientConfig.On("Strategies").
+		Return(map[string]bool{test.ClientSessionStrategyRevokeOld: true})
+
+	cl, err := client.NewClientBuilder(mockClientConfig).
 		Name(test.RandString(8)).
 		AccessTokenTTL(test.RandInt(1, 10)).
 		SessionTTL(test.RandInt(1440, 86701)).
@@ -358,7 +362,11 @@ func TestWithClientAuthenticationFailureWhenSvcCallFails(t *testing.T) {
 }
 
 func TestWithClientAuthenticationFailureWhenClientIsRevoked(t *testing.T) {
-	cl, err := client.NewClientBuilder(config.NewConfig("../../../../local.env").ClientConfig()).
+	mockClientConfig := &config.MockClientConfig{}
+	mockClientConfig.On("Strategies").
+		Return(map[string]bool{test.ClientSessionStrategyRevokeOld: true})
+
+	cl, err := client.NewClientBuilder(mockClientConfig).
 		Name(test.RandString(8)).
 		AccessTokenTTL(test.RandInt(1, 10)).
 		SessionTTL(test.RandInt(1440, 86701)).

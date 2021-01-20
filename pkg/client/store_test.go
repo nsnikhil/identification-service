@@ -22,6 +22,7 @@ type clientStoreSuite struct {
 	rd    *miniredis.Miniredis
 	mock  sqlmock.Sqlmock
 	store client.Store
+	cfg   config.ClientConfig
 }
 
 func (cst *clientStoreSuite) SetupSuite() {
@@ -31,10 +32,14 @@ func (cst *clientStoreSuite) SetupSuite() {
 	sqlDB, mock, err := sqlmock.New()
 	cst.Require().NoError(err)
 
+	mockClientConfig := &config.MockClientConfig{}
+	mockClientConfig.On("Strategies").
+		Return(map[string]bool{test.ClientSessionStrategyRevokeOld: true})
+
 	cst.db = database.NewSQLDatabase(sqlDB, test.QueryTTL)
 	cst.mock = mock
 	cst.rd = rd
-
+	cst.cfg = mockClientConfig
 	cst.store = client.NewStore(cst.db, redis.NewClient(&redis.Options{Addr: rd.Addr()}))
 }
 
@@ -56,7 +61,7 @@ func (cst *clientStoreSuite) TestCreateClientSuccess() {
 			priKey,
 		).WillReturnRows(sqlmock.NewRows([]string{"secret"}).AddRow(test.NewUUID()))
 
-	cl, err := client.NewClientBuilder(config.NewConfig("../../local.env").ClientConfig()).
+	cl, err := client.NewClientBuilder(cst.cfg).
 		Name(clientName).
 		AccessTokenTTL(accessTokenTTLVal).
 		SessionTTL(sessionTTLVal).
@@ -92,7 +97,7 @@ func (cst *clientStoreSuite) TestCreateClientFailure() {
 			priKey,
 		).WillReturnError(errors.New("failed to create client"))
 
-	cl, err := client.NewClientBuilder(config.NewConfig("../../local.env").ClientConfig()).
+	cl, err := client.NewClientBuilder(cst.cfg).
 		Name(clientName).
 		AccessTokenTTL(accessTokenTTLVal).
 		SessionTTL(sessionTTLVal).

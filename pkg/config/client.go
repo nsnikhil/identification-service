@@ -1,11 +1,17 @@
 package config
 
-type ClientConfig struct {
+import "github.com/stretchr/testify/mock"
+
+type ClientConfig interface {
+	Strategies() map[string]bool
+}
+
+type appClientConfig struct {
 	strategies map[string]bool
 }
 
 func newClientConfig() ClientConfig {
-	return ClientConfig{
+	return appClientConfig{
 		strategies: toSet(getStringSlice("STRATEGIES")),
 	}
 }
@@ -18,6 +24,15 @@ func toSet(values []string) map[string]bool {
 	return res
 }
 
-func (sc ClientConfig) Strategies() map[string]bool {
+func (sc appClientConfig) Strategies() map[string]bool {
 	return sc.strategies
+}
+
+type MockClientConfig struct {
+	mock.Mock
+}
+
+func (mock *MockClientConfig) Strategies() map[string]bool {
+	args := mock.Called()
+	return args.Get(0).(map[string]bool)
 }

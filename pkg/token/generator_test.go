@@ -5,9 +5,8 @@ import (
 	"crypto/ed25519"
 	"errors"
 	"github.com/o1egl/paseto"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 	"identification-service/pkg/config"
 	"identification-service/pkg/libcrypto"
 	"identification-service/pkg/test"
@@ -16,36 +15,47 @@ import (
 	"testing"
 )
 
-//const userID = "86d690dd-92a0-40ac-ad48-110c951e3cb8"
+type generatorTest struct {
+	suite.Suite
+	cfg config.TokenConfig
+}
 
-var cfg = config.NewConfig("../../local.env").TokenConfig()
+func (gt *generatorTest) SetupSuite() {
+	mockClientConfig := &config.MockTokenConfig{}
+	mockClientConfig.On("Audience").Return("user")
+	mockClientConfig.On("Issuer").Return("identification-service")
+	mockClientConfig.On("EncodedSigningKey").Return("signing-key")
 
-//var pubKey = ed25519.PublicKey{6, 170, 181, 226, 181, 81, 223, 119, 104, 220, 249, 120, 90, 158, 6, 10, 117, 97, 114, 150, 55, 185, 206, 184, 47, 231, 164, 120, 137, 75, 184, 216}
-//var priKey = ed25519.PrivateKey{3, 195, 208, 247, 190, 104, 63, 62, 164, 50, 63, 217, 229, 215, 179, 62, 223, 104, 197, 43, 164, 164, 231, 1, 22, 70, 154, 130, 109, 98, 88, 210, 6, 170, 181, 226, 181, 81, 223, 119, 104, 220, 249, 120, 90, 158, 6, 10, 117, 97, 114, 150, 55, 185, 206, 184, 47, 231, 164, 120, 137, 75, 184, 216}
+	gt.cfg = mockClientConfig
+}
 
-func TestCreateNewGeneratorSuccess(t *testing.T) {
+func TestGenerator(t *testing.T) {
+	suite.Run(t, new(generatorTest))
+}
+
+func (gt *generatorTest) TestCreateNewGeneratorSuccess() {
 	mockGenerator := &libcrypto.MockEd25519Generator{}
 	mockGenerator.On(
 		"FromEncodedPem",
 		mock.AnythingOfType("string"),
 	).Return(ed25519.PublicKey{}, ed25519.PrivateKey{}, nil)
 
-	_, err := token.NewGenerator(cfg, mockGenerator)
-	require.NoError(t, err)
+	_, err := token.NewGenerator(gt.cfg, mockGenerator)
+	gt.Require().NoError(err)
 }
 
-func TestCreateNewGeneratorFailure(t *testing.T) {
+func (gt *generatorTest) TestCreateNewGeneratorFailure() {
 	mockGenerator := &libcrypto.MockEd25519Generator{}
 	mockGenerator.On(
 		"FromEncodedPem",
 		mock.AnythingOfType("string"),
 	).Return(ed25519.PublicKey{}, ed25519.PrivateKey{}, errors.New("failed to genrate"))
 
-	_, err := token.NewGenerator(cfg, mockGenerator)
-	require.Error(t, err)
+	_, err := token.NewGenerator(gt.cfg, mockGenerator)
+	gt.Require().Error(err)
 }
 
-func TestAuthTokenGenerateAccessToken(t *testing.T) {
+func (gt *generatorTest) TestAuthTokenGenerateAccessToken() {
 	pub, pri := test.GenerateKey()
 
 	mockGenerator := &libcrypto.MockEd25519Generator{}
@@ -54,21 +64,21 @@ func TestAuthTokenGenerateAccessToken(t *testing.T) {
 		mock.AnythingOfType("string"),
 	).Return(ed25519.PublicKey{}, pri, nil)
 
-	generator, err := token.NewGenerator(cfg, mockGenerator)
-	require.NoError(t, err)
+	generator, err := token.NewGenerator(gt.cfg, mockGenerator)
+	gt.Require().NoError(err)
 
 	accessToken, err := generator.GenerateAccessToken(10, test.NewUUID(), nil)
-	require.NoError(t, err)
+	gt.Require().NoError(err)
 
 	var payload paseto.JSONToken
 
 	_, err = paseto.Parse(accessToken, &payload, nil, nil, map[paseto.Version]crypto.PublicKey{paseto.Version2: pub})
-	require.NoError(t, err)
+	gt.Require().NoError(err)
 
-	assert.Equal(t, "identification-service", payload.Issuer)
+	gt.Assert().Equal("identification-service", payload.Issuer)
 }
 
-func TestAuthTokenGenerateRefreshToken(t *testing.T) {
+func (gt *generatorTest) TestAuthTokenGenerateRefreshToken() {
 	isValidUUID := func(uuid string) bool {
 		r := regexp.MustCompile("^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-4[a-fA-F0-9]{3}-[8|9|aA|bB][a-fA-F0-9]{3}-[a-fA-F0-9]{12}$")
 		return r.MatchString(uuid)
@@ -80,11 +90,11 @@ func TestAuthTokenGenerateRefreshToken(t *testing.T) {
 		mock.AnythingOfType("string"),
 	).Return(ed25519.PublicKey{}, test.ClientPriKey(), nil)
 
-	generator, err := token.NewGenerator(cfg, mockGenerator)
-	require.NoError(t, err)
+	generator, err := token.NewGenerator(gt.cfg, mockGenerator)
+	gt.Require().NoError(err)
 
 	refreshToken, err := generator.GenerateRefreshToken()
-	require.NoError(t, err)
+	gt.Require().NoError(err)
 
-	assert.True(t, isValidUUID(refreshToken))
+	gt.Assert().True(isValidUUID(refreshToken))
 }

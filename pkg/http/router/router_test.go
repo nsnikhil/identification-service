@@ -15,9 +15,12 @@ import (
 )
 
 func TestRouter(t *testing.T) {
+	mockConfig := &config.MockConfig{}
+	mockConfig.On("Env").Return("dev")
+	mockConfig.On("AuthConfig").Return(config.AuthConfig{})
 
 	r := router.NewRouter(
-		config.Config{}, &reporters.MockLogger{}, &reporters.MockPrometheus{},
+		mockConfig, &reporters.MockLogger{}, &reporters.MockPrometheus{},
 		&client.MockService{}, &user.MockService{}, &session.MockService{},
 	)
 

@@ -16,8 +16,12 @@ type encoderTestSuite struct {
 }
 
 func (et *encoderTestSuite) SetupSuite() {
-	var cfg = config.NewConfig("../../local.env").PasswordConfig()
-	et.encoder = password.NewEncoder(cfg)
+	mockPasswordConfig := &config.MockPasswordConfig{}
+	mockPasswordConfig.On("SaltLength").Return(86)
+	mockPasswordConfig.On("Iterations").Return(4096)
+	mockPasswordConfig.On("KeyLength").Return(32)
+
+	et.encoder = password.NewEncoder(mockPasswordConfig)
 }
 
 func (et *encoderTestSuite) TestPasswordEncoderGenerateSalt() {

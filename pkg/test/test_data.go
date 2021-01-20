@@ -5,13 +5,11 @@ import (
 	cr "crypto/rand"
 	"github.com/google/uuid"
 	"github.com/o1egl/paseto"
-	"github.com/stretchr/testify/require"
 	"identification-service/pkg/client"
 	"identification-service/pkg/config"
 	"log"
 	"math/rand"
 	"strings"
-	"testing"
 	"time"
 )
 
@@ -27,6 +25,18 @@ const (
 	ClientSessionStrategyRevokeOld = "revoke_old"
 	UserTableName                  = "users"
 	SessionTableName               = "sessions"
+
+	ClientIdKey                  = "id"
+	ClientNameKey                = "name"
+	ClientSecretKey              = "secret"
+	ClientRevokedKey             = "revoked"
+	ClientAccessTokenTTLKey      = "accessTokenTTL"
+	ClientSessionTTLKey          = "sessionTTL"
+	ClientMaxActiveSessionsKey   = "maxActiveSessions"
+	ClientSessionStrategyNameKey = "sessionStrategyName"
+	ClientPrivateKeyKey          = "privateKey"
+	ClientCreatedAtKey           = "createdAt"
+	ClientUpdatedAtKey           = "updatedAt"
 )
 
 func RandString(n int) string {
@@ -93,42 +103,28 @@ type ClientData struct {
 	PrivateKey       []byte
 }
 
-var NewClient = func(t *testing.T, data ...ClientData) client.Client {
-	either := func(a, b interface{}) interface{} {
-		switch v := a.(type) {
-		case string:
-			if len(v) != 0 {
-				return a
-			}
-		case int:
-			if v != 0 {
-				return a
-			}
-		case []byte:
-			if v != nil && len(v) != 0 {
-				return a
-			}
+var NewClient = func(cfg config.ClientConfig, d map[string]interface{}) (client.Client, error) {
+	either := func(a interface{}, b interface{}) interface{} {
+		if a == nil {
+			return b
 		}
 
-		return b
+		return a
 	}
 
-	if len(data) == 0 {
-		data = make([]ClientData, 1)
-	}
-
-	cl, err := client.NewClientBuilder(config.NewConfig("../../local.env").ClientConfig()).
-		Name(either(data[0].Name, RandString(8)).(string)).
-		AccessTokenTTL(either(data[0].AccessTokenTTL, RandInt(1, 10)).(int)).
-		SessionTTL(either(data[0].SessionTokenTTL, RandInt(1440, 86701)).(int)).
-		SessionStrategy(ClientSessionStrategyRevokeOld).
-		MaxActiveSessions(either(data[0].MaxActiveSession, RandInt(1, 10)).(int)).
-		PrivateKey(either(data[0].PrivateKey, ClientPriKey()).(ed25519.PrivateKey)).
+	return client.NewClientBuilder(cfg).
+		ID(either(d[ClientIdKey], NewUUID()).(string)).
+		Name(either(d[ClientNameKey], RandString(8)).(string)).
+		Secret(either(d[ClientSecretKey], NewUUID()).(string)).
+		Revoked(either(d[ClientRevokedKey], false).(bool)).
+		AccessTokenTTL(either(d[ClientAccessTokenTTLKey], RandInt(1, 10)).(int)).
+		SessionTTL(either(d[ClientSessionTTLKey], RandInt(1440, 86701)).(int)).
+		MaxActiveSessions(either(d[ClientMaxActiveSessionsKey], RandInt(1, 10)).(int)).
+		SessionStrategy(either(d[ClientSessionStrategyNameKey], ClientSessionStrategyRevokeOld).(string)).
+		PrivateKey(either(d[ClientPrivateKeyKey], ClientPriKeyBytes()).([]byte)).
+		CreatedAt(either(d[ClientCreatedAtKey], CreatedAt).(time.Time)).
+		UpdatedAt(either(d[ClientUpdatedAtKey], UpdatedAt).(time.Time)).
 		Build()
-
-	require.NoError(t, err)
-
-	return cl
 }
 
 var CreatedAt = time.Date(2020, 11, 23, 23, 45, 0, 0, time.UTC)

@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 	"identification-service/pkg/client"
+	"identification-service/pkg/config"
 	"identification-service/pkg/session"
 	"identification-service/pkg/test"
 	"identification-service/pkg/token"
@@ -14,16 +15,32 @@ import (
 	"time"
 )
 
-//TODO: FIX LINE BREAK ON THIS FILE
-func TestLoginUserSuccess(t *testing.T) {
+type sessionTest struct {
+	suite.Suite
+	clientCfg         config.ClientConfig
+	clientDefaultData map[string]interface{}
+}
+
+func (st *sessionTest) SetupSuite() {
+	mockClientConfig := &config.MockClientConfig{}
+	mockClientConfig.On("Strategies").
+		Return(map[string]bool{test.ClientSessionStrategyRevokeOld: true})
+
+	st.clientCfg = mockClientConfig
+	st.clientDefaultData = map[string]interface{}{}
+}
+
+func TestClient(t *testing.T) {
+	suite.Run(t, new(sessionTest))
+}
+
+func (st *sessionTest) TestLoginUserSuccess() {
 	userPassword := test.NewPassword()
 	userID := test.NewUUID()
 	userEmail := test.NewEmail()
 	sessionID := test.NewUUID()
 	maxActiveSessions := test.RandInt(2, 10)
 	accessTokenTTL := test.RandInt(1, 10)
-
-	clientData := test.ClientData{AccessTokenTTL: accessTokenTTL, MaxActiveSession: maxActiveSessions}
 
 	mockStore := &session.MockStore{}
 	mockStore.On("CreateSession", mock.AnythingOfType("*context.valueCtx"), mock.AnythingOfType("Session")).Return(sessionID, nil)
@@ -42,23 +59,27 @@ func TestLoginUserSuccess(t *testing.T) {
 
 	service := session.NewService(mockStore, mockUserService, mockGenerator, strategies)
 
-	cl := test.NewClient(t, clientData)
+	clientData := map[string]interface{}{
+		test.ClientAccessTokenTTLKey:    accessTokenTTL,
+		test.ClientMaxActiveSessionsKey: maxActiveSessions,
+	}
+
+	cl, err := test.NewClient(st.clientCfg, clientData)
+	st.Require().NoError(err)
 
 	ctx, err := client.WithContext(context.Background(), cl)
-	require.NoError(t, err)
+	st.Require().NoError(err)
 
 	_, _, err = service.LoginUser(ctx, userEmail, userPassword)
-	require.NoError(t, err)
+	st.Require().NoError(err)
 }
 
-func TestLoginUserSuccessWhenSessionCountExceed(t *testing.T) {
+func (st *sessionTest) TestLoginUserSuccessWhenSessionCountExceed() {
 	userPassword := test.NewPassword()
 	userID := test.NewUUID()
 	sessionID := test.NewUUID()
 	userEmail := test.NewEmail()
 	accessTokenTTL := test.RandInt(1, 10)
-
-	clientData := test.ClientData{AccessTokenTTL: accessTokenTTL}
 
 	mockStore := &session.MockStore{}
 	mockStore.On("CreateSession", mock.AnythingOfType("*context.valueCtx"), mock.AnythingOfType("Session")).Return(sessionID, nil)
@@ -78,22 +99,25 @@ func TestLoginUserSuccessWhenSessionCountExceed(t *testing.T) {
 
 	service := session.NewService(mockStore, mockUserService, mockGenerator, strategies)
 
-	cl := test.NewClient(t, clientData)
+	clientData := map[string]interface{}{
+		test.ClientAccessTokenTTLKey: accessTokenTTL,
+	}
+
+	cl, err := test.NewClient(st.clientCfg, clientData)
+	st.Require().NoError(err)
 
 	ctx, err := client.WithContext(context.Background(), cl)
-	require.NoError(t, err)
+	st.Require().NoError(err)
 
 	_, _, err = service.LoginUser(ctx, userEmail, userPassword)
-	require.NoError(t, err)
+	st.Require().NoError(err)
 }
 
-func TestLoginUserFailureWhenSessionCountExceed(t *testing.T) {
+func (st *sessionTest) TestLoginUserFailureWhenSessionCountExceed() {
 	userPassword := test.NewPassword()
 	userID := test.NewUUID()
 	userEmail := test.NewEmail()
 	maxActiveSession := test.RandInt(2, 10)
-
-	clientData := test.ClientData{MaxActiveSession: maxActiveSession}
 
 	mockStore := &session.MockStore{}
 	mockStore.On("GetActiveSessionsCount", mock.AnythingOfType("*context.valueCtx"), userID).
@@ -111,16 +135,21 @@ func TestLoginUserFailureWhenSessionCountExceed(t *testing.T) {
 
 	service := session.NewService(mockStore, mockUserService, &token.MockGenerator{}, strategies)
 
-	cl := test.NewClient(t, clientData)
+	clientData := map[string]interface{}{
+		test.ClientMaxActiveSessionsKey: maxActiveSession,
+	}
+
+	cl, err := test.NewClient(st.clientCfg, clientData)
+	st.Require().NoError(err)
 
 	ctx, err := client.WithContext(context.Background(), cl)
-	require.NoError(t, err)
+	st.Require().NoError(err)
 
 	_, _, err = service.LoginUser(ctx, userEmail, userPassword)
-	require.Error(t, err)
+	st.Require().Error(err)
 }
 
-func TestLoginFailureWhenFailedToGetClientFromContext(t *testing.T) {
+func (st *sessionTest) TestLoginFailureWhenFailedToGetClientFromContext() {
 	userPassword := test.NewPassword()
 
 	strategies := map[string]session.Strategy{
@@ -130,10 +159,10 @@ func TestLoginFailureWhenFailedToGetClientFromContext(t *testing.T) {
 	service := session.NewService(&session.MockStore{}, &user.MockService{}, &token.MockGenerator{}, strategies)
 
 	_, _, err := service.LoginUser(context.Background(), test.NewEmail(), userPassword)
-	require.Error(t, err)
+	st.Require().Error(err)
 }
 
-func TestLoginUserFailure(t *testing.T) {
+func (st *sessionTest) TestLoginUserFailure() {
 	userPassword := test.NewPassword()
 	userID := test.NewUUID()
 	userEmail := test.NewEmail()
@@ -141,10 +170,16 @@ func TestLoginUserFailure(t *testing.T) {
 	maxActiveSessions := test.RandInt(1, 10)
 	accessTokenTTL := test.RandInt(1, 10)
 
-	clientData := test.ClientData{AccessTokenTTL: accessTokenTTL, MaxActiveSession: maxActiveSessions}
+	clientData := map[string]interface{}{
+		test.ClientAccessTokenTTLKey:    accessTokenTTL,
+		test.ClientMaxActiveSessionsKey: maxActiveSessions,
+	}
 
-	ctx, err := client.WithContext(context.Background(), test.NewClient(t, clientData))
-	require.NoError(t, err)
+	cl, err := test.NewClient(st.clientCfg, clientData)
+	st.Require().NoError(err)
+
+	ctx, err := client.WithContext(context.Background(), cl)
+	st.Require().NoError(err)
 
 	testCases := map[string]struct {
 		store       func() session.Store
@@ -278,7 +313,7 @@ func TestLoginUserFailure(t *testing.T) {
 	}
 
 	for name, testCase := range testCases {
-		t.Run(name, func(t *testing.T) {
+		st.Run(name, func() {
 			strategies := map[string]session.Strategy{
 				test.ClientSessionStrategyRevokeOld: session.NewRevokeOldStrategy(testCase.store()),
 			}
@@ -286,12 +321,12 @@ func TestLoginUserFailure(t *testing.T) {
 			service := session.NewService(testCase.store(), testCase.userService(), testCase.generator(), strategies)
 
 			_, _, err := service.LoginUser(ctx, userEmail, userPassword)
-			require.Error(t, err)
+			st.Require().Error(err)
 		})
 	}
 }
 
-func TestLogoutSuccess(t *testing.T) {
+func (st *sessionTest) TestLogoutSuccess() {
 	refreshToken := test.NewUUID()
 
 	mockStore := &session.MockStore{}
@@ -307,10 +342,10 @@ func TestLogoutSuccess(t *testing.T) {
 	service := session.NewService(mockStore, &user.MockService{}, &token.MockGenerator{}, strategies)
 
 	err := service.LogoutUser(context.Background(), refreshToken)
-	require.NoError(t, err)
+	st.Require().NoError(err)
 }
 
-func TestLogoutFailureWhenStoreCallFails(t *testing.T) {
+func (st *sessionTest) TestLogoutFailureWhenStoreCallFails() {
 	refreshToken := test.NewUUID()
 
 	mockStore := &session.MockStore{}
@@ -326,15 +361,15 @@ func TestLogoutFailureWhenStoreCallFails(t *testing.T) {
 	service := session.NewService(mockStore, &user.MockService{}, &token.MockGenerator{}, strategies)
 
 	err := service.LogoutUser(context.Background(), refreshToken)
-	require.Error(t, err)
+	st.Require().Error(err)
 }
 
-func TestRefreshTokenSuccess(t *testing.T) {
+func (st *sessionTest) TestRefreshTokenSuccess() {
 	refreshToken := test.NewUUID()
 	accessTokenTTL := test.RandInt(1, 10)
 
 	ss, err := session.NewSessionBuilder().CreatedAt(time.Now()).Build()
-	require.NoError(t, err)
+	st.Require().NoError(err)
 
 	mockStore := &session.MockStore{}
 	mockStore.On("GetSession", mock.AnythingOfType("*context.valueCtx"), refreshToken).Return(ss, nil)
@@ -348,18 +383,23 @@ func TestRefreshTokenSuccess(t *testing.T) {
 
 	service := session.NewService(mockStore, &user.MockService{}, mockGenerator, strategies)
 
-	cl := test.NewClient(t, test.ClientData{AccessTokenTTL: accessTokenTTL})
+	clientData := map[string]interface{}{
+		test.ClientAccessTokenTTLKey: accessTokenTTL,
+	}
 
-	require.NoError(t, err)
+	cl, err := test.NewClient(st.clientCfg, clientData)
+	st.Require().NoError(err)
+
+	st.Require().NoError(err)
 
 	ctx, err := client.WithContext(context.Background(), cl)
-	require.NoError(t, err)
+	st.Require().NoError(err)
 
 	_, err = service.RefreshToken(ctx, refreshToken)
-	require.NoError(t, err)
+	st.Require().NoError(err)
 }
 
-func TestRefreshTokenFailureWhenFailedToGetClientFromContext(t *testing.T) {
+func (st *sessionTest) TestRefreshTokenFailureWhenFailedToGetClientFromContext() {
 	mockStore := &session.MockStore{}
 
 	strategies := map[string]session.Strategy{
@@ -369,15 +409,22 @@ func TestRefreshTokenFailureWhenFailedToGetClientFromContext(t *testing.T) {
 	service := session.NewService(mockStore, &user.MockService{}, &token.MockGenerator{}, strategies)
 
 	_, err := service.RefreshToken(context.Background(), test.NewUUID())
-	require.Error(t, err)
+	st.Require().Error(err)
 }
 
-func TestRefreshTokenFailure(t *testing.T) {
+func (st *sessionTest) TestRefreshTokenFailure() {
 	refreshToken := test.NewUUID()
 	accessTokenTTL := test.RandInt(1, 10)
 
-	ctx, err := client.WithContext(context.Background(), test.NewClient(t, test.ClientData{AccessTokenTTL: accessTokenTTL}))
-	require.NoError(t, err)
+	clientData := map[string]interface{}{
+		test.ClientAccessTokenTTLKey: accessTokenTTL,
+	}
+
+	cl, err := test.NewClient(st.clientCfg, clientData)
+	st.Require().NoError(err)
+
+	ctx, err := client.WithContext(context.Background(), cl)
+	st.Require().NoError(err)
 
 	testCases := map[string]struct {
 		store     func() session.Store
@@ -395,7 +442,7 @@ func TestRefreshTokenFailure(t *testing.T) {
 		"test failure when session is expired": {
 			store: func() session.Store {
 				ss, err := session.NewSessionBuilder().CreatedAt(time.Now().AddDate(0, -2, -1)).Build()
-				require.NoError(t, err)
+				st.Require().NoError(err)
 
 				mockStore := &session.MockStore{}
 				mockStore.On("GetSession", mock.AnythingOfType("*context.valueCtx"), refreshToken).Return(ss, nil)
@@ -408,7 +455,7 @@ func TestRefreshTokenFailure(t *testing.T) {
 		"test failure when revoke session fails": {
 			store: func() session.Store {
 				ss, err := session.NewSessionBuilder().CreatedAt(time.Now().AddDate(0, -2, -1)).Build()
-				require.NoError(t, err)
+				st.Require().NoError(err)
 
 				mockStore := &session.MockStore{}
 				mockStore.On("GetSession", mock.AnythingOfType("*context.valueCtx"), refreshToken).Return(ss, nil)
@@ -421,7 +468,7 @@ func TestRefreshTokenFailure(t *testing.T) {
 		"test failure when failed to generate access token": {
 			store: func() session.Store {
 				ss, err := session.NewSessionBuilder().CreatedAt(time.Now()).Build()
-				require.NoError(t, err)
+				st.Require().NoError(err)
 
 				mockStore := &session.MockStore{}
 				mockStore.On("GetSession", mock.AnythingOfType("*context.valueCtx"), refreshToken).Return(ss, nil)
@@ -438,7 +485,7 @@ func TestRefreshTokenFailure(t *testing.T) {
 	}
 
 	for name, testCase := range testCases {
-		t.Run(name, func(t *testing.T) {
+		st.Run(name, func() {
 			strategies := map[string]session.Strategy{
 				test.ClientSessionStrategyRevokeOld: session.NewRevokeOldStrategy(testCase.store()),
 			}
@@ -446,12 +493,12 @@ func TestRefreshTokenFailure(t *testing.T) {
 			service := session.NewService(testCase.store(), &user.MockService{}, testCase.generator(), strategies)
 
 			_, err := service.RefreshToken(ctx, refreshToken)
-			require.Error(t, err)
+			st.Require().Error(err)
 		})
 	}
 }
 
-func TestRevokeAllSessionsSuccess(t *testing.T) {
+func (st *sessionTest) TestRevokeAllSessionsSuccess() {
 	userID := test.NewUUID()
 
 	mockStore := &session.MockStore{}
@@ -467,10 +514,10 @@ func TestRevokeAllSessionsSuccess(t *testing.T) {
 	service := session.NewService(mockStore, &user.MockService{}, &token.MockGenerator{}, strategies)
 
 	err := service.RevokeAllSessions(context.Background(), userID)
-	require.NoError(t, err)
+	st.Require().NoError(err)
 }
 
-func TestRevokeAllSessionsFailure(t *testing.T) {
+func (st *sessionTest) TestRevokeAllSessionsFailure() {
 	userID := test.NewUUID()
 
 	mockStore := &session.MockStore{}
@@ -486,5 +533,5 @@ func TestRevokeAllSessionsFailure(t *testing.T) {
 	service := session.NewService(mockStore, &user.MockService{}, &token.MockGenerator{}, strategies)
 
 	err := service.RevokeAllSessions(context.Background(), userID)
-	require.Error(t, err)
+	st.Require().Error(err)
 }

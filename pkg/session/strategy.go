@@ -12,27 +12,6 @@ type Strategy interface {
 	Apply(ctx context.Context, userID string, currActiveSessions, maxActiveSessions int) error
 }
 
-//const (
-//	revokeOldName = "revoke_old"
-//)
-
-//var strategies = map[string]func(store Store) Strategy{
-//	revokeOldName: func(store Store) Strategy { return &RevokeOld{store: store} },
-//}
-//
-//func strategyFromName(name string, store Store) (Strategy, error) {
-//	strategy, ok := strategies[name]
-//	if !ok {
-//		return nil, liberr.WithArgs(
-//			liberr.Operation("SessionStrategy.FromName"),
-//			liberr.InvalidArgsError,
-//			fmt.Errorf("invalid session Strategy %s", name),
-//		)
-//	}
-//
-//	return strategy(store), nil
-//}
-
 type RevokeOld struct {
 	store Store
 }

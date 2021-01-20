@@ -5,7 +5,24 @@ import (
 	"github.com/spf13/viper"
 )
 
-type Config struct {
+type Config interface {
+	HTTPServerConfig() HTTPServerConfig
+	DatabaseConfig() DatabaseConfig
+	LogConfig() LogConfig
+	LogFileConfig() LogFileConfig
+	Env() string
+	MigrationPath() string
+	PasswordConfig() PasswordConfig
+	TokenConfig() TokenConfig
+	AuthConfig() AuthConfig
+	CacheConfig() CacheConfig
+	PublisherConfig() PublisherConfig
+	ConsumerConfig() ConsumerConfig
+	AMPQConfig() AMPQConfig
+	ClientConfig() ClientConfig
+}
+
+type appConfig struct {
 	env              string
 	migrationPath    string
 	httpServerConfig HTTPServerConfig
@@ -22,59 +39,59 @@ type Config struct {
 	clientConfig     ClientConfig
 }
 
-func (c Config) HTTPServerConfig() HTTPServerConfig {
+func (c appConfig) HTTPServerConfig() HTTPServerConfig {
 	return c.httpServerConfig
 }
 
-func (c Config) DatabaseConfig() DatabaseConfig {
+func (c appConfig) DatabaseConfig() DatabaseConfig {
 	return c.databaseConfig
 }
 
-func (c Config) LogConfig() LogConfig {
+func (c appConfig) LogConfig() LogConfig {
 	return c.logConfig
 }
 
-func (c Config) LogFileConfig() LogFileConfig {
+func (c appConfig) LogFileConfig() LogFileConfig {
 	return c.logFileConfig
 }
 
-func (c Config) Env() string {
+func (c appConfig) Env() string {
 	return c.env
 }
 
-func (c Config) MigrationPath() string {
+func (c appConfig) MigrationPath() string {
 	return c.migrationPath
 }
 
-func (c Config) PasswordConfig() PasswordConfig {
+func (c appConfig) PasswordConfig() PasswordConfig {
 	return c.passwordConfig
 }
 
-func (c Config) TokenConfig() TokenConfig {
+func (c appConfig) TokenConfig() TokenConfig {
 	return c.tokenConfig
 }
 
-func (c Config) AuthConfig() AuthConfig {
+func (c appConfig) AuthConfig() AuthConfig {
 	return c.authConfig
 }
 
-func (c Config) CacheConfig() CacheConfig {
+func (c appConfig) CacheConfig() CacheConfig {
 	return c.cacheConfig
 }
 
-func (c Config) PublisherConfig() PublisherConfig {
+func (c appConfig) PublisherConfig() PublisherConfig {
 	return c.publisherConfig
 }
 
-func (c Config) ConsumerConfig() ConsumerConfig {
+func (c appConfig) ConsumerConfig() ConsumerConfig {
 	return c.consumerConfig
 }
 
-func (c Config) AMPQConfig() AMPQConfig {
+func (c appConfig) AMPQConfig() AMPQConfig {
 	return c.ampqConfig
 }
 
-func (c Config) ClientConfig() ClientConfig {
+func (c appConfig) ClientConfig() ClientConfig {
 	return c.clientConfig
 }
 
@@ -88,7 +105,7 @@ func NewConfig(configFile string) Config {
 		fmt.Println(err)
 	}
 
-	return Config{
+	return appConfig{
 		env:              getString("ENV"),
 		migrationPath:    getString("MIGRATION_PATH"),
 		httpServerConfig: newHTTPServerConfig(),
