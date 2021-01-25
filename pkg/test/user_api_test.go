@@ -82,7 +82,7 @@ func (uat *userAPITestSuite) TestSignUpUserFailureWhenClientCredentialsAreMissin
 	)
 }
 
-func (uat *userAPITestSuite) TestSignUpUserClientAuthenticationFailureFailure() {
+func (uat *userAPITestSuite) TestSignUpUserClientAuthenticationFailure() {
 	defaultAuthHeaders := registerClientAndGetHeaders(uat.T(), uat.deps.cfg.AuthConfig(), uat.deps.cl, map[string]interface{}{})
 
 	clientId := defaultAuthHeaders["CLIENT-ID"]
@@ -239,6 +239,57 @@ func (uat *userAPITestSuite) TestUpdatePasswordSuccess() {
 	}
 
 	testUpdatePassword(uat, http.StatusOK, expectedRespData, authHeaders, reqBody)
+}
+
+func (uat *userAPITestSuite) TestUpdatePasswordClientAuthenticationFailure() {
+	defaultAuthHeaders := registerClientAndGetHeaders(uat.T(), uat.deps.cfg.AuthConfig(), uat.deps.cl, map[string]interface{}{})
+	userDetails := signUpUser(uat.T(), uat.deps.cfg.PublisherConfig(), uat.deps.cl, uat.deps.ch, defaultAuthHeaders)
+
+	reqBody := getUpdatePasswordReqBody(
+		map[string]interface{}{
+			userEmailKey:    userDetails.Email,
+			userPasswordKey: userDetails.Password,
+		},
+	)
+
+	clientId := defaultAuthHeaders["CLIENT-ID"]
+	//clientSecret := defaultAuthHeaders["CLIENT-SECRET"]
+
+	expectedRespData := func(msg string) contract.APIResponse {
+		return contract.APIResponse{
+			Success: false,
+			Error:   &contract.Error{Message: msg},
+		}
+	}
+
+	testCases := map[string]struct {
+		authHeader map[string]string
+	}{
+		//"test failure when client id is invalid": {
+		//	authHeader: map[string]string{
+		//		"CLIENT-ID":     "invalid",
+		//		"CLIENT-SECRET": clientSecret,
+		//	},
+		//},
+		"test failure when client secret is invalid": {
+			authHeader: map[string]string{
+				"CLIENT-ID":     clientId,
+				"CLIENT-SECRET": "invalid",
+			},
+		},
+	}
+
+	for name, testCase := range testCases {
+		uat.T().Run(name, func(t *testing.T) {
+			testUpdatePassword(
+				uat,
+				http.StatusUnauthorized,
+				expectedRespData("authentication failed"),
+				testCase.authHeader,
+				reqBody,
+			)
+		})
+	}
 }
 
 func (uat *userAPITestSuite) TestUpdatePasswordFailure() {

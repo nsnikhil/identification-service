@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/go-redis/redis/v8"
 	"github.com/lib/pq"
@@ -86,7 +87,16 @@ func (cs *clientStore) RevokeClient(ctx context.Context, id string) (int64, erro
 }
 
 func (cs *clientStore) GetClient(ctx context.Context, name, secret string) (Client, error) {
+	//TODO: REFACTOR SECRET CHECK LOGIC
 	if cl, err := fetchFromCache(ctx, cs.cache, name); err == nil {
+		if cl.Secret != secret {
+			return Client{}, liberr.WithArgs(
+				liberr.Operation("Store.GetClient"),
+				liberr.InvalidCredentialsError,
+				errors.New("invalid credentials"),
+			)
+		}
+
 		return cl, nil
 	}
 
