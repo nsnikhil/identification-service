@@ -30,14 +30,21 @@ func (uh *UserHandler) SignUp(resp http.ResponseWriter, req *http.Request) error
 }
 
 func (uh *UserHandler) UpdatePassword(resp http.ResponseWriter, req *http.Request) error {
+	wrap := func(err error) error { return liberr.WithOp("UserHandler.UpdatePassword", err) }
+
 	var data contract.UpdatePasswordRequest
 	if err := util.ParseRequest(req, &data); err != nil {
-		return liberr.WithOp("UserHandler.UpdatePassword", err)
+		return wrap(err)
+	}
+
+	//TODO: MOVE VALIDATION FROM HERE
+	if err := data.IsValid(); err != nil {
+		return wrap(liberr.WithArgs(liberr.ValidationError, err))
 	}
 
 	err := uh.service.UpdatePassword(req.Context(), data.Email, data.OldPassword, data.NewPassword)
 	if err != nil {
-		return liberr.WithOp("UserHandler.UpdatePassword", err)
+		return wrap(err)
 	}
 
 	util.WriteSuccessResponse(http.StatusOK, contract.UpdatePasswordResponse{Message: contract.PasswordUpdateSuccess}, resp)

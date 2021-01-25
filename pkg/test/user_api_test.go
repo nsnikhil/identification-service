@@ -253,7 +253,7 @@ func (uat *userAPITestSuite) TestUpdatePasswordClientAuthenticationFailure() {
 	)
 
 	clientId := defaultAuthHeaders["CLIENT-ID"]
-	//clientSecret := defaultAuthHeaders["CLIENT-SECRET"]
+	clientSecret := defaultAuthHeaders["CLIENT-SECRET"]
 
 	expectedRespData := func(msg string) contract.APIResponse {
 		return contract.APIResponse{
@@ -265,12 +265,12 @@ func (uat *userAPITestSuite) TestUpdatePasswordClientAuthenticationFailure() {
 	testCases := map[string]struct {
 		authHeader map[string]string
 	}{
-		//"test failure when client id is invalid": {
-		//	authHeader: map[string]string{
-		//		"CLIENT-ID":     "invalid",
-		//		"CLIENT-SECRET": clientSecret,
-		//	},
-		//},
+		"test failure when client id is invalid": {
+			authHeader: map[string]string{
+				"CLIENT-ID":     "invalid",
+				"CLIENT-SECRET": clientSecret,
+			},
+		},
 		"test failure when client secret is invalid": {
 			authHeader: map[string]string{
 				"CLIENT-ID":     clientId,
@@ -308,15 +308,35 @@ func (uat *userAPITestSuite) TestUpdatePasswordFailure() {
 		statusCode int
 		errMsg     string
 	}{
+		"test failure when email is empty": {
+			data:       map[string]interface{}{userEmailKey: EmptyString},
+			statusCode: http.StatusBadRequest,
+			errMsg:     "email cannot be empty",
+		},
 		"test failure when email is incorrect": {
 			data:       map[string]interface{}{userEmailKey: "other@other.com"},
 			statusCode: http.StatusUnauthorized,
 			errMsg:     "invalid credentials",
 		},
-		"test failure when password is incorrect": {
+		"test failure when old password is empty": {
+			data:       map[string]interface{}{userPasswordKey: EmptyString},
+			statusCode: http.StatusBadRequest,
+			errMsg:     "old password cannot be empty",
+		},
+		"test failure when old password is incorrect": {
 			data:       map[string]interface{}{userPasswordKey: "invalidPassword"},
 			statusCode: http.StatusUnauthorized,
 			errMsg:     "invalid credentials",
+		},
+		"test failure when new password is empty": {
+			data:       map[string]interface{}{userNewPasswordKey: EmptyString},
+			statusCode: http.StatusBadRequest,
+			errMsg:     "new password cannot be empty",
+		},
+		"test failure when password is below min characters": {
+			data:       map[string]interface{}{userNewPasswordKey: RandString(6)},
+			statusCode: http.StatusBadRequest,
+			errMsg:     "password must be at least 8 characters long",
 		},
 		"test failure when new password does not match spec": {
 			data:       map[string]interface{}{userNewPasswordKey: RandString(8)},
