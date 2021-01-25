@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 	"fmt"
+	"github.com/lib/pq"
 	"identification-service/pkg/database"
 	"identification-service/pkg/liberr"
 )
@@ -27,8 +28,19 @@ type userStore struct {
 func (us *userStore) CreateUser(ctx context.Context, user User) (string, error) {
 	var id string
 
-	//TODO: RETURN DIFFERENT ERROR KIND FOR DUPLICATE RECORD
-	err := us.db.QueryRowContext(ctx, insertUser, user.name, user.email, user.passwordHash, user.passwordSalt).Scan(&id)
+	//TODO: REMOVE THIS HARD CODING
+	row := us.db.QueryRowContext(ctx, insertUser, user.name, user.email, user.passwordHash, user.passwordSalt)
+	if row.Err() != nil {
+		if pgErr, ok := row.Err().(*pq.Error); ok {
+			if pgErr.Code == "23505" {
+				return "", liberr.WithArgs(liberr.Operation("Store.CreateUser"), liberr.DuplicateRecordError, row.Err())
+			}
+		}
+
+		return "", liberr.WithOp("Store.CreateUser", row.Err())
+	}
+
+	err := row.Scan(&id)
 	if err != nil {
 		return "", liberr.WithOp("Store.CreateUser", err)
 	}

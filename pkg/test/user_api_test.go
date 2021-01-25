@@ -82,6 +82,53 @@ func (uat *userAPITestSuite) TestSignUpUserFailureWhenClientCredentialsAreMissin
 	)
 }
 
+func (uat *userAPITestSuite) TestSignUpUserClientAuthenticationFailureFailure() {
+	defaultAuthHeaders := registerClientAndGetHeaders(uat.T(), uat.deps.cfg.AuthConfig(), uat.deps.cl, map[string]interface{}{})
+
+	clientId := defaultAuthHeaders["CLIENT-ID"]
+	clientSecret := defaultAuthHeaders["CLIENT-SECRET"]
+
+	expectedRespData := func(msg string) contract.APIResponse {
+		return contract.APIResponse{
+			Success: false,
+			Error:   &contract.Error{Message: msg},
+		}
+	}
+
+	testCases := map[string]struct {
+		authHeader map[string]string
+	}{
+		"test failure when client id is invalid": {
+			authHeader: map[string]string{
+				"CLIENT-ID":     "invalid",
+				"CLIENT-SECRET": clientSecret,
+			},
+		},
+		"test failure when client secret is invalid": {
+			authHeader: map[string]string{
+				"CLIENT-ID":     clientId,
+				"CLIENT-SECRET": "invalid",
+			},
+		},
+	}
+
+	for name, testCase := range testCases {
+		uat.T().Run(name, func(t *testing.T) {
+			testSignUpUser(
+				uat.T(),
+				uat.deps.cfg.PublisherConfig(),
+				uat.deps.cl,
+				uat.deps.ch,
+				http.StatusUnauthorized,
+				expectedRespData("authentication failed"),
+				testCase.authHeader,
+				getCreateUserReqBody(map[string]interface{}{}),
+				false,
+			)
+		})
+	}
+}
+
 func (uat *userAPITestSuite) TestSignUpUserValidationFailure() {
 	authHeaders := registerClientAndGetHeaders(uat.T(), uat.deps.cfg.AuthConfig(), uat.deps.cl, map[string]interface{}{})
 
@@ -108,6 +155,10 @@ func (uat *userAPITestSuite) TestSignUpUserValidationFailure() {
 			data:         map[string]interface{}{userPasswordKey: EmptyString},
 			errorMessage: "password cannot be empty",
 		},
+		"test failure when password is below min characters": {
+			data:         map[string]interface{}{userPasswordKey: RandString(6)},
+			errorMessage: "password must be at least 8 characters long",
+		},
 		"test failure when password is invalid": {
 			data:         map[string]interface{}{userPasswordKey: RandString(12)},
 			errorMessage: "password must have at least 1 number, 1 lower character, 1 upper character and 1 symbol",
@@ -131,7 +182,6 @@ func (uat *userAPITestSuite) TestSignUpUserValidationFailure() {
 	}
 }
 
-//TODO: WHY DOES DUPLICATE RECORD RETURN INTERNAL SERVER ERROR ?
 func (uat *userAPITestSuite) TestSignUpUserFailureForDuplicateRecord() {
 	authHeaders := registerClientAndGetHeaders(uat.T(), uat.deps.cfg.AuthConfig(), uat.deps.cl, map[string]interface{}{})
 
@@ -156,7 +206,7 @@ func (uat *userAPITestSuite) TestSignUpUserFailureForDuplicateRecord() {
 
 	expectedRespData = contract.APIResponse{
 		Success: false,
-		Error:   &contract.Error{Message: "internal server error"},
+		Error:   &contract.Error{Message: "duplicate record"},
 	}
 
 	testSignUpUser(
@@ -164,7 +214,7 @@ func (uat *userAPITestSuite) TestSignUpUserFailureForDuplicateRecord() {
 		uat.deps.cfg.PublisherConfig(),
 		uat.deps.cl,
 		uat.deps.ch,
-		http.StatusInternalServerError,
+		http.StatusConflict,
 		expectedRespData,
 		authHeaders,
 		reqBody,

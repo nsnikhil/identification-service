@@ -55,6 +55,7 @@ func (pe *pbkdfPasswordEncoder) VerifyPassword(password, userPasswordHash string
 	return nil
 }
 
+//TODO: PASSWORD SPEC SHOULD BE CONFIGURABLE
 func (pe *pbkdfPasswordEncoder) ValidatePassword(password string) error {
 	wrap := func(err error) error {
 		return liberr.WithArgs(liberr.Operation("Encoder.ValidatePassword"), liberr.ValidationError, err)
