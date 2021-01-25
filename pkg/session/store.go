@@ -83,8 +83,9 @@ func (ss *sessionStore) RevokeSessions(ctx context.Context, refreshTokens ...str
 	}
 
 	if c == 0 {
-		return 0, liberr.WithOp(
-			"Store.RevokeSession",
+		return 0, liberr.WithArgs(
+			liberr.Operation("Store.RevokeSession"),
+			liberr.ResourceNotFound,
 			fmt.Errorf("no session found for refresh tokens %v", refreshTokens),
 		)
 	}

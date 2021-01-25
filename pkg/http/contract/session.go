@@ -31,6 +31,12 @@ type LogoutRequest struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
+func (lr LogoutRequest) IsValid() error {
+	return isValid("LogoutRequest.IsValid",
+		pair{name: "refresh token", data: lr.RefreshToken},
+	)
+}
+
 type LogoutResponse struct {
 	Message string `json:"message"`
 }

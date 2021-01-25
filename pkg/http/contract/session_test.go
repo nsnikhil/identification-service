@@ -8,13 +8,18 @@ import (
 )
 
 const (
-	sessionEmailKey    = "email"
-	sessionPasswordKey = "password"
+	sessionEmailKey     = "email"
+	sessionPasswordKey  = "password"
+	sessionRefreshToken = "refreshToken"
 )
 
 var loginRequestDefaultData = map[string]string{
 	sessionEmailKey:    test.RandString(8),
 	sessionPasswordKey: test.RandString(8),
+}
+
+var logoutRequestDefaultData = map[string]string{
+	sessionRefreshToken: test.NewUUID(),
 }
 
 func TestLoginRequestIsValidSuccess(t *testing.T) {
@@ -42,9 +47,37 @@ func TestLoginRequestIsValidFailure(t *testing.T) {
 	}
 }
 
+func TestLogoutRequestIsValidSuccess(t *testing.T) {
+	lr := newLogoutRequest(logoutRequestDefaultData)
+	assert.NoError(t, lr.IsValid())
+}
+
+func TestLogoutRequestIsValidFailure(t *testing.T) {
+	testCases := map[string]struct {
+		overrides map[string]string
+	}{
+		"test failure when refresh token is empty": {
+			overrides: removeKey(sessionRefreshToken, logoutRequestDefaultData),
+		},
+	}
+
+	for name, testCase := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lr := newLogoutRequest(testCase.overrides)
+			assert.Error(t, lr.IsValid())
+		})
+	}
+}
+
 func newLoginRequest(data map[string]string) contract.LoginRequest {
 	return contract.LoginRequest{
 		Email:    data[sessionEmailKey],
 		Password: data[sessionPasswordKey],
+	}
+}
+
+func newLogoutRequest(data map[string]string) contract.LogoutRequest {
+	return contract.LogoutRequest{
+		RefreshToken: data[sessionRefreshToken],
 	}
 }

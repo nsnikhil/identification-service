@@ -388,7 +388,7 @@ func (sat *sessionAPITestSuite) TestLogoutUserSuccess() {
 }
 
 func (sat *sessionAPITestSuite) TestLogoutFailureWhenClientCredentialsAreMissing() {
-	reqBody := getLogoutReqBody(map[string]interface{}{sessionRefreshTokenKey: NewUUID()})
+	reqBody := getLogoutReqBody(map[string]interface{}{})
 
 	expectedRespData := contract.APIResponse{
 		Success: false,
@@ -398,6 +398,45 @@ func (sat *sessionAPITestSuite) TestLogoutFailureWhenClientCredentialsAreMissing
 	testLogoutUser(sat, http.StatusUnauthorized, expectedRespData, map[string]string{}, reqBody)
 }
 
+func (sat *sessionAPITestSuite) TestLogoutFailureWhenClientAuthenticationFailed() {
+	defaultAuthHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl, map[string]interface{}{})
+
+	clientId := defaultAuthHeaders["CLIENT-ID"]
+	clientSecret := defaultAuthHeaders["CLIENT-SECRET"]
+
+	expectedResp := contract.APIResponse{
+		Success: false,
+		Error: &contract.Error{
+			Message: "authentication failed",
+		},
+	}
+
+	reqBody := getLogoutReqBody(map[string]interface{}{})
+
+	testCases := map[string]struct {
+		authHeader map[string]string
+	}{
+		"test failure when client id is invalid": {
+			authHeader: map[string]string{
+				"CLIENT-ID":     "invalid",
+				"CLIENT-SECRET": clientSecret,
+			},
+		},
+		"test failure when client secret is invalid": {
+			authHeader: map[string]string{
+				"CLIENT-ID":     clientId,
+				"CLIENT-SECRET": "invalid",
+			},
+		},
+	}
+
+	for name, testCase := range testCases {
+		sat.Run(name, func() {
+			testLogoutUser(sat, http.StatusUnauthorized, expectedResp, testCase.authHeader, reqBody)
+		})
+	}
+}
+
 func (sat *sessionAPITestSuite) TestLogoutUserFailureForIncorrectRefreshToken() {
 	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl, map[string]interface{}{})
 
@@ -405,10 +444,23 @@ func (sat *sessionAPITestSuite) TestLogoutUserFailureForIncorrectRefreshToken() 
 
 	expectedRespData := contract.APIResponse{
 		Success: false,
-		Error:   &contract.Error{Message: "internal server error"},
+		Error:   &contract.Error{Message: "resource not found"},
 	}
 
-	testLogoutUser(sat, http.StatusInternalServerError, expectedRespData, authHeaders, reqBody)
+	testLogoutUser(sat, http.StatusNotFound, expectedRespData, authHeaders, reqBody)
+}
+
+func (sat *sessionAPITestSuite) TestLogoutUserFailureForValidationFailure() {
+	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl, map[string]interface{}{})
+
+	reqBody := getLogoutReqBody(map[string]interface{}{sessionRefreshTokenKey: EmptyString})
+
+	expectedRespData := contract.APIResponse{
+		Success: false,
+		Error:   &contract.Error{Message: "refresh token cannot be empty"},
+	}
+
+	testLogoutUser(sat, http.StatusBadRequest, expectedRespData, authHeaders, reqBody)
 }
 
 func testLogin(

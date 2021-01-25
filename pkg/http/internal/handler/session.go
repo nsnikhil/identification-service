@@ -58,14 +58,20 @@ func (sh *SessionHandler) RefreshToken(resp http.ResponseWriter, req *http.Reque
 }
 
 func (sh *SessionHandler) Logout(resp http.ResponseWriter, req *http.Request) error {
+	wrap := func(err error) error { return liberr.WithOp("SessionHandler.Logout", err) }
+
 	var data contract.LogoutRequest
 	if err := util.ParseRequest(req, &data); err != nil {
-		return liberr.WithArgs(liberr.Operation("UserHandler.RefreshToken"), err)
+		return wrap(err)
+	}
+
+	if err := data.IsValid(); err != nil {
+		return wrap(err)
 	}
 
 	err := sh.service.LogoutUser(req.Context(), data.RefreshToken)
 	if err != nil {
-		return liberr.WithOp("SessionHandler.Logout", err)
+		return wrap(err)
 	}
 
 	respData := contract.LogoutResponse{
