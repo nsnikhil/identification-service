@@ -7,6 +7,13 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
+func (lr LoginRequest) IsValid() error {
+	return isValid("LoginRequest.IsValid",
+		pair{name: "email", data: lr.Email},
+		pair{name: "password", data: lr.Password},
+	)
+}
+
 type LoginResponse struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`

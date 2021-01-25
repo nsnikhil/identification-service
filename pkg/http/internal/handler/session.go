@@ -13,14 +13,20 @@ type SessionHandler struct {
 }
 
 func (sh *SessionHandler) Login(resp http.ResponseWriter, req *http.Request) error {
+	wrap := func(err error) error { return liberr.WithOp("SessionHandler.Login", err) }
+
 	var data contract.LoginRequest
 	if err := util.ParseRequest(req, &data); err != nil {
-		return liberr.WithArgs(liberr.Operation("UserHandler.LoginUser"), err)
+		return wrap(err)
+	}
+
+	if err := data.IsValid(); err != nil {
+		return wrap(err)
 	}
 
 	accessToken, refreshToken, err := sh.service.LoginUser(req.Context(), data.Email, data.Password)
 	if err != nil {
-		return liberr.WithOp("SessionHandler.Login", err)
+		return wrap(err)
 	}
 
 	respData := contract.LoginResponse{

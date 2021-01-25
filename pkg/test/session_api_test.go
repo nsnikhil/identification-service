@@ -62,8 +62,47 @@ func (sat *sessionAPITestSuite) TestLoginFailureWhenClientCredentialsAreMissing(
 	testLogin(sat.T(), sat.deps.cl, http.StatusUnauthorized, expectedResp, map[string]string{}, reqBody)
 }
 
+func (sat *sessionAPITestSuite) TestLoginFailedWhenClientAuthenticationFailed() {
+	defaultAuthHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl, map[string]interface{}{})
+
+	clientId := defaultAuthHeaders["CLIENT-ID"]
+	clientSecret := defaultAuthHeaders["CLIENT-SECRET"]
+
+	expectedResp := contract.APIResponse{
+		Success: false,
+		Error: &contract.Error{
+			Message: "authentication failed",
+		},
+	}
+
+	reqBody := getLoginReqBody(map[string]interface{}{})
+
+	testCases := map[string]struct {
+		authHeader map[string]string
+	}{
+		"test failure when client id is invalid": {
+			authHeader: map[string]string{
+				"CLIENT-ID":     "invalid",
+				"CLIENT-SECRET": clientSecret,
+			},
+		},
+		"test failure when client secret is invalid": {
+			authHeader: map[string]string{
+				"CLIENT-ID":     clientId,
+				"CLIENT-SECRET": "invalid",
+			},
+		},
+	}
+
+	for name, testCase := range testCases {
+		sat.Run(name, func() {
+			testLogin(sat.T(), sat.deps.cl, http.StatusUnauthorized, expectedResp, testCase.authHeader, reqBody)
+		})
+	}
+}
+
 func (sat *sessionAPITestSuite) TestLoginSuccessWithRevokeOld() {
-	maxActiveSessions := RandInt(2, 2)
+	maxActiveSessions := 2
 	clientData := map[string]interface{}{
 		clientMaxActiveSessionsKey: maxActiveSessions,
 	}
@@ -106,9 +145,48 @@ func (sat *sessionAPITestSuite) TestLoginSuccessWithRevokeOld() {
 	assert.Equal(sat.T(), 1, revokedCount)
 }
 
+func (sat *sessionAPITestSuite) TestLoginFailureWhenValidationFails() {
+	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl, map[string]interface{}{})
+
+	expectedRespData := func(msg string) contract.APIResponse {
+		return contract.APIResponse{
+			Success: false,
+			Error:   &contract.Error{Message: msg},
+		}
+	}
+
+	testCases := map[string]struct {
+		data   map[string]interface{}
+		errMsg string
+	}{
+		"test failure when email is empty": {
+			data:   map[string]interface{}{userEmailKey: EmptyString},
+			errMsg: "email cannot be empty",
+		},
+		"test failure when password is empty": {
+			data:   map[string]interface{}{userPasswordKey: EmptyString},
+			errMsg: "password cannot be empty",
+		},
+	}
+
+	for name, testCase := range testCases {
+		sat.Run(name, func() {
+			testLogin(
+				sat.T(),
+				sat.deps.cl,
+				http.StatusBadRequest,
+				expectedRespData(testCase.errMsg),
+				authHeaders,
+				getLoginReqBody(testCase.data),
+			)
+		})
+	}
+
+}
+
 func (sat *sessionAPITestSuite) TestLoginFailureWhenCredentialsAreIncorrect() {
 	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl, map[string]interface{}{})
-	signUpUser(sat.T(), sat.deps.cfg.PublisherConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
+	userDetails := signUpUser(sat.T(), sat.deps.cfg.PublisherConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
 
 	expectedRespData := contract.APIResponse{
 		Success: false,
@@ -120,10 +198,16 @@ func (sat *sessionAPITestSuite) TestLoginFailureWhenCredentialsAreIncorrect() {
 		errMsg string
 	}{
 		"test failure when email is incorrect": {
-			data: map[string]interface{}{userEmailKey: "other@other.com"},
+			data: map[string]interface{}{
+				userEmailKey:    "other@other.com",
+				userPasswordKey: userDetails.Password,
+			},
 		},
 		"test failure when password is incorrect": {
-			data: map[string]interface{}{userPasswordKey: "invalidPassword"},
+			data: map[string]interface{}{
+				userEmailKey:    userDetails.Email,
+				userPasswordKey: "invalidPassword",
+			},
 		},
 	}
 

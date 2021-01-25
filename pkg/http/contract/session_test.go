@@ -1,0 +1,50 @@
+package contract_test
+
+import (
+	"github.com/stretchr/testify/assert"
+	"identification-service/pkg/http/contract"
+	"identification-service/pkg/test"
+	"testing"
+)
+
+const (
+	sessionEmailKey    = "email"
+	sessionPasswordKey = "password"
+)
+
+var loginRequestDefaultData = map[string]string{
+	sessionEmailKey:    test.RandString(8),
+	sessionPasswordKey: test.RandString(8),
+}
+
+func TestLoginRequestIsValidSuccess(t *testing.T) {
+	lr := newLoginRequest(loginRequestDefaultData)
+	assert.NoError(t, lr.IsValid())
+}
+
+func TestLoginRequestIsValidFailure(t *testing.T) {
+	testCases := map[string]struct {
+		overrides map[string]string
+	}{
+		"test failure when email is empty": {
+			overrides: removeKey(sessionEmailKey, loginRequestDefaultData),
+		},
+		"test failure when old password is empty": {
+			overrides: removeKey(sessionPasswordKey, loginRequestDefaultData),
+		},
+	}
+
+	for name, testCase := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lr := newLoginRequest(testCase.overrides)
+			assert.Error(t, lr.IsValid())
+		})
+	}
+}
+
+func newLoginRequest(data map[string]string) contract.LoginRequest {
+	return contract.LoginRequest{
+		Email:    data[sessionEmailKey],
+		Password: data[sessionPasswordKey],
+	}
+}

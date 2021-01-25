@@ -8,19 +8,19 @@ import (
 )
 
 const (
-	emailKey       = "email"
-	oldPasswordKey = "oldPassword"
-	newPasswordKey = "newPassword"
+	userEmailKey       = "email"
+	userOldPasswordKey = "oldPassword"
+	userNewPasswordKey = "newPassword"
 )
 
-var defaultData = map[string]string{
-	emailKey:       test.RandString(8),
-	oldPasswordKey: test.RandString(8),
-	newPasswordKey: test.RandString(8),
+var updatePasswordDefaultData = map[string]string{
+	userEmailKey:       test.RandString(8),
+	userOldPasswordKey: test.RandString(8),
+	userNewPasswordKey: test.RandString(8),
 }
 
 func TestUpdatePasswordRequestIsValidSuccess(t *testing.T) {
-	upr := newUpdatePasswordRequest(defaultData)
+	upr := newUpdatePasswordRequest(updatePasswordDefaultData)
 	assert.NoError(t, upr.IsValid())
 }
 
@@ -29,13 +29,13 @@ func TestUpdatePasswordRequestIsValidFailure(t *testing.T) {
 		overrides map[string]string
 	}{
 		"test failure when email is empty": {
-			overrides: removeKey(emailKey, defaultData),
+			overrides: removeKey(userEmailKey, updatePasswordDefaultData),
 		},
 		"test failure when old password is empty": {
-			overrides: removeKey(oldPasswordKey, defaultData),
+			overrides: removeKey(userOldPasswordKey, updatePasswordDefaultData),
 		},
 		"test failure when new password is empty": {
-			overrides: removeKey(newPasswordKey, defaultData),
+			overrides: removeKey(userNewPasswordKey, updatePasswordDefaultData),
 		},
 	}
 
@@ -47,22 +47,10 @@ func TestUpdatePasswordRequestIsValidFailure(t *testing.T) {
 	}
 }
 
-func removeKey(key string, defaultData map[string]string) map[string]string {
-	temp := make(map[string]string)
-
-	for k, v := range defaultData {
-		if k != key {
-			temp[k] = v
-		}
-	}
-
-	return temp
-}
-
 func newUpdatePasswordRequest(data map[string]string) contract.UpdatePasswordRequest {
 	return contract.UpdatePasswordRequest{
-		Email:       data[emailKey],
-		OldPassword: data[oldPasswordKey],
-		NewPassword: data[newPasswordKey],
+		Email:       data[userEmailKey],
+		OldPassword: data[userOldPasswordKey],
+		NewPassword: data[userNewPasswordKey],
 	}
 }
