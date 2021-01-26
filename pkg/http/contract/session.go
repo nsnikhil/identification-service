@@ -23,6 +23,12 @@ type RefreshTokenRequest struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
+func (rr RefreshTokenRequest) IsValid() error {
+	return isValid("RefreshTokenRequest.IsValid",
+		pair{name: "refresh token", data: rr.RefreshToken},
+	)
+}
+
 type RefreshTokenResponse struct {
 	AccessToken string `json:"access_token"`
 }

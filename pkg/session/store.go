@@ -2,6 +2,8 @@ package session
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"identification-service/pkg/database"
 	"identification-service/pkg/liberr"
@@ -52,8 +54,12 @@ func (ss *sessionStore) GetSession(ctx context.Context, refreshToken string) (Se
 		return session, liberr.WithOp("Store.GetSession", row.Err())
 	}
 
+	//TODO: REMOVE NESTED CHECKS HERE
 	err := row.Scan(&session.id, &session.userID, &session.revoked, &session.createdAt, &session.updatedAt)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return session, liberr.WithArgs(liberr.Operation("Store.GetSession"), liberr.ResourceNotFound, err)
+		}
 		return session, liberr.WithOp("Store.GetSession", err)
 	}
 

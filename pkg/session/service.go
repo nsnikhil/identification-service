@@ -146,7 +146,7 @@ func validateSession(ctx context.Context, sessionTTL int, session Session, store
 		return err
 	}
 
-	return fmt.Errorf("session expired for %s", refreshToken)
+	return liberr.WithArgs(liberr.AuthenticationError, fmt.Errorf("session expired for %s", refreshToken))
 }
 
 func NewService(store Store, userService user.Service, generator token.Generator, strategies map[string]Strategy) Service {

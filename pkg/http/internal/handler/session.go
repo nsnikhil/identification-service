@@ -39,14 +39,20 @@ func (sh *SessionHandler) Login(resp http.ResponseWriter, req *http.Request) err
 }
 
 func (sh *SessionHandler) RefreshToken(resp http.ResponseWriter, req *http.Request) error {
+	wrap := func(err error) error { return liberr.WithOp("SessionHandler.RefreshToken", err) }
+
 	var data contract.RefreshTokenRequest
 	if err := util.ParseRequest(req, &data); err != nil {
-		return liberr.WithArgs(liberr.Operation("UserHandler.RefreshToken"), err)
+		return wrap(err)
+	}
+
+	if err := data.IsValid(); err != nil {
+		return wrap(err)
 	}
 
 	accessToken, err := sh.service.RefreshToken(req.Context(), data.RefreshToken)
 	if err != nil {
-		return liberr.WithOp("SessionHandler.RefreshToken", err)
+		return wrap(err)
 	}
 
 	respData := contract.RefreshTokenResponse{

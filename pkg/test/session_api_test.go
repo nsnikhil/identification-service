@@ -264,6 +264,45 @@ func (sat *sessionAPITestSuite) TestRefreshTokenSuccess() {
 	testRefreshToken(sat, http.StatusOK, expectedRespData, authHeaders, reqBody)
 }
 
+func (sat *sessionAPITestSuite) TestRefreshTokenWhenClientAuthenticationFailed() {
+	defaultAuthHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl, map[string]interface{}{})
+
+	clientId := defaultAuthHeaders["CLIENT-ID"]
+	clientSecret := defaultAuthHeaders["CLIENT-SECRET"]
+
+	expectedResp := contract.APIResponse{
+		Success: false,
+		Error: &contract.Error{
+			Message: "authentication failed",
+		},
+	}
+
+	reqBody := getRefreshTokenReqBody(map[string]interface{}{})
+
+	testCases := map[string]struct {
+		authHeader map[string]string
+	}{
+		"test failure when client id is invalid": {
+			authHeader: map[string]string{
+				"CLIENT-ID":     "invalid",
+				"CLIENT-SECRET": clientSecret,
+			},
+		},
+		"test failure when client secret is invalid": {
+			authHeader: map[string]string{
+				"CLIENT-ID":     clientId,
+				"CLIENT-SECRET": "invalid",
+			},
+		},
+	}
+
+	for name, testCase := range testCases {
+		sat.Run(name, func() {
+			testRefreshToken(sat, http.StatusUnauthorized, expectedResp, testCase.authHeader, reqBody)
+		})
+	}
+}
+
 func (sat *sessionAPITestSuite) TestRefreshTokenFailureWhenClientCredentialsAreMissing() {
 	reqBody := getRefreshTokenReqBody(map[string]interface{}{sessionRefreshTokenKey: NewUUID()})
 
@@ -273,6 +312,19 @@ func (sat *sessionAPITestSuite) TestRefreshTokenFailureWhenClientCredentialsAreM
 	}
 
 	testRefreshToken(sat, http.StatusUnauthorized, expectedRespData, map[string]string{}, reqBody)
+}
+
+func (sat *sessionAPITestSuite) TestRefreshTokenFailureWhenValidationFails() {
+	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl, map[string]interface{}{})
+
+	reqBody := contract.RefreshTokenRequest{RefreshToken: EmptyString}
+
+	expectedRespData := contract.APIResponse{
+		Success: false,
+		Error:   &contract.Error{Message: "refresh token cannot be empty"},
+	}
+
+	testRefreshToken(sat, http.StatusBadRequest, expectedRespData, authHeaders, reqBody)
 }
 
 func (sat *sessionAPITestSuite) TestRefreshTokenFailureWhenRefreshTokenIsIncorrect() {
@@ -289,10 +341,10 @@ func (sat *sessionAPITestSuite) TestRefreshTokenFailureWhenRefreshTokenIsIncorre
 
 	expectedRespData := contract.APIResponse{
 		Success: false,
-		Error:   &contract.Error{Message: "internal server error"},
+		Error:   &contract.Error{Message: "resource not found"},
 	}
 
-	testRefreshToken(sat, http.StatusInternalServerError, expectedRespData, authHeaders, reqBody)
+	testRefreshToken(sat, http.StatusNotFound, expectedRespData, authHeaders, reqBody)
 }
 
 func (sat *sessionAPITestSuite) TestRefreshTokenFailureWhenSessionExpires() {
@@ -339,10 +391,10 @@ func (sat *sessionAPITestSuite) TestRefreshTokenFailureWhenSessionExpires() {
 
 	expectedRespData := contract.APIResponse{
 		Success: false,
-		Error:   &contract.Error{Message: "internal server error"},
+		Error:   &contract.Error{Message: "authentication failed"},
 	}
 
-	testRefreshToken(sat, http.StatusInternalServerError, expectedRespData, authHeaders, reqBody)
+	testRefreshToken(sat, http.StatusUnauthorized, expectedRespData, authHeaders, reqBody)
 }
 
 func (sat *sessionAPITestSuite) TestLogoutUserSuccess() {
