@@ -11,7 +11,7 @@ type Config interface {
 	LogConfig() LogConfig
 	LogFileConfig() LogFileConfig
 	Env() string
-	MigrationPath() string
+	MigrationConfig() MigrationConfig
 	PasswordConfig() PasswordConfig
 	TokenConfig() TokenConfig
 	AuthConfig() AuthConfig
@@ -24,7 +24,7 @@ type Config interface {
 
 type appConfig struct {
 	env              string
-	migrationPath    string
+	migrationConfig  MigrationConfig
 	httpServerConfig HTTPServerConfig
 	databaseConfig   DatabaseConfig
 	logConfig        LogConfig
@@ -59,8 +59,8 @@ func (c appConfig) Env() string {
 	return c.env
 }
 
-func (c appConfig) MigrationPath() string {
-	return c.migrationPath
+func (c appConfig) MigrationConfig() MigrationConfig {
+	return c.migrationConfig
 }
 
 func (c appConfig) PasswordConfig() PasswordConfig {
@@ -107,7 +107,7 @@ func NewConfig(configFile string) Config {
 
 	return appConfig{
 		env:              getString("ENV"),
-		migrationPath:    getString("MIGRATION_PATH"),
+		migrationConfig:  NewMigrationConfig(),
 		httpServerConfig: newHTTPServerConfig(),
 		databaseConfig:   newDatabaseConfig(),
 		logConfig:        newLogConfig(),

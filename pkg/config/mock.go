@@ -31,9 +31,9 @@ func (mock *MockConfig) Env() string {
 	return args.Get(0).(string)
 }
 
-func (mock *MockConfig) MigrationPath() string {
+func (mock *MockConfig) MigrationConfig() MigrationConfig {
 	args := mock.Called()
-	return args.Get(0).(string)
+	return args.Get(0).(MigrationConfig)
 }
 
 func (mock *MockConfig) PasswordConfig() PasswordConfig {

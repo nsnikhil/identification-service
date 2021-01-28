@@ -2,7 +2,6 @@ package main
 
 import (
 	"identification-service/pkg/app"
-	"identification-service/pkg/database"
 	"log"
 )
 
@@ -17,8 +16,8 @@ func commands() map[string]func(configFile string) {
 	return map[string]func(configFile string){
 		httpServeCommand: app.StartHTTPServer,
 		workerCommand:    app.StartWorker,
-		migrateCommand:   database.RunMigrations,
-		rollbackCommand:  database.RollBackMigrations,
+		migrateCommand:   app.StartMigrations,
+		rollbackCommand:  app.StartRollbacks,
 	}
 }
 

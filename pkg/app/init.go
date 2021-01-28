@@ -1,6 +1,7 @@
 package app
 
 import (
+	"database/sql"
 	"github.com/go-redis/redis/v8"
 	"gopkg.in/natefinch/lumberjack.v2"
 	"identification-service/pkg/cache"
@@ -38,17 +39,31 @@ func initReporters(cfg config.Config) (reporters.Logger, reporters.Prometheus) {
 	return lgr, pr
 }
 
+func initMigrator(configFile string) database.Migrator {
+	cfg := config.NewConfig(configFile)
+	mg, err := database.NewMigrator(config.NewMigrationConfig(), initSqlDB(cfg))
+	logError(err)
+
+	return mg
+}
+
 func initRouter(cfg config.Config, lgr reporters.Logger, prometheus reporters.Prometheus, cs client.Service, us user.Service, ss session.Service) http.Handler {
 	return router.NewRouter(cfg, lgr, prometheus, cs, us, ss)
 }
 
-func initServices(cfg config.Config) (client.Service, user.Service, session.Service) {
+func initSqlDB(cfg config.Config) *sql.DB {
 	dbCfg := cfg.DatabaseConfig()
 
 	sqlDB, err := database.NewHandler(dbCfg).GetDB()
 	logError(err)
 
-	db := database.NewSQLDatabase(sqlDB, dbCfg.QueryTTL())
+	return sqlDB
+}
+
+func initServices(cfg config.Config) (client.Service, user.Service, session.Service) {
+	sqlDB := initSqlDB(cfg)
+
+	db := database.NewSQLDatabase(sqlDB, cfg.DatabaseConfig().QueryTTL())
 
 	cc, err := cache.NewHandler(cfg.CacheConfig()).GetCache()
 	logError(err)
