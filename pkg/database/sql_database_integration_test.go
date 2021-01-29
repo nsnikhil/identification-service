@@ -2,6 +2,8 @@ package database_test
 
 import (
 	"context"
+	"fmt"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"identification-service/pkg/config"
@@ -29,7 +31,7 @@ func (sts *sqlDBTestSuite) TearDownSuite() {
 	require.NoError(sts.T(), sts.db.Close())
 }
 
-func (sts *sqlDBTestSuite) TestQueryContext() {
+func (sts *sqlDBTestSuite) TestQueryContextSuccess() {
 	rows, err := sts.db.QueryContext(sts.ctx, `SELECT version()`)
 	require.NoError(sts.T(), err)
 
@@ -42,7 +44,13 @@ func (sts *sqlDBTestSuite) TestQueryContext() {
 	require.NotNil(sts.T(), data)
 }
 
-func (sts *sqlDBTestSuite) TestQueryRowContext() {
+func (sts *sqlDBTestSuite) TestQueryContextFailure() {
+	rows, err := sts.db.QueryContext(sts.ctx, fmt.Sprintf("SELECT * FROM %s", test.RandString(8)))
+	require.Error(sts.T(), err)
+	assert.Nil(sts.T(), rows)
+}
+
+func (sts *sqlDBTestSuite) TestQueryRowContextSuccess() {
 	row := sts.db.QueryRowContext(sts.ctx, `SELECT version()`)
 	require.NoError(sts.T(), row.Err())
 
@@ -52,12 +60,24 @@ func (sts *sqlDBTestSuite) TestQueryRowContext() {
 	require.NotNil(sts.T(), data)
 }
 
-func (sts *sqlDBTestSuite) TestExecContext() {
-	_, err := sts.db.ExecContext(sts.ctx, `create table if not exists temp (id serial primary key)`)
+func (sts *sqlDBTestSuite) TestQueryRowContextFailure() {
+	row := sts.db.QueryRowContext(sts.ctx, fmt.Sprintf("SELECT * FROM %s", test.RandString(8)))
+	require.Error(sts.T(), row.Err())
+}
+
+func (sts *sqlDBTestSuite) TestExecContextSuccess() {
+	tableName := test.RandString(8)
+
+	_, err := sts.db.ExecContext(sts.ctx, fmt.Sprintf(`create table if not exists %s (id serial primary key)`, tableName))
 	require.NoError(sts.T(), err)
 
-	_, err = sts.db.ExecContext(sts.ctx, `drop table if exists temp`)
+	_, err = sts.db.ExecContext(sts.ctx, fmt.Sprintf(`drop table if exists %s`, tableName))
 	require.NoError(sts.T(), err)
+}
+
+func (sts *sqlDBTestSuite) TestExecContextFailure() {
+	_, err := sts.db.ExecContext(sts.ctx, fmt.Sprintf(`drop table %s`, test.RandString(8)))
+	require.Error(sts.T(), err)
 }
 
 func TestSQLDatabase(t *testing.T) {

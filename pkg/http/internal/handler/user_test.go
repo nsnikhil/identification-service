@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/magiconair/properties/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -123,6 +124,57 @@ func TestUpdatePasswordFailureWhenSvcCallFails(t *testing.T) {
 	expectedBody := `{"error":{"message":"internal server error"},"success":false}`
 
 	testUpdatePassword(t, http.StatusInternalServerError, expectedBody, bytes.NewBuffer(b), mockUserService)
+}
+
+func TestUpdatePasswordFailureWhenValidationFails(t *testing.T) {
+	userEmail, userPassword, userPasswordNew := test.NewEmail(), test.NewPassword(), test.NewPassword()
+
+	expectedBody := func(message string) string {
+		return fmt.Sprintf(`{"error":{"message":"%s"},"success":false}`, message)
+	}
+
+	toReader := func(reqBody contract.UpdatePasswordRequest) io.Reader {
+		b, err := json.Marshal(reqBody)
+		require.NoError(t, err)
+
+		return bytes.NewBuffer(b)
+	}
+
+	testCases := map[string]struct {
+		reqBody contract.UpdatePasswordRequest
+		errMsg  string
+	}{
+		"test failure when email is empty": {
+			reqBody: contract.UpdatePasswordRequest{
+				Email:       test.EmptyString,
+				OldPassword: userPassword,
+				NewPassword: userPasswordNew,
+			},
+			errMsg: "email cannot be empty",
+		},
+		"test failure when old password is empty": {
+			reqBody: contract.UpdatePasswordRequest{
+				Email:       userEmail,
+				OldPassword: test.EmptyString,
+				NewPassword: userPasswordNew,
+			},
+			errMsg: "old password cannot be empty",
+		},
+		"test failure when new password is empty": {
+			reqBody: contract.UpdatePasswordRequest{
+				Email:       userEmail,
+				OldPassword: userPassword,
+				NewPassword: test.EmptyString,
+			},
+			errMsg: "new password cannot be empty",
+		},
+	}
+
+	for name, testCase := range testCases {
+		t.Run(name, func(t *testing.T) {
+			testUpdatePassword(t, http.StatusBadRequest, expectedBody(testCase.errMsg), toReader(testCase.reqBody), &user.MockService{})
+		})
+	}
 }
 
 func testUpdatePassword(t *testing.T, expectedCode int, expectedBody string, body io.Reader, service user.Service) {

@@ -26,6 +26,7 @@ type queueConsumer struct {
 	ss  session.Service
 }
 
+//TODO: REFACTOR THIS ENTIRE FILE
 func (qc *queueConsumer) Start() {
 
 	qc.lgr.InfoF("started consumer on %s", qc.cfg.AMPQConfig().Address())

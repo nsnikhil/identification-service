@@ -35,12 +35,52 @@ func TestLoginSuccess(t *testing.T) {
 	)
 
 	mockSessionService := &session.MockService{}
-	mockSessionService.On("LoginUser", mock.AnythingOfType("*context.emptyCtx"), userEmail, userPassword).Return(accessToken, refreshToken, nil)
+	mockSessionService.On(
+		"LoginUser",
+		mock.AnythingOfType("*context.emptyCtx"),
+		userEmail,
+		userPassword,
+	).Return(accessToken, refreshToken, nil)
 
 	testLogin(t, http.StatusCreated, expectedBody, mockSessionService, reqBody)
 }
 
-func TestLoginFailure(t *testing.T) {
+func TestLoginFailureWhenValidationFails(t *testing.T) {
+	userEmail := test.NewEmail()
+	userPassword := test.NewPassword()
+
+	expectedBody := func(message string) string {
+		return fmt.Sprintf(`{"error":{"message":"%s"},"success":false}`, message)
+	}
+
+	testCases := map[string]struct {
+		errMsg  string
+		reqBody contract.LoginRequest
+	}{
+		"test failure when email is empty": {
+			errMsg: "email cannot be empty",
+			reqBody: contract.LoginRequest{
+				Email:    test.EmptyString,
+				Password: userPassword,
+			},
+		},
+		"test failure when password is empty": {
+			errMsg: "password cannot be empty",
+			reqBody: contract.LoginRequest{
+				Email:    userEmail,
+				Password: test.EmptyString,
+			},
+		},
+	}
+
+	for name, testCase := range testCases {
+		t.Run(name, func(t *testing.T) {
+			testLogin(t, http.StatusBadRequest, expectedBody(testCase.errMsg), &session.MockService{}, testCase.reqBody)
+		})
+	}
+}
+
+func TestLoginFailureWhenServiceCallFails(t *testing.T) {
 	userEmail := test.NewEmail()
 	userPassword := test.NewPassword()
 
@@ -49,7 +89,12 @@ func TestLoginFailure(t *testing.T) {
 	expectedBody := `{"error":{"message":"internal server error"},"success":false}`
 
 	mockSessionService := &session.MockService{}
-	mockSessionService.On("LoginUser", mock.AnythingOfType("*context.emptyCtx"), userEmail, userPassword).Return("", "", liberr.WithArgs(errors.New("failed to login")))
+	mockSessionService.On(
+		"LoginUser",
+		mock.AnythingOfType("*context.emptyCtx"),
+		userEmail,
+		userPassword,
+	).Return("", "", liberr.WithArgs(errors.New("failed to login")))
 
 	testLogin(t, http.StatusInternalServerError, expectedBody, mockSessionService, reqBody)
 }
@@ -85,13 +130,25 @@ func TestRefreshTokenSuccess(t *testing.T) {
 	testRefreshToken(t, http.StatusOK, expectedBody, mockSessionService, reqBody)
 }
 
-func TestRefreshTokenFailure(t *testing.T) {
+func TestRefreshTokenFailureWhenValidationFails(t *testing.T) {
+	reqBody := contract.RefreshTokenRequest{RefreshToken: test.EmptyString}
+
+	expectedBody := `{"error":{"message":"refresh token cannot be empty"},"success":false}`
+
+	testRefreshToken(t, http.StatusBadRequest, expectedBody, &session.MockService{}, reqBody)
+}
+
+func TestRefreshTokenFailureWhenServiceCallFails(t *testing.T) {
 	refreshToken := test.NewUUID()
 
 	reqBody := contract.RefreshTokenRequest{RefreshToken: refreshToken}
 
 	mockSessionService := &session.MockService{}
-	mockSessionService.On("RefreshToken", mock.AnythingOfType("*context.emptyCtx"), refreshToken).Return("", liberr.WithArgs(errors.New("failed to refresh token")))
+	mockSessionService.On(
+		"RefreshToken",
+		mock.AnythingOfType("*context.emptyCtx"),
+		refreshToken,
+	).Return("", liberr.WithArgs(errors.New("failed to refresh token")))
 
 	expectedBody := `{"error":{"message":"internal server error"},"success":false}`
 
@@ -121,20 +178,36 @@ func TestLogoutSuccess(t *testing.T) {
 	reqBody := contract.LogoutRequest{RefreshToken: refreshToken}
 
 	mockSessionService := &session.MockService{}
-	mockSessionService.On("LogoutUser", mock.AnythingOfType("*context.emptyCtx"), refreshToken).Return(nil)
+	mockSessionService.On(
+		"LogoutUser",
+		mock.AnythingOfType("*context.emptyCtx"),
+		refreshToken,
+	).Return(nil)
 
 	expectedBody := `{"data":{"message":"Logout Successful"},"success":true}`
 
 	testLogout(t, http.StatusOK, expectedBody, mockSessionService, reqBody)
 }
 
-func TestLogoutFailure(t *testing.T) {
+func TestLogoutFailureWhenValidationFails(t *testing.T) {
+	reqBody := contract.LogoutRequest{RefreshToken: test.EmptyString}
+
+	expectedBody := `{"error":{"message":"refresh token cannot be empty"},"success":false}`
+
+	testLogout(t, http.StatusBadRequest, expectedBody, &session.MockService{}, reqBody)
+}
+
+func TestLogoutFailureWhenServiceCallFails(t *testing.T) {
 	refreshToken := test.NewUUID()
 
 	reqBody := contract.LogoutRequest{RefreshToken: refreshToken}
 
 	mockSessionService := &session.MockService{}
-	mockSessionService.On("LogoutUser", mock.AnythingOfType("*context.emptyCtx"), refreshToken).Return(liberr.WithArgs(errors.New("failed to logout user")))
+	mockSessionService.On(
+		"LogoutUser",
+		mock.AnythingOfType("*context.emptyCtx"),
+		refreshToken,
+	).Return(liberr.WithArgs(errors.New("failed to logout user")))
 
 	expectedBody := `{"error":{"message":"internal server error"},"success":false}`
 

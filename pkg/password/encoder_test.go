@@ -1,6 +1,7 @@
 package password_test
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -94,10 +95,12 @@ func (et *encoderTestSuite) TestValidatePasswordFailure() {
 		"invalidPasswordThree": "Password@",
 		"invalidPasswordFour ": "Password1",
 		"invalidPasswordFive ": "Pa@1",
+		"invalidPasswordSix ":  "\tPassword@1234",
 	}
 
 	for name, givenPassword := range testCases {
 		et.Run(name, func() {
+			fmt.Println(et.encoder.ValidatePassword(givenPassword))
 			assert.Error(et.T(), et.encoder.ValidatePassword(givenPassword))
 		})
 	}
