@@ -3,7 +3,7 @@ package consumer_test
 import (
 	"github.com/stretchr/testify/suite"
 	"identification-service/pkg/config"
-	"identification-service/pkg/event/consumer"
+	"identification-service/pkg/consumer"
 	"identification-service/pkg/queue"
 	reporters "identification-service/pkg/reporting"
 	"identification-service/pkg/session"

@@ -6,8 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"identification-service/pkg/config"
-	"identification-service/pkg/event"
-	"identification-service/pkg/event/publisher"
+	"identification-service/pkg/publisher"
 	"identification-service/pkg/queue"
 	"identification-service/pkg/test"
 	"testing"
@@ -15,22 +14,23 @@ import (
 )
 
 type publisherIntegrationTestSuite struct {
-	qu queue.AMQP
-	pb publisher.Publisher
+	qu  queue.AMQP
+	pb  publisher.Publisher
+	cfg config.EventConfig
 	suite.Suite
 }
 
 func (pts *publisherIntegrationTestSuite) SetupSuite() {
-	cfg := config.NewConfig("../../../local.env")
+	cfg := config.NewConfig("../../local.env")
 
 	qu := queue.NewAMQP(cfg.AMPQConfig().Address())
 	time.Sleep(time.Millisecond * 100)
 
-	pb, err := publisher.NewPublisher(qu, cfg.PublisherConfig().QueueMap())
-	require.NoError(pts.T(), err)
+	pb := publisher.NewPublisher(qu, cfg.EventConfig().QueueMap())
 
 	pts.qu = qu
 	pts.pb = pb
+	pts.cfg = cfg.EventConfig()
 }
 
 func (pts *publisherIntegrationTestSuite) TearDownSuite() {
@@ -42,21 +42,21 @@ func (pts *publisherIntegrationTestSuite) AfterTest(suiteName, testName string) 
 }
 
 func (pts *publisherIntegrationTestSuite) TestPublisherPublishSuccess() {
-	err := pts.pb.Publish(event.SignUp, test.NewUUID())
+	err := pts.pb.Publish(pts.cfg.SignUpEventCode(), test.NewUUID())
 	assert.Nil(pts.T(), err)
 }
 
 func (pts *publisherIntegrationTestSuite) TestPublishFailureWhenEventCreationFails() {
 	testCases := map[string]struct {
-		eventCode event.Code
+		eventCode string
 		data      interface{}
 	}{
-		"test failure when event code is invalid": {
-			eventCode: event.Code("other"),
+		"test failure when event code is empty": {
+			eventCode: test.EmptyString,
 			data:      "some data",
 		},
 		"test failure when data is nil": {
-			eventCode: event.SignUp,
+			eventCode: pts.cfg.SignUpEventCode(),
 			data:      nil,
 		},
 	}
@@ -70,7 +70,7 @@ func (pts *publisherIntegrationTestSuite) TestPublishFailureWhenEventCreationFai
 }
 
 func purgeMessages(t *testing.T) {
-	cfg := config.NewConfig("../../../local.env")
+	cfg := config.NewConfig("../../local.env")
 
 	conn, err := amqp.Dial(cfg.AMPQConfig().Address())
 	require.NoError(t, err)
@@ -80,7 +80,7 @@ func purgeMessages(t *testing.T) {
 	ch, err := conn.Channel()
 	require.NoError(t, err)
 
-	for _, queueName := range cfg.PublisherConfig().QueueMap() {
+	for _, queueName := range cfg.EventConfig().QueueMap() {
 		_, err = ch.QueuePurge(queueName, true)
 		require.NoError(t, err)
 	}

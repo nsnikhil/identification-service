@@ -4,9 +4,8 @@ import (
 	"errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 	"identification-service/pkg/event"
-	"identification-service/pkg/event/publisher"
+	"identification-service/pkg/publisher"
 	"identification-service/pkg/queue"
 	"identification-service/pkg/test"
 	"testing"
@@ -15,17 +14,8 @@ import (
 func TestCreatePublisherSuccess(t *testing.T) {
 	queueMap := map[string]string{"sign-up": "id-sign-up"}
 
-	_, err := publisher.NewPublisher(&queue.MockAMQP{}, queueMap)
-	assert.Nil(t, err)
-}
-
-func TestCreatePublisherFailure(t *testing.T) {
-	_, err := publisher.NewPublisher(&queue.MockAMQP{}, map[string]string{})
-	assert.Error(t, err)
-
-	queueMap := map[string]string{"other": "id-other"}
-	_, err = publisher.NewPublisher(&queue.MockAMQP{}, queueMap)
-	assert.Error(t, err)
+	pb := publisher.NewPublisher(&queue.MockAMQP{}, queueMap)
+	assert.NotNil(t, pb)
 }
 
 func TestPublisherPublishSuccess(t *testing.T) {
@@ -34,10 +24,9 @@ func TestPublisherPublishSuccess(t *testing.T) {
 
 	queueMap := map[string]string{"sign-up": "id-sign-up"}
 
-	pb, err := publisher.NewPublisher(mockQueue, queueMap)
-	require.NoError(t, err)
+	pb := publisher.NewPublisher(mockQueue, queueMap)
 
-	err = pb.Publish(event.SignUp, test.NewUUID())
+	err := pb.Publish("sign-up", test.NewUUID())
 	assert.Nil(t, err)
 }
 
@@ -47,19 +36,18 @@ func TestPublishFailureWhenEventCreationFails(t *testing.T) {
 
 	queueMap := map[string]string{"sign-up": "id-sign-up"}
 
-	pb, err := publisher.NewPublisher(mockQueue, queueMap)
-	require.NoError(t, err)
+	pb := publisher.NewPublisher(&queue.MockAMQP{}, queueMap)
 
 	testCases := map[string]struct {
-		eventCode event.Code
+		eventCode string
 		data      interface{}
 	}{
-		"test failure when event code is invalid": {
-			eventCode: event.Code("other"),
+		"test failure when event code is empty": {
+			eventCode: test.EmptyString,
 			data:      "some data",
 		},
 		"test failure when data is nil": {
-			eventCode: event.SignUp,
+			eventCode: "sign-up",
 			data:      nil,
 		},
 	}
@@ -74,7 +62,7 @@ func TestPublishFailureWhenEventCreationFails(t *testing.T) {
 
 	for name, testCase := range testCases {
 		t.Run(name, func(t *testing.T) {
-			err = pb.Publish(testCase.eventCode, testCase.data)
+			err := pb.Publish(testCase.eventCode, testCase.data)
 			assert.Error(t, err)
 		})
 	}
@@ -89,9 +77,8 @@ func TestPublishFailureWhenPushFails(t *testing.T) {
 
 	queueMap := map[string]string{"sign-up": "id-sign-up"}
 
-	pb, err := publisher.NewPublisher(mockQueue, queueMap)
-	require.NoError(t, err)
+	pb := publisher.NewPublisher(mockQueue, queueMap)
 
-	err = pb.Publish(event.SignUp, test.NewUUID())
+	err := pb.Publish("sign-up", test.NewUUID())
 	assert.Error(t, err)
 }

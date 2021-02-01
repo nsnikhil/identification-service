@@ -2,10 +2,10 @@ package user
 
 import (
 	"context"
-	"identification-service/pkg/event"
-	"identification-service/pkg/event/publisher"
+	"identification-service/pkg/config"
 	"identification-service/pkg/liberr"
 	"identification-service/pkg/password"
+	"identification-service/pkg/publisher"
 )
 
 //TODO: RENAME (APPEND USER IN THE NAME)
@@ -17,6 +17,7 @@ type Service interface {
 
 // TODO: RENAME
 type userService struct {
+	cfg       config.EventConfig
 	store     Store
 	encoder   password.Encoder
 	publisher publisher.Publisher
@@ -36,7 +37,7 @@ func (us *userService) CreateUser(ctx context.Context, name, email, password str
 	}
 
 	//TODO: CHECK FOR ERROR
-	go us.publisher.Publish(event.SignUp, userID)
+	go us.publisher.Publish(us.cfg.SignUpEventCode(), userID)
 
 	return userID, nil
 }
@@ -82,13 +83,14 @@ func (us *userService) UpdatePassword(ctx context.Context, email, oldPassword, n
 	}
 
 	//TODO: CHECK FOR ERROR
-	go us.publisher.Publish(event.UpdatePassword, userID)
+	go us.publisher.Publish(us.cfg.UpdatePasswordEventCode(), userID)
 
 	return nil
 }
 
-func NewService(store Store, encoder password.Encoder, producer publisher.Publisher) Service {
+func NewService(cfg config.EventConfig, store Store, encoder password.Encoder, producer publisher.Publisher) Service {
 	return &userService{
+		cfg:       cfg,
 		store:     store,
 		encoder:   encoder,
 		publisher: producer,

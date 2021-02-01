@@ -56,11 +56,6 @@ func (mock *MockConfig) CacheConfig() CacheConfig {
 	return args.Get(0).(CacheConfig)
 }
 
-func (mock *MockConfig) PublisherConfig() PublisherConfig {
-	args := mock.Called()
-	return args.Get(0).(PublisherConfig)
-}
-
 func (mock *MockConfig) ConsumerConfig() ConsumerConfig {
 	args := mock.Called()
 	return args.Get(0).(ConsumerConfig)
@@ -74,4 +69,9 @@ func (mock *MockConfig) AMPQConfig() AMPQConfig {
 func (mock *MockConfig) ClientConfig() ClientConfig {
 	args := mock.Called()
 	return args.Get(0).(ClientConfig)
+}
+
+func (mock *MockConfig) EventConfig() EventConfig {
+	args := mock.Called()
+	return args.Get(0).(EventConfig)
 }

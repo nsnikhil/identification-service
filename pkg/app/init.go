@@ -8,12 +8,12 @@ import (
 	"identification-service/pkg/client"
 	"identification-service/pkg/config"
 	"identification-service/pkg/database"
-	"identification-service/pkg/event/publisher"
 	"identification-service/pkg/http/router"
 	"identification-service/pkg/http/server"
 	"identification-service/pkg/libcrypto"
 	"identification-service/pkg/liberr"
 	"identification-service/pkg/password"
+	"identification-service/pkg/publisher"
 	"identification-service/pkg/queue"
 	reporters "identification-service/pkg/reporting"
 	"identification-service/pkg/session"
@@ -70,8 +70,7 @@ func initServices(cfg config.Config) (client.Service, user.Service, session.Serv
 
 	qu := queue.NewAMQP(cfg.AMPQConfig().Address())
 
-	pr, err := publisher.NewPublisher(qu, cfg.PublisherConfig().QueueMap())
-	logError(err)
+	pr := publisher.NewPublisher(qu, cfg.EventConfig().QueueMap())
 
 	en := password.NewEncoder(cfg.PasswordConfig())
 
@@ -81,7 +80,7 @@ func initServices(cfg config.Config) (client.Service, user.Service, session.Serv
 	logError(err)
 
 	cs := initClientService(cfg.ClientConfig(), db, cc, kg)
-	us := initUserService(db, en, pr)
+	us := initUserService(cfg.EventConfig(), db, en, pr)
 	ss := initSessionService(cfg.ClientConfig(), db, us, tg)
 
 	return cs, us, ss
@@ -92,9 +91,9 @@ func initClientService(cfg config.ClientConfig, db database.SQLDatabase, cc *red
 	return client.NewService(cfg, st, kg)
 }
 
-func initUserService(db database.SQLDatabase, en password.Encoder, pr publisher.Publisher) user.Service {
+func initUserService(cfg config.EventConfig, db database.SQLDatabase, en password.Encoder, pr publisher.Publisher) user.Service {
 	st := user.NewStore(db)
-	return user.NewService(st, en, pr)
+	return user.NewService(cfg, st, en, pr)
 }
 
 func initSessionService(cfg config.ClientConfig, db database.SQLDatabase, us user.Service, tg token.Generator) session.Service {

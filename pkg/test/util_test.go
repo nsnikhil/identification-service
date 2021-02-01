@@ -75,7 +75,7 @@ func registerClientAndGetHeaders(t *testing.T, cfg config.AuthConfig, cl *http.C
 
 func signUpUser(
 	t *testing.T,
-	cfg config.PublisherConfig,
+	cfg config.EventConfig,
 	cl *http.Client,
 	ch *amqp.Channel,
 	headers map[string]string,

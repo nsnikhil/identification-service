@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"identification-service/pkg/config"
-	"identification-service/pkg/event"
 	"identification-service/pkg/http/contract"
 	"net/http"
 	"testing"
@@ -50,7 +49,7 @@ func (uat *userAPITestSuite) TestSignUpUserSuccess() {
 
 	testSignUpUser(
 		uat.T(),
-		uat.deps.cfg.PublisherConfig(),
+		uat.deps.cfg.EventConfig(),
 		uat.deps.cl,
 		uat.deps.ch,
 		http.StatusCreated,
@@ -71,7 +70,7 @@ func (uat *userAPITestSuite) TestSignUpUserFailureWhenClientCredentialsAreMissin
 
 	testSignUpUser(
 		uat.T(),
-		uat.deps.cfg.PublisherConfig(),
+		uat.deps.cfg.EventConfig(),
 		uat.deps.cl,
 		uat.deps.ch,
 		http.StatusUnauthorized,
@@ -116,7 +115,7 @@ func (uat *userAPITestSuite) TestSignUpUserClientAuthenticationFailure() {
 		uat.T().Run(name, func(t *testing.T) {
 			testSignUpUser(
 				uat.T(),
-				uat.deps.cfg.PublisherConfig(),
+				uat.deps.cfg.EventConfig(),
 				uat.deps.cl,
 				uat.deps.ch,
 				http.StatusUnauthorized,
@@ -169,7 +168,7 @@ func (uat *userAPITestSuite) TestSignUpUserValidationFailure() {
 		uat.T().Run(name, func(t *testing.T) {
 			testSignUpUser(
 				uat.T(),
-				uat.deps.cfg.PublisherConfig(),
+				uat.deps.cfg.EventConfig(),
 				uat.deps.cl,
 				uat.deps.ch,
 				http.StatusBadRequest,
@@ -194,7 +193,7 @@ func (uat *userAPITestSuite) TestSignUpUserFailureForDuplicateRecord() {
 
 	testSignUpUser(
 		uat.T(),
-		uat.deps.cfg.PublisherConfig(),
+		uat.deps.cfg.EventConfig(),
 		uat.deps.cl,
 		uat.deps.ch,
 		http.StatusCreated,
@@ -211,7 +210,7 @@ func (uat *userAPITestSuite) TestSignUpUserFailureForDuplicateRecord() {
 
 	testSignUpUser(
 		uat.T(),
-		uat.deps.cfg.PublisherConfig(),
+		uat.deps.cfg.EventConfig(),
 		uat.deps.cl,
 		uat.deps.ch,
 		http.StatusConflict,
@@ -224,7 +223,7 @@ func (uat *userAPITestSuite) TestSignUpUserFailureForDuplicateRecord() {
 
 func (uat *userAPITestSuite) TestUpdatePasswordSuccess() {
 	authHeaders := registerClientAndGetHeaders(uat.T(), uat.deps.cfg.AuthConfig(), uat.deps.cl, map[string]interface{}{})
-	userDetails := signUpUser(uat.T(), uat.deps.cfg.PublisherConfig(), uat.deps.cl, uat.deps.ch, authHeaders)
+	userDetails := signUpUser(uat.T(), uat.deps.cfg.EventConfig(), uat.deps.cl, uat.deps.ch, authHeaders)
 
 	reqBody := getUpdatePasswordReqBody(
 		map[string]interface{}{
@@ -243,7 +242,7 @@ func (uat *userAPITestSuite) TestUpdatePasswordSuccess() {
 
 func (uat *userAPITestSuite) TestUpdatePasswordClientAuthenticationFailure() {
 	defaultAuthHeaders := registerClientAndGetHeaders(uat.T(), uat.deps.cfg.AuthConfig(), uat.deps.cl, map[string]interface{}{})
-	userDetails := signUpUser(uat.T(), uat.deps.cfg.PublisherConfig(), uat.deps.cl, uat.deps.ch, defaultAuthHeaders)
+	userDetails := signUpUser(uat.T(), uat.deps.cfg.EventConfig(), uat.deps.cl, uat.deps.ch, defaultAuthHeaders)
 
 	reqBody := getUpdatePasswordReqBody(
 		map[string]interface{}{
@@ -294,7 +293,7 @@ func (uat *userAPITestSuite) TestUpdatePasswordClientAuthenticationFailure() {
 
 func (uat *userAPITestSuite) TestUpdatePasswordFailure() {
 	authHeaders := registerClientAndGetHeaders(uat.T(), uat.deps.cfg.AuthConfig(), uat.deps.cl, map[string]interface{}{})
-	signUpUser(uat.T(), uat.deps.cfg.PublisherConfig(), uat.deps.cl, uat.deps.ch, authHeaders)
+	signUpUser(uat.T(), uat.deps.cfg.EventConfig(), uat.deps.cl, uat.deps.ch, authHeaders)
 
 	expectedRespData := func(msg string) contract.APIResponse {
 		return contract.APIResponse{
@@ -360,7 +359,7 @@ func (uat *userAPITestSuite) TestUpdatePasswordFailure() {
 
 func testSignUpUser(
 	t *testing.T,
-	cfg config.PublisherConfig,
+	cfg config.EventConfig,
 	cl *http.Client,
 	ch *amqp.Channel,
 	expectedCode int,
@@ -385,7 +384,7 @@ func testSignUpUser(
 	verifyResp(t, expectedRespData, responseData, true, nil)
 
 	if consumeMessage {
-		queueName, ok := cfg.QueueMap()[string(event.SignUp)]
+		queueName, ok := cfg.QueueMap()[cfg.SignUpEventCode()]
 		if ok {
 			testMessageConsume(t, queueName, ch)
 		}

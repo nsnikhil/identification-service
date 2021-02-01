@@ -74,7 +74,7 @@ func TestIsExpiredTrue(t *testing.T) {
 
 func TestIsExpiredFalse(t *testing.T) {
 	ss, err := session.NewSessionBuilder().
-		CreatedAt(time.Now().AddDate(0, -2, 1)).
+		CreatedAt(time.Now().AddDate(0, -2, 2)).
 		Build()
 
 	assert.Nil(t, err)

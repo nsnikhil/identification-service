@@ -58,7 +58,7 @@ func purgeMessages(t *testing.T) {
 	ch, err := conn.Channel()
 	require.NoError(t, err)
 
-	for _, queueName := range cfg.PublisherConfig().QueueMap() {
+	for _, queueName := range cfg.EventConfig().QueueMap() {
 		_, err = ch.QueuePurge(queueName, true)
 		require.NoError(t, err)
 	}

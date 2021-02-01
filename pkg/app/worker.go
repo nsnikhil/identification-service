@@ -2,7 +2,7 @@ package app
 
 import (
 	"identification-service/pkg/config"
-	"identification-service/pkg/event/consumer"
+	"identification-service/pkg/consumer"
 	"identification-service/pkg/queue"
 	"time"
 )

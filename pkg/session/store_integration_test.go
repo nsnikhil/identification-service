@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/suite"
 	"identification-service/pkg/config"
 	"identification-service/pkg/database"
-	"identification-service/pkg/event/publisher"
 	"identification-service/pkg/password"
+	"identification-service/pkg/publisher"
 	"identification-service/pkg/session"
 	"identification-service/pkg/test"
 	"identification-service/pkg/user"
@@ -171,9 +171,12 @@ func createUser(sst *sessionStoreIntegrationSuite, cfg config.Config) string {
 	mockPublisher := &publisher.MockPublisher{}
 	mockPublisher.On("Publish", mock.Anything, mock.AnythingOfType("string")).Return(nil)
 
+	mockEventConfig := &config.MockEventConfig{}
+	mockEventConfig.On("SignUpEventCode").Return("sign-up")
+
 	encoder := password.NewEncoder(cfg.PasswordConfig())
 
-	userService := user.NewService(user.NewStore(sst.db), encoder, mockPublisher)
+	userService := user.NewService(mockEventConfig, user.NewStore(sst.db), encoder, mockPublisher)
 
 	userID, err := userService.CreateUser(sst.ctx, test.RandString(8), test.NewEmail(), test.NewPassword())
 	require.NoError(sst.T(), err)

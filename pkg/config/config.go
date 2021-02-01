@@ -16,10 +16,10 @@ type Config interface {
 	TokenConfig() TokenConfig
 	AuthConfig() AuthConfig
 	CacheConfig() CacheConfig
-	PublisherConfig() PublisherConfig
 	ConsumerConfig() ConsumerConfig
 	AMPQConfig() AMPQConfig
 	ClientConfig() ClientConfig
+	EventConfig() EventConfig
 }
 
 type appConfig struct {
@@ -33,10 +33,10 @@ type appConfig struct {
 	tokenConfig      TokenConfig
 	ampqConfig       AMPQConfig
 	cacheConfig      CacheConfig
-	publisherConfig  PublisherConfig
-	consumerConfig   ConsumerConfig
-	authConfig       AuthConfig
-	clientConfig     ClientConfig
+	consumerConfig ConsumerConfig
+	authConfig     AuthConfig
+	clientConfig   ClientConfig
+	eventConfig    EventConfig
 }
 
 func (c appConfig) HTTPServerConfig() HTTPServerConfig {
@@ -79,10 +79,6 @@ func (c appConfig) CacheConfig() CacheConfig {
 	return c.cacheConfig
 }
 
-func (c appConfig) PublisherConfig() PublisherConfig {
-	return c.publisherConfig
-}
-
 func (c appConfig) ConsumerConfig() ConsumerConfig {
 	return c.consumerConfig
 }
@@ -93,6 +89,10 @@ func (c appConfig) AMPQConfig() AMPQConfig {
 
 func (c appConfig) ClientConfig() ClientConfig {
 	return c.clientConfig
+}
+
+func (c appConfig) EventConfig() EventConfig {
+	return c.eventConfig
 }
 
 //TODO: FIGURE OUT OF WAY TO KEEP ONE CONFIG FILE FOR LOCAL AND DOCKER
@@ -116,9 +116,9 @@ func NewConfig(configFile string) Config {
 		tokenConfig:      newTokenConfig(),
 		authConfig:       newAuthConfig(),
 		cacheConfig:      newCacheConfig(),
-		publisherConfig:  newPublisherConfig(),
-		consumerConfig:   newConsumerConfig(),
-		ampqConfig:       newAMPQConfig(),
-		clientConfig:     newClientConfig(),
+		consumerConfig: newConsumerConfig(),
+		ampqConfig:     newAMPQConfig(),
+		clientConfig:   newClientConfig(),
+		eventConfig:    newEventConfig(),
 	}
 }

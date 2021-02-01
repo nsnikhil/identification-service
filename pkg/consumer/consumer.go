@@ -16,7 +16,7 @@ import (
 
 type Consumer interface {
 	Start()
-	consume(queueName string) error
+	consume(cfg config.EventConfig, queueName string) error
 }
 
 type queueConsumer struct {
@@ -34,7 +34,7 @@ func (qc *queueConsumer) Start() {
 	for _, queueName := range qc.cfg.ConsumerConfig().QueueNames() {
 		go func(queueName string) {
 
-			err := qc.consume(queueName)
+			err := qc.consume(qc.cfg.EventConfig(), queueName)
 			if err != nil {
 				qc.lgr.Error(fmt.Sprintf("failed to consume message from %s: %v", queueName, err))
 			}
@@ -45,7 +45,7 @@ func (qc *queueConsumer) Start() {
 	handleGracefulShutdown(qc.lgr, qc.qu)
 }
 
-func (qc *queueConsumer) consume(queueName string) error {
+func (qc *queueConsumer) consume(cfg config.EventConfig, queueName string) error {
 	ch, err := qc.qu.Stream(queueName)
 	if err != nil {
 		return liberr.WithOp("Consumer.consume", err)
@@ -54,20 +54,20 @@ func (qc *queueConsumer) consume(queueName string) error {
 	for {
 		data := <-ch
 
-		if err := handleData(qc.ss, data); err != nil {
+		if err := handleData(cfg, qc.ss, data); err != nil {
 			qc.lgr.Error(fmt.Sprintf("failed to handle message %v from %s: %v", data, queueName, err))
 		}
 	}
 }
 
-func handleData(ss session.Service, data amqp.Delivery) error {
+func handleData(cfg config.EventConfig, ss session.Service, data amqp.Delivery) error {
 	ev, err := event.FromBytes(data.Body)
 	if err != nil {
 		return err
 	}
 
 	switch ev.Code {
-	case event.UpdatePassword:
+	case cfg.UpdatePasswordEventCode():
 		return handleUpdatePassword(ss, ev)
 	default:
 		return fmt.Errorf("invalid event code %s", ev.Code)

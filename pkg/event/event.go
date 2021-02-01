@@ -3,12 +3,11 @@ package event
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"identification-service/pkg/liberr"
 )
 
 type Event struct {
-	Code Code        `json:"code"`
+	Code string      `json:"code"`
 	Data interface{} `json:"data"`
 }
 
@@ -37,18 +36,17 @@ func FromBytes(b []byte) (Event, error) {
 	return e, nil
 }
 
-func NewEvent(code Code, data interface{}) (Event, error) {
-	err := validate(code, data)
-	if err != nil {
+func NewEvent(code string, data interface{}) (Event, error) {
+	if err := validate(code, data); err != nil {
 		return Event{}, liberr.WithArgs(liberr.Operation("Event.NewEvent"), liberr.ValidationError, err)
 	}
 
 	return Event{Code: code, Data: data}, nil
 }
 
-func validate(code Code, data interface{}) error {
-	if ok := CodeMap[code]; !ok {
-		return fmt.Errorf("invalid error code %v", code)
+func validate(code string, data interface{}) error {
+	if len(code) == 0 {
+		return errors.New("code cannot be empty")
 	}
 
 	if data == nil {

@@ -3,25 +3,26 @@ package event_test
 import (
 	"github.com/stretchr/testify/assert"
 	"identification-service/pkg/event"
+	"identification-service/pkg/test"
 	"testing"
 )
 
 func TestCreateNewEventSuccess(t *testing.T) {
-	_, err := event.NewEvent(event.SignUp, "some data")
+	_, err := event.NewEvent("sign-up", "some data")
 	assert.Nil(t, err)
 }
 
 func TestCreateNewEventFailure(t *testing.T) {
 	testCases := map[string]struct {
-		eventCode event.Code
+		eventCode string
 		data      interface{}
 	}{
-		"test failure when event code is invalid": {
-			eventCode: event.Code("other"),
+		"test failure when event code is empty": {
+			eventCode: test.EmptyString,
 			data:      "some data",
 		},
 		"test failure when data is nil": {
-			eventCode: event.SignUp,
+			eventCode: "sign-up",
 			data:      nil,
 		},
 	}
@@ -36,7 +37,7 @@ func TestCreateNewEventFailure(t *testing.T) {
 }
 
 func TestEventToBytesSuccess(t *testing.T) {
-	ev, err := event.NewEvent(event.SignUp, "some data")
+	ev, err := event.NewEvent("sign-up", "some data")
 	assert.Nil(t, err)
 
 	_, err = ev.ToBytes()
@@ -45,15 +46,15 @@ func TestEventToBytesSuccess(t *testing.T) {
 
 func TestToBytesFailureFailure(t *testing.T) {
 	testCases := map[string]struct {
-		eventCode event.Code
+		eventCode string
 		data      interface{}
 	}{
-		"test failure when event code is invalid": {
-			eventCode: event.Code("other"),
+		"test failure when event code is empty": {
+			eventCode: test.EmptyString,
 			data:      "some data",
 		},
 		"test failure when data is nil": {
-			eventCode: event.SignUp,
+			eventCode: "sign-up",
 			data:      nil,
 		},
 	}
@@ -68,7 +69,7 @@ func TestToBytesFailureFailure(t *testing.T) {
 }
 
 func TestFromBytesSuccess(t *testing.T) {
-	ev, err := event.NewEvent(event.SignUp, "some data")
+	ev, err := event.NewEvent("sign-up", "some data")
 	assert.Nil(t, err)
 
 	b, err := ev.ToBytes()

@@ -37,7 +37,7 @@ func TestSessionAPI(t *testing.T) {
 
 func (sat *sessionAPITestSuite) TestLoginSuccess() {
 	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl, map[string]interface{}{})
-	userDetails := signUpUser(sat.T(), sat.deps.cfg.PublisherConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
+	userDetails := signUpUser(sat.T(), sat.deps.cfg.EventConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
 
 	reqBody := getLoginReqBody(
 		map[string]interface{}{
@@ -108,7 +108,7 @@ func (sat *sessionAPITestSuite) TestLoginSuccessWithRevokeOld() {
 	}
 
 	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl, clientData)
-	userDetails := signUpUser(sat.T(), sat.deps.cfg.PublisherConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
+	userDetails := signUpUser(sat.T(), sat.deps.cfg.EventConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
 
 	reqBody := getLoginReqBody(
 		map[string]interface{}{
@@ -186,7 +186,7 @@ func (sat *sessionAPITestSuite) TestLoginFailureWhenValidationFails() {
 
 func (sat *sessionAPITestSuite) TestLoginFailureWhenCredentialsAreIncorrect() {
 	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl, map[string]interface{}{})
-	userDetails := signUpUser(sat.T(), sat.deps.cfg.PublisherConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
+	userDetails := signUpUser(sat.T(), sat.deps.cfg.EventConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
 
 	expectedRespData := contract.APIResponse{
 		Success: false,
@@ -228,7 +228,7 @@ func (sat *sessionAPITestSuite) TestLoginFailureWhenCredentialsAreIncorrect() {
 
 func (sat *sessionAPITestSuite) TestRefreshTokenSuccess() {
 	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl, map[string]interface{}{})
-	userDetails := signUpUser(sat.T(), sat.deps.cfg.PublisherConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
+	userDetails := signUpUser(sat.T(), sat.deps.cfg.EventConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
 	loginUser(sat.T(), sat.deps.cl, authHeaders,
 		map[string]interface{}{
 			userEmailKey:    userDetails.Email,
@@ -329,7 +329,7 @@ func (sat *sessionAPITestSuite) TestRefreshTokenFailureWhenValidationFails() {
 
 func (sat *sessionAPITestSuite) TestRefreshTokenFailureWhenRefreshTokenIsIncorrect() {
 	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl, map[string]interface{}{})
-	userDetails := signUpUser(sat.T(), sat.deps.cfg.PublisherConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
+	userDetails := signUpUser(sat.T(), sat.deps.cfg.EventConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
 	loginUser(sat.T(), sat.deps.cl, authHeaders,
 		map[string]interface{}{
 			userEmailKey:    userDetails.Email,
@@ -349,7 +349,7 @@ func (sat *sessionAPITestSuite) TestRefreshTokenFailureWhenRefreshTokenIsIncorre
 
 func (sat *sessionAPITestSuite) TestRefreshTokenFailureWhenSessionExpires() {
 	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl, map[string]interface{}{})
-	userDetails := signUpUser(sat.T(), sat.deps.cfg.PublisherConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
+	userDetails := signUpUser(sat.T(), sat.deps.cfg.EventConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
 	loginUser(sat.T(), sat.deps.cl, authHeaders,
 		map[string]interface{}{
 			userEmailKey:    userDetails.Email,
@@ -399,7 +399,7 @@ func (sat *sessionAPITestSuite) TestRefreshTokenFailureWhenSessionExpires() {
 
 func (sat *sessionAPITestSuite) TestLogoutUserSuccess() {
 	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl, map[string]interface{}{})
-	userDetails := signUpUser(sat.T(), sat.deps.cfg.PublisherConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
+	userDetails := signUpUser(sat.T(), sat.deps.cfg.EventConfig(), sat.deps.cl, sat.deps.ch, authHeaders)
 	loginUser(sat.T(), sat.deps.cl, authHeaders,
 		map[string]interface{}{
 			userEmailKey:    userDetails.Email,
