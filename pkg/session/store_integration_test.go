@@ -10,7 +10,7 @@ import (
 	"identification-service/pkg/config"
 	"identification-service/pkg/database"
 	"identification-service/pkg/password"
-	"identification-service/pkg/publisher"
+	"identification-service/pkg/producer"
 	"identification-service/pkg/session"
 	"identification-service/pkg/test"
 	"identification-service/pkg/user"
@@ -168,11 +168,12 @@ func TestStoreIntegration(t *testing.T) {
 }
 
 func createUser(sst *sessionStoreIntegrationSuite, cfg config.Config) string {
-	mockPublisher := &publisher.MockPublisher{}
-	mockPublisher.On("Publish", mock.Anything, mock.AnythingOfType("string")).Return(nil)
+	mockPublisher := &producer.MockProducer{}
+	mockPublisher.On("Produce", mock.AnythingOfType("string"), mock.AnythingOfType("[]uint8")).
+		Return(int32(0), int64(0), nil)
 
-	mockEventConfig := &config.MockEventConfig{}
-	mockEventConfig.On("SignUpEventCode").Return("sign-up")
+	mockEventConfig := &config.MockKafkaConfig{}
+	mockEventConfig.On("SignUpTopicName").Return("sign-up")
 
 	encoder := password.NewEncoder(cfg.PasswordConfig())
 

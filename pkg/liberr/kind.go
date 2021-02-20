@@ -8,7 +8,10 @@ const (
 	AuthenticationError     Kind = "authenticationError"
 	InvalidCredentialsError Kind = "invalidCredentialsError"
 	InvalidArgsError        Kind = "invalidArgsError"
+	InitializationError     Kind = "initializationError"
 	//TODO: SUFFIX WITH ERROR
 	ResourceNotFound     Kind = "resourceNotFound"
 	DuplicateRecordError Kind = "duplicateRecordError"
+	ProducerError        Kind = "producerError"
+	ConsumerError        Kind = "consumerError"
 )

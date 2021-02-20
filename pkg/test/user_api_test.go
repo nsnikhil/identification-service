@@ -3,13 +3,15 @@ package test
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/streadway/amqp"
+	"github.com/Shopify/sarama"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"identification-service/pkg/config"
 	"identification-service/pkg/http/contract"
+	"math"
 	"net/http"
 	"testing"
+	"time"
 )
 
 const (
@@ -49,9 +51,9 @@ func (uat *userAPITestSuite) TestSignUpUserSuccess() {
 
 	testSignUpUser(
 		uat.T(),
-		uat.deps.cfg.EventConfig(),
+		uat.deps.cfg.KafkaConfig(),
 		uat.deps.cl,
-		uat.deps.ch,
+		uat.deps.cs,
 		http.StatusCreated,
 		expectedRespData,
 		authHeaders,
@@ -70,9 +72,9 @@ func (uat *userAPITestSuite) TestSignUpUserFailureWhenClientCredentialsAreMissin
 
 	testSignUpUser(
 		uat.T(),
-		uat.deps.cfg.EventConfig(),
+		uat.deps.cfg.KafkaConfig(),
 		uat.deps.cl,
-		uat.deps.ch,
+		uat.deps.cs,
 		http.StatusUnauthorized,
 		expectedRespData,
 		map[string]string{},
@@ -115,9 +117,9 @@ func (uat *userAPITestSuite) TestSignUpUserClientAuthenticationFailure() {
 		uat.T().Run(name, func(t *testing.T) {
 			testSignUpUser(
 				uat.T(),
-				uat.deps.cfg.EventConfig(),
+				uat.deps.cfg.KafkaConfig(),
 				uat.deps.cl,
-				uat.deps.ch,
+				uat.deps.cs,
 				http.StatusUnauthorized,
 				expectedRespData("authentication failed"),
 				testCase.authHeader,
@@ -168,9 +170,9 @@ func (uat *userAPITestSuite) TestSignUpUserValidationFailure() {
 		uat.T().Run(name, func(t *testing.T) {
 			testSignUpUser(
 				uat.T(),
-				uat.deps.cfg.EventConfig(),
+				uat.deps.cfg.KafkaConfig(),
 				uat.deps.cl,
-				uat.deps.ch,
+				uat.deps.cs,
 				http.StatusBadRequest,
 				expectedRespData(testCase.errorMessage),
 				authHeaders,
@@ -193,9 +195,9 @@ func (uat *userAPITestSuite) TestSignUpUserFailureForDuplicateRecord() {
 
 	testSignUpUser(
 		uat.T(),
-		uat.deps.cfg.EventConfig(),
+		uat.deps.cfg.KafkaConfig(),
 		uat.deps.cl,
-		uat.deps.ch,
+		uat.deps.cs,
 		http.StatusCreated,
 		expectedRespData,
 		authHeaders,
@@ -210,9 +212,9 @@ func (uat *userAPITestSuite) TestSignUpUserFailureForDuplicateRecord() {
 
 	testSignUpUser(
 		uat.T(),
-		uat.deps.cfg.EventConfig(),
+		uat.deps.cfg.KafkaConfig(),
 		uat.deps.cl,
-		uat.deps.ch,
+		uat.deps.cs,
 		http.StatusConflict,
 		expectedRespData,
 		authHeaders,
@@ -223,7 +225,7 @@ func (uat *userAPITestSuite) TestSignUpUserFailureForDuplicateRecord() {
 
 func (uat *userAPITestSuite) TestUpdatePasswordSuccess() {
 	authHeaders := registerClientAndGetHeaders(uat.T(), uat.deps.cfg.AuthConfig(), uat.deps.cl, map[string]interface{}{})
-	userDetails := signUpUser(uat.T(), uat.deps.cfg.EventConfig(), uat.deps.cl, uat.deps.ch, authHeaders)
+	userDetails := signUpUser(uat.T(), uat.deps.cfg.KafkaConfig(), uat.deps.cl, uat.deps.cs, authHeaders)
 
 	reqBody := getUpdatePasswordReqBody(
 		map[string]interface{}{
@@ -240,9 +242,57 @@ func (uat *userAPITestSuite) TestUpdatePasswordSuccess() {
 	testUpdatePassword(uat, http.StatusOK, expectedRespData, authHeaders, reqBody)
 }
 
+func (uat *userAPITestSuite) TestUpdatePasswordSuccessAllRevokeSession() {
+	authHeaders := registerClientAndGetHeaders(uat.T(), uat.deps.cfg.AuthConfig(), uat.deps.cl, map[string]interface{}{})
+	userDetails := signUpUser(uat.T(), uat.deps.cfg.KafkaConfig(), uat.deps.cl, uat.deps.cs, authHeaders)
+
+	loginUser(uat.T(), uat.deps.cl, authHeaders, map[string]interface{}{
+		userEmailKey:    userDetails.Email,
+		userPasswordKey: userDetails.Password,
+	})
+
+	currentActiveSessions := getActiveSessions(uat, userDetails.Email)
+	uat.Require().Equal(1, currentActiveSessions)
+
+	reqBody := getUpdatePasswordReqBody(
+		map[string]interface{}{
+			userEmailKey:    userDetails.Email,
+			userPasswordKey: userDetails.Password,
+		},
+	)
+
+	expectedRespData := contract.APIResponse{
+		Success: true,
+		Data:    map[string]interface{}{"message": "password updated successfully"},
+	}
+
+	testUpdatePassword(uat, http.StatusOK, expectedRespData, authHeaders, reqBody)
+
+	time.Sleep(time.Second)
+
+	currentActiveSessions = getActiveSessions(uat, userDetails.Email)
+	uat.Assert().Equal(0, currentActiveSessions)
+}
+
+func getActiveSessions(uat *userAPITestSuite, email string) int {
+	fetchUserID := "select id from users where email=$1"
+
+	var userID string
+	err := uat.deps.db.QueryRowContext(uat.deps.ctx, fetchUserID, email).Scan(&userID)
+	uat.Require().NoError(err)
+
+	query := "SELECT count(*) from sessions where user_id=$1 and revoked=false"
+
+	activeSessionCount := math.MinInt32
+	err = uat.deps.db.QueryRowContext(uat.deps.ctx, query, userID).Scan(&activeSessionCount)
+	uat.Require().NoError(err)
+
+	return activeSessionCount
+}
+
 func (uat *userAPITestSuite) TestUpdatePasswordClientAuthenticationFailure() {
 	defaultAuthHeaders := registerClientAndGetHeaders(uat.T(), uat.deps.cfg.AuthConfig(), uat.deps.cl, map[string]interface{}{})
-	userDetails := signUpUser(uat.T(), uat.deps.cfg.EventConfig(), uat.deps.cl, uat.deps.ch, defaultAuthHeaders)
+	userDetails := signUpUser(uat.T(), uat.deps.cfg.KafkaConfig(), uat.deps.cl, uat.deps.cs, defaultAuthHeaders)
 
 	reqBody := getUpdatePasswordReqBody(
 		map[string]interface{}{
@@ -293,7 +343,7 @@ func (uat *userAPITestSuite) TestUpdatePasswordClientAuthenticationFailure() {
 
 func (uat *userAPITestSuite) TestUpdatePasswordFailure() {
 	authHeaders := registerClientAndGetHeaders(uat.T(), uat.deps.cfg.AuthConfig(), uat.deps.cl, map[string]interface{}{})
-	signUpUser(uat.T(), uat.deps.cfg.EventConfig(), uat.deps.cl, uat.deps.ch, authHeaders)
+	signUpUser(uat.T(), uat.deps.cfg.KafkaConfig(), uat.deps.cl, uat.deps.cs, authHeaders)
 
 	expectedRespData := func(msg string) contract.APIResponse {
 		return contract.APIResponse{
@@ -359,9 +409,9 @@ func (uat *userAPITestSuite) TestUpdatePasswordFailure() {
 
 func testSignUpUser(
 	t *testing.T,
-	cfg config.EventConfig,
+	cfg config.KafkaConfig,
 	cl *http.Client,
-	ch *amqp.Channel,
+	cs sarama.Consumer,
 	expectedCode int,
 	expectedRespData contract.APIResponse,
 	reqHeaders map[string]string,
@@ -384,10 +434,7 @@ func testSignUpUser(
 	verifyResp(t, expectedRespData, responseData, true, nil)
 
 	if consumeMessage {
-		queueName, ok := cfg.QueueMap()[cfg.SignUpEventCode()]
-		if ok {
-			testMessageConsume(t, queueName, ch)
-		}
+		testMessageConsume(t, cfg.SignUpTopicName(), cs)
 	}
 }
 

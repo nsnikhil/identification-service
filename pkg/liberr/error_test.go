@@ -112,6 +112,10 @@ func TestGetErrorKind(t *testing.T) {
 			err:          liberr.WithArgs(errors.New("some error")),
 			expectedKind: "",
 		},
+		"test return empty string when err si nil": {
+			err:          nil,
+			expectedKind: "",
+		},
 	}
 
 	for name, testCase := range testCases {

@@ -20,7 +20,7 @@ scrape_configs:
   - job_name: 'identification-service'
     scrape_interval: 5s
     static_configs:
-      - targets: [ 'identification-service:8080' ]
+      - targets: [ 'identification-service:8089' ]
 
 
 

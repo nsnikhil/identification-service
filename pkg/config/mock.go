@@ -21,6 +21,11 @@ func (mock *MockConfig) LogConfig() LogConfig {
 	return args.Get(0).(LogConfig)
 }
 
+func (mock *MockConfig) KafkaConfig() KafkaConfig {
+	args := mock.Called()
+	return args.Get(0).(KafkaConfig)
+}
+
 func (mock *MockConfig) LogFileConfig() LogFileConfig {
 	args := mock.Called()
 	return args.Get(0).(LogFileConfig)
@@ -61,17 +66,7 @@ func (mock *MockConfig) ConsumerConfig() ConsumerConfig {
 	return args.Get(0).(ConsumerConfig)
 }
 
-func (mock *MockConfig) AMPQConfig() AMPQConfig {
-	args := mock.Called()
-	return args.Get(0).(AMPQConfig)
-}
-
 func (mock *MockConfig) ClientConfig() ClientConfig {
 	args := mock.Called()
 	return args.Get(0).(ClientConfig)
-}
-
-func (mock *MockConfig) EventConfig() EventConfig {
-	args := mock.Called()
-	return args.Get(0).(EventConfig)
 }

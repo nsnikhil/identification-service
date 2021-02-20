@@ -8,4 +8,4 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-extldflag
 
 FROM scratch
 COPY --from=builder /identification-service/identification-service .
-CMD ["./identification-service", "http-serve"]
+ENTRYPOINT ["./identification-service"]

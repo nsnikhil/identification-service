@@ -2,8 +2,8 @@ package test
 
 import (
 	"database/sql"
+	"github.com/Shopify/sarama"
 	"github.com/go-redis/redis/v8"
-	"github.com/streadway/amqp"
 	"github.com/stretchr/testify/require"
 	"identification-service/pkg/cache"
 	"identification-service/pkg/config"
@@ -14,7 +14,7 @@ import (
 var sqlDB *sql.DB
 var db database.SQLDatabase
 var redisClient *redis.Client
-var channel *amqp.Channel
+var cs sarama.Consumer
 
 func NewSqlDB(t *testing.T, cfg config.Config) *sql.DB {
 	if sqlDB != nil {
@@ -56,16 +56,15 @@ func NewCache(t *testing.T, cfg config.Config) *redis.Client {
 	return redisClient
 }
 
-func NewChannel(t *testing.T, cfg config.Config) *amqp.Channel {
-	if channel != nil {
-		return channel
+func NewConsumer(t *testing.T, cfg config.Config) sarama.Consumer {
+	if cs != nil {
+		return cs
 	}
 
-	conn, err := amqp.Dial(cfg.AMPQConfig().Address())
+	kcs, err := sarama.NewConsumer(cfg.KafkaConfig().Addresses(), sarama.NewConfig())
 	require.NoError(t, err)
 
-	channel, err = conn.Channel()
-	require.NoError(t, err)
+	cs = kcs
 
-	return channel
+	return cs
 }

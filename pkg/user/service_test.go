@@ -9,16 +9,16 @@ import (
 	"github.com/stretchr/testify/suite"
 	"identification-service/pkg/config"
 	"identification-service/pkg/password"
-	"identification-service/pkg/publisher"
+	"identification-service/pkg/producer"
 	"identification-service/pkg/test"
 	"identification-service/pkg/user"
 	"testing"
 )
 
 type createUserSuite struct {
-	cfg       config.EventConfig
-	encoder   password.Encoder
-	publisher publisher.Publisher
+	cfg      config.KafkaConfig
+	encoder  password.Encoder
+	producer producer.Producer
 	suite.Suite
 }
 
@@ -33,15 +33,17 @@ func (cst *createUserSuite) SetupSuite() {
 	mockEncoder.On("GenerateKey", userPassword, passwordSalt).Return(passwordKey)
 	mockEncoder.On("EncodeKey", passwordKey).Return(passwordHash)
 
-	mockPublisher := &publisher.MockPublisher{}
-	mockPublisher.On("Publish", mock.Anything, mock.AnythingOfType("string")).Return(nil)
+	mockProducer := &producer.MockProducer{}
+	mockProducer.On("Produce", mock.AnythingOfType("string"), mock.AnythingOfType("[]uint8")).
+		Return(int32(0), int64(0), nil)
 
-	mockEventConfig := &config.MockEventConfig{}
-	mockEventConfig.On("SignUpEventCode").Return("sign-up")
+	mockKafkaConfig := &config.MockKafkaConfig{}
+	mockKafkaConfig.On("SignUpTopicName").Return("sign-up")
+	mockKafkaConfig.On("UpdatePasswordTopicName").Return("update-password")
 
 	cst.encoder = mockEncoder
-	cst.publisher = mockPublisher
-	cst.cfg = mockEventConfig
+	cst.producer = mockProducer
+	cst.cfg = mockKafkaConfig
 }
 
 func (cst *createUserSuite) TestCreateUserSuccess() {
@@ -64,7 +66,7 @@ func (cst *createUserSuite) TestCreateUserSuccess() {
 	mockEncoder.On("EncodeKey", passwordKey).Return(passwordHash)
 	mockEncoder.On("ValidatePassword", userPassword).Return(nil)
 
-	service := user.NewService(cst.cfg, mockStore, mockEncoder, cst.publisher)
+	service := user.NewService(cst.cfg, mockStore, mockEncoder, cst.producer)
 
 	_, err := service.CreateUser(context.Background(), test.RandString(8), test.NewEmail(), userPassword)
 	assert.Nil(cst.T(), err)
@@ -90,7 +92,7 @@ func (cst *createUserSuite) TestCreateFailureWhenStoreCallFails() {
 	mockEncoder.On("EncodeKey", passwordKey).Return(passwordHash)
 	mockEncoder.On("ValidatePassword", userPassword).Return(nil)
 
-	service := user.NewService(cst.cfg, mockStore, mockEncoder, cst.publisher)
+	service := user.NewService(cst.cfg, mockStore, mockEncoder, cst.producer)
 
 	_, err := service.CreateUser(context.Background(), test.RandString(8), test.NewEmail(), userPassword)
 	assert.NotNil(cst.T(), err)
@@ -135,7 +137,8 @@ func (cst *createUserSuite) TestCreateFailureWhenInputIsInvalid() {
 
 	for name, testCase := range testCases {
 		cst.T().Run(name, func(t *testing.T) {
-			service := user.NewService(cst.cfg, &user.MockStore{}, cst.encoder, &publisher.MockPublisher{})
+
+			service := user.NewService(cst.cfg, &user.MockStore{}, cst.encoder, &producer.MockProducer{})
 
 			name, email, userPassword := testCase.input()
 			_, err := service.CreateUser(context.Background(), name, email, userPassword)
@@ -164,7 +167,7 @@ func TestGetUserIDSuccess(t *testing.T) {
 		mock.AnythingOfType("[]uint8"),
 	).Return(nil)
 
-	service := user.NewService(&config.MockEventConfig{}, mockStore, mockEncoder, &publisher.MockPublisher{})
+	service := user.NewService(&config.MockKafkaConfig{}, mockStore, mockEncoder, &producer.MockProducer{})
 
 	_, err := service.GetUserID(context.Background(), userEmail, userPassword)
 	require.NoError(t, err)
@@ -180,7 +183,7 @@ func TestGetUserIDFailureWhenStoreCallsFails(t *testing.T) {
 		userEmail,
 	).Return(user.User{}, errors.New("failed to get user"))
 
-	service := user.NewService(&config.MockEventConfig{}, mockStore, &password.MockEncoder{}, &publisher.MockPublisher{})
+	service := user.NewService(&config.MockKafkaConfig{}, mockStore, &password.MockEncoder{}, &producer.MockProducer{})
 
 	_, err := service.GetUserID(context.Background(), userEmail, test.NewPassword())
 	require.Error(t, err)
@@ -205,7 +208,7 @@ func TestGetUserIDFailureWhenPasswordVerificationFails(t *testing.T) {
 		mock.AnythingOfType("[]uint8"),
 	).Return(errors.New("invalid credentials"))
 
-	service := user.NewService(&config.MockEventConfig{}, mockStore, mockEncoder, &publisher.MockPublisher{})
+	service := user.NewService(&config.MockKafkaConfig{}, mockStore, mockEncoder, &producer.MockProducer{})
 
 	_, err := service.GetUserID(context.Background(), userEmail, userPassword)
 	require.Error(t, err)
@@ -238,13 +241,14 @@ func TestUpdatePasswordSuccess(t *testing.T) {
 	).Return(nil)
 	mockEncoder.On("ValidatePassword", userPasswordNew).Return(nil)
 
-	mockPublisher := &publisher.MockPublisher{}
-	mockPublisher.On("Publish", mock.Anything, mock.Anything).Return(nil)
+	mockProducer := &producer.MockProducer{}
+	mockProducer.On("Produce", mock.AnythingOfType("string"), mock.AnythingOfType("[]uint8")).
+		Return(int32(0), int64(0), nil)
 
-	mockEventConfig := &config.MockEventConfig{}
-	mockEventConfig.On("UpdatePasswordEventCode").Return("update-password")
+	mockKafkaConfig := &config.MockKafkaConfig{}
+	mockKafkaConfig.On("UpdatePasswordTopicName").Return("update-password")
 
-	service := user.NewService(mockEventConfig, mockStore, mockEncoder, mockPublisher)
+	service := user.NewService(mockKafkaConfig, mockStore, mockEncoder, mockProducer)
 
 	err := service.UpdatePassword(context.Background(), userEmail, userPassword, userPasswordNew)
 	require.NoError(t, err)
@@ -365,10 +369,10 @@ func TestUpdatePasswordFailure(t *testing.T) {
 
 	for name, testCase := range testCases {
 		t.Run(name, func(t *testing.T) {
-			mockEventConfig := &config.MockEventConfig{}
-			mockEventConfig.On("UpdatePasswordEventCode").Return("update-password")
+			mockKafkaConfig := &config.MockKafkaConfig{}
+			mockKafkaConfig.On("UpdatePasswordTopicName").Return("update-password")
 
-			service := user.NewService(mockEventConfig, testCase.store(), testCase.encoder(), &publisher.MockPublisher{})
+			service := user.NewService(mockKafkaConfig, testCase.store(), testCase.encoder(), &producer.MockProducer{})
 
 			err := service.UpdatePassword(context.Background(), userEmail, userPassword, testCase.newPassword)
 			require.Error(t, err)

@@ -2,19 +2,20 @@ package app
 
 import (
 	"database/sql"
+	"github.com/Shopify/sarama"
 	"github.com/go-redis/redis/v8"
 	"gopkg.in/natefinch/lumberjack.v2"
 	"identification-service/pkg/cache"
 	"identification-service/pkg/client"
 	"identification-service/pkg/config"
+	"identification-service/pkg/consumer"
 	"identification-service/pkg/database"
 	"identification-service/pkg/http/router"
 	"identification-service/pkg/http/server"
 	"identification-service/pkg/libcrypto"
 	"identification-service/pkg/liberr"
 	"identification-service/pkg/password"
-	"identification-service/pkg/publisher"
-	"identification-service/pkg/queue"
+	"identification-service/pkg/producer"
 	reporters "identification-service/pkg/reporting"
 	"identification-service/pkg/session"
 	"identification-service/pkg/token"
@@ -31,6 +32,44 @@ func initHTTPServer(configFile string) server.Server {
 	cs, us, ss := initServices(cfg)
 	rt := initRouter(cfg, lgr, pr, cs, us, ss)
 	return server.NewServer(cfg, lgr, rt)
+}
+
+func initConsumer(configFile string) consumer.Consumer {
+	cfg := config.NewConfig(configFile)
+	lgr := initLogger(cfg)
+	_, _, ss := initServices(cfg)
+	mr := consumer.NewMessageRouter(cfg.KafkaConfig(), ss)
+	cs := initKafkaConsumer(initKafkaClient(cfg.KafkaConfig()))
+
+	return consumer.NewConsumer(cfg.KafkaConfig(), lgr, cs, mr)
+}
+
+func initKafkaClient(cfg config.KafkaConfig) sarama.Client {
+	//TODO: SHOULD COME FORM CONFIGS
+	sCfg := sarama.NewConfig()
+	sCfg.ClientID = "identification-service"
+	sCfg.Producer.Return.Successes = true
+
+	//sarama.Logger = log.New(os.Stdout, "[sarama] ", log.LstdFlags)
+
+	cl, err := sarama.NewClient(cfg.Addresses(), sCfg)
+	logError(err)
+
+	return cl
+}
+
+func initKafkaConsumer(cl sarama.Client) sarama.Consumer {
+	cs, err := sarama.NewConsumerFromClient(cl)
+	logError(err)
+
+	return cs
+}
+
+func initKafkaProducer(cl sarama.Client) sarama.SyncProducer {
+	sp, err := sarama.NewSyncProducerFromClient(cl)
+	logError(err)
+
+	return sp
 }
 
 func initReporters(cfg config.Config) (reporters.Logger, reporters.Prometheus) {
@@ -68,9 +107,8 @@ func initServices(cfg config.Config) (client.Service, user.Service, session.Serv
 	cc, err := cache.NewHandler(cfg.CacheConfig()).GetCache()
 	logError(err)
 
-	qu := queue.NewAMQP(cfg.AMPQConfig().Address())
-
-	pr := publisher.NewPublisher(qu, cfg.EventConfig().QueueMap())
+	kpr := initKafkaProducer(initKafkaClient(cfg.KafkaConfig()))
+	pr := producer.NewProducer(kpr)
 
 	en := password.NewEncoder(cfg.PasswordConfig())
 
@@ -80,7 +118,7 @@ func initServices(cfg config.Config) (client.Service, user.Service, session.Serv
 	logError(err)
 
 	cs := initClientService(cfg.ClientConfig(), db, cc, kg)
-	us := initUserService(cfg.EventConfig(), db, en, pr)
+	us := initUserService(cfg.KafkaConfig(), db, en, pr)
 	ss := initSessionService(cfg.ClientConfig(), db, us, tg)
 
 	return cs, us, ss
@@ -91,7 +129,7 @@ func initClientService(cfg config.ClientConfig, db database.SQLDatabase, cc *red
 	return client.NewService(cfg, st, kg)
 }
 
-func initUserService(cfg config.EventConfig, db database.SQLDatabase, en password.Encoder, pr publisher.Publisher) user.Service {
+func initUserService(cfg config.KafkaConfig, db database.SQLDatabase, en password.Encoder, pr producer.Producer) user.Service {
 	st := user.NewStore(db)
 	return user.NewService(cfg, st, en, pr)
 }

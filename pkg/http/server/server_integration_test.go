@@ -14,7 +14,7 @@ import (
 func TestServerStart(t *testing.T) {
 	cfg := config.NewConfig("../../../local.env")
 	mockLogger := &reporters.MockLogger{}
-	mockLogger.On("InfoF", []interface{}{"listening on ", ":8080"})
+	mockLogger.On("InfoF", []interface{}{"listening on ", ":8089"})
 
 	rt := http.NewServeMux()
 	rt.HandleFunc("/ping", func(resp http.ResponseWriter, req *http.Request) {})
@@ -25,7 +25,7 @@ func TestServerStart(t *testing.T) {
 	//TODO REMOVE SLEEP
 	time.Sleep(time.Millisecond)
 
-	resp, err := http.Get("http://127.0.0.1:8080/ping")
+	resp, err := http.Get("http://127.0.0.1:8089/ping")
 	require.NoError(t, err)
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)

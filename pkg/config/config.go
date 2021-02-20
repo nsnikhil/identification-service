@@ -11,15 +11,14 @@ type Config interface {
 	LogConfig() LogConfig
 	LogFileConfig() LogFileConfig
 	Env() string
+	KafkaConfig() KafkaConfig
 	MigrationConfig() MigrationConfig
 	PasswordConfig() PasswordConfig
 	TokenConfig() TokenConfig
 	AuthConfig() AuthConfig
 	CacheConfig() CacheConfig
 	ConsumerConfig() ConsumerConfig
-	AMPQConfig() AMPQConfig
 	ClientConfig() ClientConfig
-	EventConfig() EventConfig
 }
 
 type appConfig struct {
@@ -29,14 +28,13 @@ type appConfig struct {
 	databaseConfig   DatabaseConfig
 	logConfig        LogConfig
 	logFileConfig    LogFileConfig
+	kafkaConfig      KafkaConfig
 	passwordConfig   PasswordConfig
 	tokenConfig      TokenConfig
-	ampqConfig       AMPQConfig
 	cacheConfig      CacheConfig
-	consumerConfig ConsumerConfig
-	authConfig     AuthConfig
-	clientConfig   ClientConfig
-	eventConfig    EventConfig
+	consumerConfig   ConsumerConfig
+	authConfig       AuthConfig
+	clientConfig     ClientConfig
 }
 
 func (c appConfig) HTTPServerConfig() HTTPServerConfig {
@@ -53,6 +51,10 @@ func (c appConfig) LogConfig() LogConfig {
 
 func (c appConfig) LogFileConfig() LogFileConfig {
 	return c.logFileConfig
+}
+
+func (c appConfig) KafkaConfig() KafkaConfig {
+	return c.kafkaConfig
 }
 
 func (c appConfig) Env() string {
@@ -83,16 +85,8 @@ func (c appConfig) ConsumerConfig() ConsumerConfig {
 	return c.consumerConfig
 }
 
-func (c appConfig) AMPQConfig() AMPQConfig {
-	return c.ampqConfig
-}
-
 func (c appConfig) ClientConfig() ClientConfig {
 	return c.clientConfig
-}
-
-func (c appConfig) EventConfig() EventConfig {
-	return c.eventConfig
 }
 
 //TODO: FIGURE OUT OF WAY TO KEEP ONE CONFIG FILE FOR LOCAL AND DOCKER
@@ -116,9 +110,8 @@ func NewConfig(configFile string) Config {
 		tokenConfig:      newTokenConfig(),
 		authConfig:       newAuthConfig(),
 		cacheConfig:      newCacheConfig(),
-		consumerConfig: newConsumerConfig(),
-		ampqConfig:     newAMPQConfig(),
-		clientConfig:   newClientConfig(),
-		eventConfig:    newEventConfig(),
+		consumerConfig:   newConsumerConfig(),
+		clientConfig:     newClientConfig(),
+		kafkaConfig:      newKafkaConfig(),
 	}
 }

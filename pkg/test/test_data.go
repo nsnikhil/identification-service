@@ -16,7 +16,6 @@ import (
 const (
 	EmptyString                    = ""
 	Zero                           = 0
-	QueueName                      = "test_queue"
 	letters                        = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	numbers                        = "0123456789"
 	symbols                        = "!@#$%^&*()"
