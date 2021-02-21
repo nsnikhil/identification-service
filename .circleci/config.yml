@@ -6,7 +6,6 @@ jobs:
       image: ubuntu-2004:202101-01
     steps:
       - checkout
-      - setup_remote_docker
       - run: |
           docker-compose -f build/ci-docker-compose.yml up -d
           make ci-test
