@@ -15,6 +15,7 @@ services:
       POSTGRES_PASSWORD: id_password
     networks:
       - idnetwork
+    network_mode: "host"
     ports:
       - 5432:5432
     volumes:
@@ -26,6 +27,7 @@ services:
       - 2181:2181
     networks:
       - idnetwork
+    network_mode: "host"
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
@@ -36,6 +38,7 @@ services:
       - 9092:9092
     networks:
       - idnetwork
+    network_mode: "host"
     environment:
       KAFKA_LISTENERS: INTERNAL://kafka:9092
       KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092
@@ -55,5 +58,6 @@ services:
     image: redis:alpine
     networks:
       - idnetwork
+    network_mode: "host"
     ports:
       - 6379:6379
