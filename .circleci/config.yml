@@ -3,22 +3,11 @@ version: 2
 jobs:
   test:
     docker:
-      - image: golang:1.15.6-alpine
-
-      - image: postgres:13.1-alpine
-        environment:
-          - POSTGRES_DB: id_db
-          - POSTGRES_USER: id_user
-          - POSTGRES_PASSWORD: id_password
-        volumes:
-          - ../pkg/database/migrations/:/docker-entrypoint-initdb.d/
-
-      - image: redis:6.0.9-alpine
-
-      - image: rabbitmq:alpine
-
+      - image: cimg/go:1.16.0
     steps:
       - checkout
+      - setup_remote_docker
+      - run: docker-compose -f ../build/docker-compose.yml up -d
       - run: apk add --no-cache make build-base
       - run: make ci-test
 
