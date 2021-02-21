@@ -7,7 +7,7 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker
-      - run: docker-compose -f ../build/docker-compose.yml up -d
+      - run: docker-compose -f build/docker-compose.yml up -d
       - run: apk add --no-cache make build-base
       - run: make ci-test
 
