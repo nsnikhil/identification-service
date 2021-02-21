@@ -7,5 +7,5 @@ create table if not exists sessions (
     updated_at timestamp without time zone default (now() at time zone 'utc')
 );
 
-create index session_user_id_created_at_idx on sessions (user_id, created_at);
-create index session_created_at_idx on sessions (created_at);
+create index if not exists session_user_id_created_at_idx on sessions (user_id, created_at);
+create index if not exists session_created_at_idx on sessions (created_at);
