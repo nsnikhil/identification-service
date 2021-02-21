@@ -329,10 +329,15 @@ func (st *sessionTest) TestLoginUserFailure() {
 func (st *sessionTest) TestLogoutSuccess() {
 	refreshToken := test.NewUUID()
 
+	ss, err := session.NewSessionBuilder().CreatedAt(time.Now()).Build()
+	st.Require().NoError(err)
+
 	mockStore := &session.MockStore{}
+	mockStore.On("GetSession", mock.AnythingOfType("*context.valueCtx"), refreshToken).Return(ss, nil)
 	mockStore.On(
 		"RevokeSessions",
-		mock.AnythingOfType("*context.emptyCtx"), []string{refreshToken},
+		mock.AnythingOfType("*context.valueCtx"),
+		[]string{refreshToken},
 	).Return(int64(1), nil)
 
 	strategies := map[string]session.Strategy{
@@ -341,27 +346,126 @@ func (st *sessionTest) TestLogoutSuccess() {
 
 	service := session.NewService(mockStore, &user.MockService{}, &token.MockGenerator{}, strategies)
 
-	err := service.LogoutUser(context.Background(), refreshToken)
+	cl, err := test.NewClient(st.clientCfg, map[string]interface{}{})
+	st.Require().NoError(err)
+
+	ctx, err := client.WithContext(context.Background(), cl)
+	st.Require().NoError(err)
+
+	err = service.LogoutUser(ctx, refreshToken)
 	st.Require().NoError(err)
 }
 
 func (st *sessionTest) TestLogoutFailureWhenStoreCallFails() {
 	refreshToken := test.NewUUID()
+	cl, err := test.NewClient(st.clientCfg, map[string]interface{}{})
+	st.Require().NoError(err)
 
-	mockStore := &session.MockStore{}
-	mockStore.On(
-		"RevokeSessions",
-		mock.AnythingOfType("*context.emptyCtx"), []string{refreshToken},
-	).Return(int64(0), errors.New("failed to revoke session"))
+	ctx, err := client.WithContext(context.Background(), cl)
+	st.Require().NoError(err)
 
-	strategies := map[string]session.Strategy{
-		test.ClientSessionStrategyRevokeOld: session.NewRevokeOldStrategy(mockStore),
+	testCases := map[string]struct {
+		ctx   func() context.Context
+		store func() session.Store
+	}{
+		"test failure when client is missing from the context": {
+			ctx: func() context.Context {
+				return context.Background()
+			},
+			store: func() session.Store {
+				return &session.MockStore{}
+			},
+		},
+		"test failure when get session call fails": {
+			ctx: func() context.Context {
+				return ctx
+			},
+			store: func() session.Store {
+				mockStore := &session.MockStore{}
+				mockStore.On("GetSession", mock.AnythingOfType("*context.valueCtx"), refreshToken).
+					Return(session.Session{}, errors.New("failed to fetch sessions"))
+				return mockStore
+			},
+		},
+		"test failure when validate session fails due to revoked session": {
+			ctx: func() context.Context {
+				return ctx
+			},
+			store: func() session.Store {
+				ss, err := session.NewSessionBuilder().CreatedAt(time.Now()).Revoked(true).Build()
+				st.Require().NoError(err)
+
+				mockStore := &session.MockStore{}
+				mockStore.On("GetSession", mock.AnythingOfType("*context.valueCtx"), refreshToken).
+					Return(ss, nil)
+				return mockStore
+			},
+		},
+		"test failure when validate session fails due to expired session": {
+			ctx: func() context.Context {
+				return ctx
+			},
+			store: func() session.Store {
+				ss, err := session.NewSessionBuilder().
+					CreatedAt(time.Now().AddDate(0, -2, -1)).
+					Build()
+
+				st.Require().NoError(err)
+
+				mockStore := &session.MockStore{}
+				mockStore.On("GetSession", mock.AnythingOfType("*context.valueCtx"), refreshToken).
+					Return(ss, nil)
+				return mockStore
+			},
+		},
+		"test failure when revoke session call fails": {
+			ctx: func() context.Context {
+				return ctx
+			},
+			store: func() session.Store {
+				ss, err := session.NewSessionBuilder().CreatedAt(time.Now()).Build()
+				st.Require().NoError(err)
+
+				mockStore := &session.MockStore{}
+				mockStore.On("GetSession", mock.AnythingOfType("*context.valueCtx"), refreshToken).
+					Return(ss, nil)
+				mockStore.On(
+					"RevokeSessions",
+					mock.AnythingOfType("*context.valueCtx"),
+					[]string{refreshToken},
+				).Return(int64(0), errors.New("failed to revoke session"))
+				return mockStore
+			},
+		},
 	}
 
-	service := session.NewService(mockStore, &user.MockService{}, &token.MockGenerator{}, strategies)
+	for name, testCase := range testCases {
+		st.Run(name, func() {
+			strategies := map[string]session.Strategy{
+				test.ClientSessionStrategyRevokeOld: session.NewRevokeOldStrategy(testCase.store()),
+			}
 
-	err := service.LogoutUser(context.Background(), refreshToken)
-	st.Require().Error(err)
+			svc := session.NewService(testCase.store(), &user.MockService{}, &token.MockGenerator{}, strategies)
+
+			err := svc.LogoutUser(testCase.ctx(), refreshToken)
+			st.Assert().Error(err)
+		})
+	}
+
+	//mockStore := &session.MockStore{}
+	//mockStore.On(
+	//	"RevokeSessions",
+	//	mock.AnythingOfType("*context.emptyCtx"),
+	//	[]string{refreshToken},
+	//).Return(int64(0), errors.New("failed to revoke session"))
+	//
+	//
+	//cl, err := test.NewClient(st.clientCfg, map[string]interface{}{})
+	//st.Require().NoError(err)
+	//
+	//ctx, err := client.WithContext(context.Background(), cl)
+	//st.Require().NoError(err)
+
 }
 
 func (st *sessionTest) TestRefreshTokenSuccess() {
@@ -388,8 +492,6 @@ func (st *sessionTest) TestRefreshTokenSuccess() {
 	}
 
 	cl, err := test.NewClient(st.clientCfg, clientData)
-	st.Require().NoError(err)
-
 	st.Require().NoError(err)
 
 	ctx, err := client.WithContext(context.Background(), cl)
@@ -446,7 +548,20 @@ func (st *sessionTest) TestRefreshTokenFailure() {
 
 				mockStore := &session.MockStore{}
 				mockStore.On("GetSession", mock.AnythingOfType("*context.valueCtx"), refreshToken).Return(ss, nil)
-				mockStore.On("RevokeSessions", mock.AnythingOfType("*context.valueCtx"), []string{refreshToken}).Return(int64(1), nil)
+				return mockStore
+			},
+			generator: func() token.Generator { return &token.MockGenerator{} },
+		},
+		"test failure when session is revoked": {
+			store: func() session.Store {
+				ss, err := session.NewSessionBuilder().
+					CreatedAt(time.Now().AddDate(0, 1, 1)).
+					Revoked(true).
+					Build()
+				st.Require().NoError(err)
+
+				mockStore := &session.MockStore{}
+				mockStore.On("GetSession", mock.AnythingOfType("*context.valueCtx"), refreshToken).Return(ss, nil)
 
 				return mockStore
 			},

@@ -370,9 +370,58 @@ func (sat *sessionAPITestSuite) TestRefreshTokenFailureWhenSessionExpires() {
 	prev := time.Now().AddDate(0, -2, -5)
 	_, err = sat.deps.db.ExecContext(
 		sat.deps.ctx,
-		"update sessions set created_at=$1, updated_at=$2",
+		"update sessions set created_at=$1, updated_at=$2 where user_id = $3",
 		prev,
 		prev,
+		userID,
+	)
+
+	require.NoError(sat.T(), err)
+
+	var refreshToken string
+	err = sat.deps.db.QueryRowContext(
+		sat.deps.ctx,
+		"select refresh_token from sessions where user_id = $1",
+		userID,
+	).Scan(&refreshToken)
+
+	require.NoError(sat.T(), err)
+	require.NotEmpty(sat.T(), refreshToken)
+
+	reqBody := contract.RefreshTokenRequest{RefreshToken: refreshToken}
+
+	expectedRespData := contract.APIResponse{
+		Success: false,
+		Error:   &contract.Error{Message: "authentication failed"},
+	}
+
+	testRefreshToken(sat, http.StatusUnauthorized, expectedRespData, authHeaders, reqBody)
+}
+
+func (sat *sessionAPITestSuite) TestRefreshTokenFailureWhenSessionIsRevoked() {
+	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl, map[string]interface{}{})
+	userDetails := signUpUser(sat.T(), sat.deps.cfg.KafkaConfig(), sat.deps.cl, sat.deps.cs, authHeaders)
+	loginUser(sat.T(), sat.deps.cl, authHeaders,
+		map[string]interface{}{
+			userEmailKey:    userDetails.Email,
+			userPasswordKey: userDetails.Password,
+		},
+	)
+
+	var userID string
+	err := sat.deps.db.QueryRowContext(
+		sat.deps.ctx,
+		"select id from users where email = $1",
+		userDetails.Email,
+	).Scan(&userID)
+
+	require.NoError(sat.T(), err)
+	require.NotEmpty(sat.T(), userID)
+
+	_, err = sat.deps.db.ExecContext(
+		sat.deps.ctx,
+		"update sessions set revoked=true where user_id = $1",
+		userID,
 	)
 
 	require.NoError(sat.T(), err)
@@ -500,6 +549,105 @@ func (sat *sessionAPITestSuite) TestLogoutUserFailureForIncorrectRefreshToken() 
 	}
 
 	testLogoutUser(sat, http.StatusNotFound, expectedRespData, authHeaders, reqBody)
+}
+
+func (sat *sessionAPITestSuite) TestLogoutUserFailureForExpiredSession() {
+	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl, map[string]interface{}{})
+	userDetails := signUpUser(sat.T(), sat.deps.cfg.KafkaConfig(), sat.deps.cl, sat.deps.cs, authHeaders)
+	loginUser(sat.T(), sat.deps.cl, authHeaders,
+		map[string]interface{}{
+			userEmailKey:    userDetails.Email,
+			userPasswordKey: userDetails.Password,
+		},
+	)
+
+	var userID string
+	err := sat.deps.db.QueryRowContext(
+		sat.deps.ctx,
+		"select id from users where email = $1",
+		userDetails.Email,
+	).Scan(&userID)
+
+	require.NoError(sat.T(), err)
+	require.NotEmpty(sat.T(), userID)
+
+	prev := time.Now().AddDate(0, -2, -5)
+	_, err = sat.deps.db.ExecContext(
+		sat.deps.ctx,
+		"update sessions set created_at=$1, updated_at=$2 where user_id=$3",
+		prev,
+		prev,
+		userID,
+	)
+
+	require.NoError(sat.T(), err)
+
+	var refreshToken string
+	err = sat.deps.db.QueryRowContext(
+		sat.deps.ctx,
+		"select refresh_token from sessions where user_id = $1",
+		userID,
+	).Scan(&refreshToken)
+
+	require.NoError(sat.T(), err)
+	require.NotEmpty(sat.T(), refreshToken)
+
+	reqBody := getLogoutReqBody(map[string]interface{}{sessionRefreshTokenKey: refreshToken})
+
+	expectedRespData := contract.APIResponse{
+		Success: false,
+		Error:   &contract.Error{Message: "authentication failed"},
+	}
+
+	testLogoutUser(sat, http.StatusUnauthorized, expectedRespData, authHeaders, reqBody)
+}
+
+func (sat *sessionAPITestSuite) TestLogoutUserFailureForRevokedSession() {
+	authHeaders := registerClientAndGetHeaders(sat.T(), sat.deps.cfg.AuthConfig(), sat.deps.cl, map[string]interface{}{})
+	userDetails := signUpUser(sat.T(), sat.deps.cfg.KafkaConfig(), sat.deps.cl, sat.deps.cs, authHeaders)
+	loginUser(sat.T(), sat.deps.cl, authHeaders,
+		map[string]interface{}{
+			userEmailKey:    userDetails.Email,
+			userPasswordKey: userDetails.Password,
+		},
+	)
+
+	var userID string
+	err := sat.deps.db.QueryRowContext(
+		sat.deps.ctx,
+		"select id from users where email = $1",
+		userDetails.Email,
+	).Scan(&userID)
+
+	require.NoError(sat.T(), err)
+	require.NotEmpty(sat.T(), userID)
+
+	_, err = sat.deps.db.ExecContext(
+		sat.deps.ctx,
+		"update sessions set revoked=true where user_id = $1",
+		userID,
+	)
+
+	require.NoError(sat.T(), err)
+
+	var refreshToken string
+	err = sat.deps.db.QueryRowContext(
+		sat.deps.ctx,
+		"select refresh_token from sessions where user_id = $1",
+		userID,
+	).Scan(&refreshToken)
+
+	require.NoError(sat.T(), err)
+	require.NotEmpty(sat.T(), refreshToken)
+
+	reqBody := getLogoutReqBody(map[string]interface{}{sessionRefreshTokenKey: refreshToken})
+
+	expectedRespData := contract.APIResponse{
+		Success: false,
+		Error:   &contract.Error{Message: "authentication failed"},
+	}
+
+	testLogoutUser(sat, http.StatusUnauthorized, expectedRespData, authHeaders, reqBody)
 }
 
 func (sat *sessionAPITestSuite) TestLogoutUserFailureForValidationFailure() {

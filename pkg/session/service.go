@@ -85,9 +85,23 @@ func (ss *sessionService) LoginUser(ctx context.Context, email, password string)
 }
 
 func (ss *sessionService) LogoutUser(ctx context.Context, refreshToken string) error {
-	_, err := ss.store.RevokeSessions(ctx, refreshToken)
-	if err != nil {
+	wrap := func(err error) error {
 		return liberr.WithOp("Service.LogoutUser", err)
+	}
+
+	cl, err := client.FromContext(ctx)
+	if err != nil {
+		return wrap(err)
+	}
+
+	_, err = getValidSession(ctx, cl, ss.store, refreshToken)
+	if err != nil {
+		return wrap(err)
+	}
+
+	_, err = ss.store.RevokeSessions(ctx, refreshToken)
+	if err != nil {
+		return wrap(err)
 	}
 
 	return nil
@@ -103,12 +117,7 @@ func (ss *sessionService) RefreshToken(ctx context.Context, refreshToken string)
 		return wrap(err)
 	}
 
-	session, err := ss.store.GetSession(ctx, refreshToken)
-	if err != nil {
-		return wrap(err)
-	}
-
-	err = validateSession(ctx, cl.SessionTTL(), session, ss.store, refreshToken)
+	session, err := getValidSession(ctx, cl, ss.store, refreshToken)
 	if err != nil {
 		return wrap(err)
 	}
@@ -135,18 +144,26 @@ func (ss *sessionService) RevokeAllSessions(ctx context.Context, userID string) 
 	return nil
 }
 
-func validateSession(ctx context.Context, sessionTTL int, session Session, store Store, refreshToken string) error {
-	if !session.IsExpired(float64(sessionTTL)) {
-		return nil
-	}
-
-	//TODO: FIX THE LOGIC HERE
-	_, err := store.RevokeSessions(ctx, refreshToken)
+func getValidSession(ctx context.Context, cl client.Client, store Store, refreshToken string) (Session, error) {
+	session, err := store.GetSession(ctx, refreshToken)
 	if err != nil {
-		return err
+		return Session{}, err
 	}
 
-	return liberr.WithArgs(liberr.AuthenticationError, fmt.Errorf("session expired for %s", refreshToken))
+	err = validateSession(cl.SessionTTL(), session, refreshToken)
+	if err != nil {
+		return Session{}, err
+	}
+
+	return session, nil
+}
+
+func validateSession(sessionTTL int, session Session, refreshToken string) error {
+	if session.revoked || session.IsExpired(float64(sessionTTL)) {
+		return liberr.WithArgs(liberr.AuthenticationError, fmt.Errorf("session expired for %s", refreshToken))
+	}
+
+	return nil
 }
 
 func NewService(store Store, userService user.Service, generator token.Generator, strategies map[string]Strategy) Service {
