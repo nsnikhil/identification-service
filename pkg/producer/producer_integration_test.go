@@ -3,6 +3,7 @@ package producer_test
 import (
 	"github.com/Shopify/sarama"
 	"github.com/stretchr/testify/suite"
+	"identification-service/pkg/config"
 	"identification-service/pkg/producer"
 	"identification-service/pkg/test"
 	"testing"
@@ -15,10 +16,12 @@ type producerTestSuite struct {
 }
 
 func (pts *producerTestSuite) SetupSuite() {
-	cfg := sarama.NewConfig()
-	cfg.Producer.Return.Successes = true
+	cfg := config.NewConfig("../../local.env")
 
-	cl, err := sarama.NewClient([]string{"localhost:9092"}, cfg)
+	sCfg := sarama.NewConfig()
+	sCfg.Producer.Return.Successes = true
+
+	cl, err := sarama.NewClient(cfg.KafkaConfig().Addresses(), sCfg)
 	pts.Require().NoError(err)
 
 	sp, err := sarama.NewSyncProducerFromClient(cl)
