@@ -1,0 +1,60 @@
+version: '3.7'
+
+services:
+
+  prometheus:
+    image: prom/prometheus:latest
+    restart: always
+    ports:
+      - 9090:9090
+    networks:
+      - idnetwork
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: always
+    networks:
+      - idnetwork
+    ports:
+      - 4040:3000
+    depends_on:
+      - prometheus
+
+  fluent-bit:
+    image: fluent/fluent-bit
+    volumes:
+      - ./fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
+    depends_on:
+      - elasticsearch
+    links:
+      - "elasticsearch"
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+    networks:
+      - idnetwork
+
+  elasticsearch:
+    image: elasticsearch:7.9.2
+    expose:
+      - 9200
+    ports:
+      - "9200:9200"
+    environment:
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - discovery.type=single-node
+    networks:
+      - idnetwork
+
+  kibana:
+    image: kibana:7.9.2
+    links:
+      - "elasticsearch"
+    ports:
+      - "5601:5601"
+    networks:
+      - idnetwork

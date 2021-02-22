@@ -1,0 +1,42 @@
+version: '3.7'
+
+services:
+
+  identification-service-worker:
+    image: nsnikhil/identification-service:0.1
+    restart: always
+    command: "worker"
+    env_file:
+      - docker.env
+    networks:
+      - idnetwork
+    logging:
+      driver: fluentd
+      options:
+        tag: docker-id
+    depends_on:
+      - zookeeper
+      - grafana
+      - fluent-bit
+
+  identification-service:
+    image: nsnikhil/identification-service:0.1
+    restart: always
+    command: "http-serve"
+    ports:
+      - 8089:8089
+    env_file:
+      - docker.env
+    networks:
+      - idnetwork
+    logging:
+      driver: fluentd
+      options:
+        tag: docker-id
+    depends_on:
+      - db
+      - zookeeper
+      - redis
+      - grafana
+      - fluent-bit
+      - identification-service-worker
