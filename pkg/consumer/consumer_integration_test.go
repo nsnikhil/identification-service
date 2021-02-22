@@ -69,6 +69,8 @@ func (cts *consumerTestSuite) TestConsumeUpdatePasswordTopic() {
 	_, _, err := cts.producer.SendMessage(msg)
 	cts.Require().NoError(err)
 
+	time.Sleep(time.Second)
+
 	cts.svc.AssertCalled(cts.T(),
 		"RevokeAllSessions",
 		mock.AnythingOfType("*context.emptyCtx"),
