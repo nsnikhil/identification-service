@@ -5,10 +5,10 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/nsnikhil/erx"
 	"golang.org/x/crypto/pbkdf2"
 	"golang.org/x/crypto/sha3"
 	"identification-service/pkg/config"
-	"identification-service/pkg/liberr"
 	"io"
 	"unicode"
 )
@@ -31,7 +31,7 @@ func (pe *pbkdfPasswordEncoder) GenerateSalt() ([]byte, error) {
 	salt := make([]byte, pe.saltLength)
 	_, err := io.ReadFull(rand.Reader, salt)
 	if err != nil {
-		return nil, liberr.WithArgs(liberr.Operation("Encoder.GenerateSalt"), err)
+		return nil, erx.WithArgs(erx.Operation("Encoder.GenerateSalt"), err)
 	}
 
 	return salt, nil
@@ -49,7 +49,7 @@ func (pe *pbkdfPasswordEncoder) VerifyPassword(password, userPasswordHash string
 	passwordHash := pe.EncodeKey(pe.GenerateKey(password, userPasswordSalt))
 
 	if userPasswordHash != passwordHash {
-		return liberr.WithArgs(liberr.Operation("Encoder.VerifyPassword"), errors.New("invalid credentials"))
+		return erx.WithArgs(erx.Operation("Encoder.VerifyPassword"), errors.New("invalid credentials"))
 	}
 
 	return nil
@@ -58,7 +58,7 @@ func (pe *pbkdfPasswordEncoder) VerifyPassword(password, userPasswordHash string
 //TODO: PASSWORD SPEC SHOULD BE CONFIGURABLE
 func (pe *pbkdfPasswordEncoder) ValidatePassword(password string) error {
 	wrap := func(err error) error {
-		return liberr.WithArgs(liberr.Operation("Encoder.ValidatePassword"), liberr.ValidationError, err)
+		return erx.WithArgs(erx.Operation("Encoder.ValidatePassword"), erx.ValidationError, err)
 	}
 
 	if len(password) < 8 {

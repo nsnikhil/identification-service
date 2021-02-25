@@ -3,7 +3,7 @@ package session
 import (
 	"context"
 	"errors"
-	"identification-service/pkg/liberr"
+	"github.com/nsnikhil/erx"
 	"math"
 )
 
@@ -24,8 +24,8 @@ func NewRevokeOldStrategy(store Store) *RevokeOld {
 
 func (ro *RevokeOld) Apply(ctx context.Context, userID string, currActiveSessions, maxActiveSessions int) error {
 	if currActiveSessions < maxActiveSessions {
-		return liberr.WithOp(
-			"RevokeOld.Apply",
+		return erx.WithArgs(
+			erx.Operation("RevokeOld.Apply"),
 			errors.New("current active sessions is less than max active sessions allowed"),
 		)
 	}
@@ -34,12 +34,12 @@ func (ro *RevokeOld) Apply(ctx context.Context, userID string, currActiveSession
 
 	c, err := ro.store.RevokeLastNSessions(ctx, userID, n)
 	if err != nil {
-		return liberr.WithOp("RevokeOld.Apply", err)
+		return erx.WithArgs(erx.Operation("RevokeOld.Apply"), err)
 	}
 
 	if c != int64(n) {
-		return liberr.WithOp(
-			"RevokeOld.Apply",
+		return erx.WithArgs(
+			erx.Operation("RevokeOld.Apply"),
 			errors.New("failed to revoke all n old sessions"),
 		)
 	}

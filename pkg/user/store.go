@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/lib/pq"
+	"github.com/nsnikhil/erx"
 	"identification-service/pkg/database"
-	"identification-service/pkg/liberr"
 )
 
 const (
@@ -33,16 +33,16 @@ func (us *userStore) CreateUser(ctx context.Context, user User) (string, error) 
 	if row.Err() != nil {
 		if pgErr, ok := row.Err().(*pq.Error); ok {
 			if pgErr.Code == "23505" {
-				return "", liberr.WithArgs(liberr.Operation("Store.CreateUser"), liberr.DuplicateRecordError, row.Err())
+				return "", erx.WithArgs(erx.Operation("Store.CreateUser"), erx.DuplicateRecordError, row.Err())
 			}
 		}
 
-		return "", liberr.WithOp("Store.CreateUser", row.Err())
+		return "", erx.WithArgs(erx.Operation("Store.CreateUser"), row.Err())
 	}
 
 	err := row.Scan(&id)
 	if err != nil {
-		return "", liberr.WithOp("Store.CreateUser", err)
+		return "", erx.WithArgs(erx.Operation("Store.CreateUser"), err)
 	}
 
 	return id, nil
@@ -53,19 +53,19 @@ func (us *userStore) GetUser(ctx context.Context, email string) (User, error) {
 
 	row := us.db.QueryRowContext(context.Background(), getUserByEmail, email)
 	if row.Err() != nil {
-		return user, liberr.WithOp("Store.GetUser", row.Err())
+		return user, erx.WithArgs(erx.Operation("Store.GetUser"), row.Err())
 	}
 
 	err := row.Scan(&user.id, &user.name, &user.email, &user.passwordHash, &user.passwordSalt)
 	if err != nil {
-		return user, liberr.WithOp("Store.GetUser", err)
+		return user, erx.WithArgs(erx.Operation("Store.GetUser"), err)
 	}
 
 	return user, nil
 }
 
 func (us *userStore) UpdatePassword(ctx context.Context, userID string, newPasswordHash string, newPasswordSalt []byte) (int64, error) {
-	wrap := func(err error) error { return liberr.WithOp("Store.UpdatePassword", err) }
+	wrap := func(err error) error { return erx.WithArgs(erx.Operation("Store.UpdatePassword"), err) }
 
 	res, err := us.db.ExecContext(context.Background(), updatePassword, newPasswordHash, newPasswordSalt, userID)
 	if err != nil {

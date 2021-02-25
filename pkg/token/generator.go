@@ -3,10 +3,10 @@ package token
 import (
 	"crypto"
 	"github.com/google/uuid"
+	"github.com/nsnikhil/erx"
 	"github.com/o1egl/paseto"
 	"identification-service/pkg/config"
 	"identification-service/pkg/libcrypto"
-	"identification-service/pkg/liberr"
 	"time"
 )
 
@@ -28,7 +28,7 @@ func (tg *pasetoTokenGenerator) GenerateAccessToken(ttl int, subject string, cla
 
 	accessToken, err := paseto.NewV2().Sign(tg.privateKey, jsonToken, nil)
 	if err != nil {
-		return "", liberr.WithArgs(liberr.Operation("TokenGenerator.GenerateAccessToken"), err)
+		return "", erx.WithArgs(erx.Operation("TokenGenerator.GenerateAccessToken"), err)
 	}
 
 	return accessToken, nil
@@ -57,7 +57,7 @@ func getJSONToken(now time.Time, ttl int, audience, issuer, subject string, clai
 func (tg *pasetoTokenGenerator) GenerateRefreshToken() (string, error) {
 	id, err := uuid.NewRandom()
 	if err != nil {
-		return "", liberr.WithArgs(liberr.Operation("TokenGenerator.GenerateRefreshToken"), err)
+		return "", erx.WithArgs(erx.Operation("TokenGenerator.GenerateRefreshToken"), err)
 	}
 
 	return id.String(), nil
@@ -66,7 +66,7 @@ func (tg *pasetoTokenGenerator) GenerateRefreshToken() (string, error) {
 func NewGenerator(cfg config.TokenConfig, keyGenerator libcrypto.Ed25519Generator) (Generator, error) {
 	_, priKey, err := keyGenerator.FromEncodedPem(cfg.EncodedSigningKey())
 	if err != nil {
-		return nil, liberr.WithArgs(liberr.Operation("TokenGenerator.NewTokenGenerator"), err)
+		return nil, erx.WithArgs(erx.Operation("TokenGenerator.NewTokenGenerator"), err)
 	}
 
 	return &pasetoTokenGenerator{

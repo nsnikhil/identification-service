@@ -3,7 +3,7 @@ package session
 import (
 	"errors"
 	"fmt"
-	"identification-service/pkg/liberr"
+	"github.com/nsnikhil/erx"
 	"identification-service/pkg/util"
 	"time"
 )
@@ -119,7 +119,7 @@ func (b *Builder) UpdatedAt(updatedAt time.Time) *Builder {
 
 func (b *Builder) Build() (Session, error) {
 	if b.err != nil {
-		return Session{}, liberr.WithOp("Builder.Build", b.err)
+		return Session{}, erx.WithArgs(erx.Operation("Builder.Build"), b.err)
 	}
 
 	return Session{

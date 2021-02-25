@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"github.com/Shopify/sarama"
 	"github.com/go-redis/redis/v8"
+	"github.com/nsnikhil/erx"
 	"gopkg.in/natefinch/lumberjack.v2"
 	"identification-service/pkg/cache"
 	"identification-service/pkg/client"
@@ -13,7 +14,6 @@ import (
 	"identification-service/pkg/http/router"
 	"identification-service/pkg/http/server"
 	"identification-service/pkg/libcrypto"
-	"identification-service/pkg/liberr"
 	"identification-service/pkg/password"
 	"identification-service/pkg/producer"
 	reporters "identification-service/pkg/reporting"
@@ -195,10 +195,10 @@ func logError(err error) {
 		return
 	}
 
-	t, ok := err.(*liberr.Error)
+	t, ok := err.(*erx.Erx)
 	if !ok {
 		log.Fatal(err)
 	}
 
-	log.Fatal(t.EncodedStack())
+	log.Fatal(t.String())
 }

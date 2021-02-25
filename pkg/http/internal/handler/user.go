@@ -1,9 +1,9 @@
 package handler
 
 import (
+	"github.com/nsnikhil/erx"
 	"identification-service/pkg/http/contract"
 	"identification-service/pkg/http/internal/util"
-	"identification-service/pkg/liberr"
 	"identification-service/pkg/user"
 	"net/http"
 )
@@ -15,13 +15,13 @@ type UserHandler struct {
 func (uh *UserHandler) SignUp(resp http.ResponseWriter, req *http.Request) error {
 	var data contract.CreateUserRequest
 	if err := util.ParseRequest(req, &data); err != nil {
-		return liberr.WithOp("UserHandler.SignUp", err)
+		return erx.WithArgs(erx.Operation("UserHandler.SignUp"), err)
 	}
 
 	//TODO: THINK IF THE VALIDATION SHOULD BE DELEGATED TO SVC LAYER ?
 	_, err := uh.service.CreateUser(req.Context(), data.Name, data.Email, data.Password)
 	if err != nil {
-		return liberr.WithOp("UserHandler.SignUp", err)
+		return erx.WithArgs(erx.Operation("UserHandler.SignUp"), err)
 	}
 
 	//TODO: WRITE SUCCESS LOG
@@ -30,7 +30,7 @@ func (uh *UserHandler) SignUp(resp http.ResponseWriter, req *http.Request) error
 }
 
 func (uh *UserHandler) UpdatePassword(resp http.ResponseWriter, req *http.Request) error {
-	wrap := func(err error) error { return liberr.WithOp("UserHandler.UpdatePassword", err) }
+	wrap := func(err error) error { return erx.WithArgs(erx.Operation("UserHandler.UpdatePassword"), err) }
 
 	var data contract.UpdatePasswordRequest
 	if err := util.ParseRequest(req, &data); err != nil {
@@ -39,7 +39,7 @@ func (uh *UserHandler) UpdatePassword(resp http.ResponseWriter, req *http.Reques
 
 	//TODO: MOVE VALIDATION FROM HERE
 	if err := data.IsValid(); err != nil {
-		return wrap(liberr.WithArgs(liberr.ValidationError, err))
+		return wrap(erx.WithArgs(erx.ValidationError, err))
 	}
 
 	err := uh.service.UpdatePassword(req.Context(), data.Email, data.OldPassword, data.NewPassword)

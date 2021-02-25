@@ -2,8 +2,8 @@ package consumer
 
 import (
 	"github.com/Shopify/sarama"
+	"github.com/nsnikhil/erx"
 	"identification-service/pkg/config"
-	"identification-service/pkg/liberr"
 	reporters "identification-service/pkg/reporting"
 	"os"
 	"os/signal"
@@ -36,7 +36,7 @@ func handleGracefulShutdown(kc *kafkaConsumer) {
 
 	if err := kc.consumer.Close(); err != nil {
 		logError(
-			liberr.WithArgs(liberr.Operation("Consumer.handleGracefulShutdown"), liberr.ConsumerError, err),
+			erx.WithArgs(erx.Operation("Consumer.handleGracefulShutdown"), erx.ConsumerError, err),
 			kc.lgr,
 		)
 	}
@@ -46,7 +46,7 @@ func handleGracefulShutdown(kc *kafkaConsumer) {
 
 func (kc *kafkaConsumer) Close() error {
 	if err := kc.consumer.Close(); err != nil {
-		return liberr.WithArgs(liberr.Operation("Consumer.Close"), liberr.ConsumerError, err)
+		return erx.WithArgs(erx.Operation("Consumer.Close"), erx.ConsumerError, err)
 	}
 
 	return nil
@@ -54,7 +54,7 @@ func (kc *kafkaConsumer) Close() error {
 
 func consume(topic string, kc *kafkaConsumer) {
 	wrap := func(err error) error {
-		return liberr.WithArgs(liberr.Operation("consume"), liberr.ConsumerError, err)
+		return erx.WithArgs(erx.Operation("consume"), erx.ConsumerError, err)
 	}
 
 	partitions, err := kc.consumer.Partitions(topic)
@@ -82,9 +82,9 @@ func consume(topic string, kc *kafkaConsumer) {
 }
 
 func logError(err error, lgr reporters.Logger) {
-	t, ok := err.(*liberr.Error)
+	t, ok := err.(*erx.Erx)
 	if ok {
-		lgr.Error(t.EncodedStack())
+		lgr.Error(t.String())
 	} else {
 		lgr.Error(err.Error())
 	}

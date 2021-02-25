@@ -3,9 +3,9 @@ package client
 import (
 	"context"
 	"encoding/base64"
+	"github.com/nsnikhil/erx"
 	"identification-service/pkg/config"
 	"identification-service/pkg/libcrypto"
-	"identification-service/pkg/liberr"
 )
 
 type Service interface {
@@ -31,7 +31,7 @@ func (cs *clientService) CreateClient(
 
 	pubKey, priKey, err := cs.keyGenerator.Generate()
 	if err != nil {
-		return "", "", liberr.WithOp("Service.CreateClient", err)
+		return "", "", erx.WithArgs(erx.Operation("Service.CreateClient"), err)
 	}
 
 	cl, err := NewClientBuilder(cs.cfg).
@@ -44,12 +44,12 @@ func (cs *clientService) CreateClient(
 		Build()
 
 	if err != nil {
-		return "", "", liberr.WithOp("Service.CreateClient", err)
+		return "", "", erx.WithArgs(erx.Operation("Service.CreateClient"), err)
 	}
 
 	id, err := cs.store.CreateClient(ctx, cl)
 	if err != nil {
-		return "", "", liberr.WithOp("Service.CreateClient", err)
+		return "", "", erx.WithArgs(erx.Operation("Service.CreateClient"), err)
 	}
 
 	//TODO: PULL ENCODING IN SEPARATE PACKAGE
@@ -60,7 +60,7 @@ func (cs *clientService) CreateClient(
 func (cs *clientService) RevokeClient(ctx context.Context, id string) error {
 	_, err := cs.store.RevokeClient(ctx, id)
 	if err != nil {
-		return liberr.WithOp("Service.RevokeClient", err)
+		return erx.WithArgs(erx.Operation("Service.RevokeClient"), err)
 	}
 
 	return nil
@@ -69,7 +69,7 @@ func (cs *clientService) RevokeClient(ctx context.Context, id string) error {
 func (cs *clientService) GetClient(ctx context.Context, name, secret string) (Client, error) {
 	client, err := cs.store.GetClient(ctx, name, secret)
 	if err != nil {
-		return Client{}, liberr.WithOp("Service.GetClient", err)
+		return Client{}, erx.WithArgs(erx.Operation("Service.GetClient"), err)
 	}
 
 	return client, nil

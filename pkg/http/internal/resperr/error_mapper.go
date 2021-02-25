@@ -1,7 +1,7 @@
 package resperr
 
 import (
-	"identification-service/pkg/liberr"
+	"github.com/nsnikhil/erx"
 	"net/http"
 )
 
@@ -11,7 +11,7 @@ const (
 )
 
 func MapError(err error) ResponseError {
-	t, ok := err.(*liberr.Error)
+	t, ok := err.(*erx.Erx)
 	if !ok {
 		return NewResponseError(defaultStatusCode, defaultMessage)
 	}
@@ -19,15 +19,15 @@ func MapError(err error) ResponseError {
 	k := t.Kind()
 
 	switch k {
-	case liberr.ValidationError:
+	case erx.ValidationError:
 		return NewResponseError(http.StatusBadRequest, t.Error())
-	case liberr.ResourceNotFound:
+	case erx.ResourceNotFoundError:
 		return NewResponseError(http.StatusNotFound, "resource not found")
-	case liberr.AuthenticationError:
+	case erx.AuthenticationError:
 		return NewResponseError(http.StatusUnauthorized, "authentication failed")
-	case liberr.InvalidCredentialsError:
+	case erx.InvalidCredentialsError:
 		return NewResponseError(http.StatusUnauthorized, "invalid credentials")
-	case liberr.DuplicateRecordError:
+	case erx.DuplicateRecordError:
 		return NewResponseError(http.StatusConflict, "duplicate record")
 	default:
 		return NewResponseError(defaultStatusCode, defaultMessage)

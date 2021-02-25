@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nsnikhil/erx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -12,7 +13,6 @@ import (
 	"identification-service/pkg/http/contract"
 	"identification-service/pkg/http/internal/handler"
 	mdl "identification-service/pkg/http/internal/middleware"
-	"identification-service/pkg/liberr"
 	reporters "identification-service/pkg/reporting"
 	"identification-service/pkg/test"
 	"io"
@@ -86,7 +86,7 @@ func TestClientHandlerCreateFailure(t *testing.T) {
 		sessionTokenTTL,
 		maxActiveSession,
 		test.ClientSessionStrategyRevokeOld,
-	).Return("", "", liberr.WithArgs(errors.New("failed to create client")))
+	).Return("", "", erx.WithArgs(errors.New("failed to create client")))
 
 	expectedBody := `{"error":{"message":"internal server error"},"success":false}`
 
@@ -139,7 +139,7 @@ func TestClientRevokeFailure(t *testing.T) {
 		"RevokeClient",
 		mock.AnythingOfType("*context.emptyCtx"),
 		clientID,
-	).Return(liberr.WithArgs(errors.New("failed to revoke client")))
+	).Return(erx.WithArgs(errors.New("failed to revoke client")))
 
 	expectedBody := `{"error":{"message":"internal server error"},"success":false}`
 

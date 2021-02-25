@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"identification-service/pkg/liberr"
+	"github.com/nsnikhil/erx"
 	"io/ioutil"
 	"net/http"
 )
@@ -32,13 +32,13 @@ func ParseRequest(req *http.Request, data interface{}) error {
 }
 
 //TODO: REMOVE THIS HELPER FUNCTION OR AT-LEAST RENAME
-func e(op string, err error) *liberr.Error {
-	opf := func() liberr.Operation {
+func e(op string, err error) *erx.Erx {
+	opf := func() erx.Operation {
 		if len(op) == 0 {
 			return "ParseRequest"
 		}
-		return liberr.Operation(fmt.Sprintf("ParseRequest.%s", op))
+		return erx.Operation(fmt.Sprintf("ParseRequest.%s", op))
 	}
 
-	return liberr.WithArgs(liberr.SeverityError, liberr.ValidationError, opf(), err)
+	return erx.WithArgs(erx.SeverityError, erx.ValidationError, opf(), err)
 }

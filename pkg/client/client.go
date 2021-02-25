@@ -7,8 +7,8 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"github.com/nsnikhil/erx"
 	"identification-service/pkg/config"
-	"identification-service/pkg/liberr"
 	"identification-service/pkg/util"
 	"time"
 )
@@ -227,11 +227,11 @@ func (b *Builder) UpdatedAt(updatedAt time.Time) *Builder {
 
 func (b *Builder) Build() (Client, error) {
 	if b.err != nil {
-		return Client{}, liberr.WithArgs(liberr.Operation("ClientBuilder.Build"), liberr.ValidationError, b.err)
+		return Client{}, erx.WithArgs(erx.Operation("ClientBuilder.Build"), erx.ValidationError, b.err)
 	}
 
 	if err := validateArgs(b.name, b.accessTokenTTL, b.sessionTTL, b.maxActiveSessions, b.sessionStrategyName, b.privateKey); err != nil {
-		return Client{}, liberr.WithArgs(liberr.Operation("ClientBuilder.Build"), liberr.ValidationError, err)
+		return Client{}, erx.WithArgs(erx.Operation("ClientBuilder.Build"), erx.ValidationError, err)
 	}
 
 	return Client{
@@ -272,7 +272,7 @@ func WithContext(ctx context.Context, cl Client) (context.Context, error) {
 	)
 
 	if err != nil {
-		return nil, liberr.WithArgs(liberr.Operation("Client.WithContext"), liberr.ValidationError, err)
+		return nil, erx.WithArgs(erx.Operation("Client.WithContext"), erx.ValidationError, err)
 	}
 
 	return context.WithValue(ctx, clientCtxKey, cl), nil
@@ -281,16 +281,16 @@ func WithContext(ctx context.Context, cl Client) (context.Context, error) {
 func FromContext(ctx context.Context) (Client, error) {
 	res := ctx.Value(clientCtxKey)
 	if res == nil {
-		return Client{}, liberr.WithOp(
-			"Client.FromContext",
+		return Client{}, erx.WithArgs(
+			erx.Operation("Client.FromContext"),
 			errors.New("client info not present in context"),
 		)
 	}
 
 	cl, ok := res.(Client)
 	if !ok {
-		return Client{}, liberr.WithOp(
-			"Client.FromContext",
+		return Client{}, erx.WithArgs(
+			erx.Operation("Client.FromContext"),
 			errors.New("invalid client info"),
 		)
 	}
@@ -305,7 +305,7 @@ func FromContext(ctx context.Context) (Client, error) {
 	)
 
 	if err != nil {
-		return Client{}, liberr.WithArgs(liberr.Operation("Client.WithContext"), liberr.ValidationError, err)
+		return Client{}, erx.WithArgs(erx.Operation("Client.WithContext"), erx.ValidationError, err)
 	}
 
 	return cl, nil

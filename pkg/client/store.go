@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"github.com/go-redis/redis/v8"
 	"github.com/lib/pq"
+	"github.com/nsnikhil/erx"
 	"identification-service/pkg/database"
-	"identification-service/pkg/liberr"
 	"time"
 )
 
@@ -45,25 +45,25 @@ func (cs *clientStore) CreateClient(ctx context.Context, client Client) (string,
 	if row.Err() != nil {
 		if pgErr, ok := row.Err().(*pq.Error); ok {
 			if pgErr.Code == "23505" {
-				return "", liberr.WithArgs(liberr.Operation("Store.CreateClient"), liberr.DuplicateRecordError, row.Err())
+				return "", erx.WithArgs(erx.Operation(""), erx.DuplicateRecordError, row.Err())
 			}
 		}
 
-		return "", liberr.WithOp("Store.CreateClient", row.Err())
+		return "", erx.WithArgs(erx.Operation("Store.CreateClient"), row.Err())
 	}
 
 	var secret string
 
 	err := row.Scan(&secret)
 	if err != nil {
-		return "", liberr.WithOp("Store.CreateClient", err)
+		return "", erx.WithArgs(erx.Operation("Store.CreateClient"), err)
 	}
 
 	return secret, nil
 }
 
 func (cs *clientStore) RevokeClient(ctx context.Context, id string) (int64, error) {
-	wrap := func(err error) error { return liberr.WithOp("Store.RevokeClient", err) }
+	wrap := func(err error) error { return erx.WithArgs(erx.Operation("Store.RevokeClient"), err) }
 
 	res, err := cs.db.ExecContext(ctx, revokeClient, id)
 	if err != nil {
@@ -76,9 +76,9 @@ func (cs *clientStore) RevokeClient(ctx context.Context, id string) (int64, erro
 	}
 
 	if c == 0 {
-		return 0, liberr.WithArgs(
-			liberr.Operation("Store.RevokeClient"),
-			liberr.ResourceNotFound,
+		return 0, erx.WithArgs(
+			erx.Operation("Store.RevokeClient"),
+			erx.ResourceNotFoundError,
 			fmt.Errorf("no client found with id %s", id),
 		)
 	}
@@ -90,9 +90,9 @@ func (cs *clientStore) GetClient(ctx context.Context, name, secret string) (Clie
 	//TODO: REFACTOR SECRET CHECK LOGIC
 	if cl, err := fetchFromCache(ctx, cs.cache, name); err == nil {
 		if cl.Secret != secret {
-			return Client{}, liberr.WithArgs(
-				liberr.Operation("Store.GetClient"),
-				liberr.InvalidCredentialsError,
+			return Client{}, erx.WithArgs(
+				erx.Operation("Store.GetClient"),
+				erx.InvalidCredentialsError,
 				errors.New("invalid credentials"),
 			)
 		}
@@ -102,7 +102,7 @@ func (cs *clientStore) GetClient(ctx context.Context, name, secret string) (Clie
 
 	row := cs.db.QueryRowContext(ctx, getClient, name, secret)
 	if row.Err() != nil {
-		return Client{}, liberr.WithOp("Store.GetClient", row.Err())
+		return Client{}, erx.WithArgs(erx.Operation("Store.GetClient"), row.Err())
 	}
 
 	var client Client
@@ -117,7 +117,7 @@ func (cs *clientStore) GetClient(ctx context.Context, name, secret string) (Clie
 	)
 
 	if err != nil {
-		return client, liberr.WithOp("Store.GetClient", err)
+		return client, erx.WithArgs(erx.Operation("Store.GetClient"), err)
 	}
 
 	//TODO: REFACTOR THIS

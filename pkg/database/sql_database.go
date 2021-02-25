@@ -3,7 +3,7 @@ package database
 import (
 	"context"
 	"database/sql"
-	"identification-service/pkg/liberr"
+	"github.com/nsnikhil/erx"
 	"time"
 )
 
@@ -29,7 +29,7 @@ func (pdb *pgDatabase) QueryContext(ctx context.Context, query string, args ...i
 
 	res, err := pdb.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, liberr.WithOp("SQLDatabase.QueryContext", err)
+		return nil, erx.WithArgs(erx.Operation("SQLDatabase.QueryContext"), err)
 	}
 
 	return res, nil
@@ -49,7 +49,7 @@ func (pdb *pgDatabase) ExecContext(ctx context.Context, query string, args ...in
 
 	res, err := pdb.db.ExecContext(ctx, query, args...)
 	if err != nil {
-		return nil, liberr.WithOp("SQLDatabase.ExecContext", err)
+		return nil, erx.WithArgs(erx.Operation("SQLDatabase.ExecContext"), err)
 	}
 
 	return res, nil

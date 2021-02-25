@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"github.com/nsnikhil/erx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"identification-service/pkg/http/internal/util"
-	"identification-service/pkg/liberr"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -47,14 +47,14 @@ func TestParseRequest(t *testing.T) {
 		"test request parse failure when req is nil": {
 			input:          func() *http.Request { return nil },
 			expectedResult: CusReq{},
-			expectedError:  liberr.WithArgs(errors.New("request is nil")),
+			expectedError:  erx.WithArgs(errors.New("request is nil")),
 		},
 		"test request parse failure when req body is nil": {
 			input: func() *http.Request {
 				return rf(http.MethodGet, "/random", nil)
 			},
 			expectedResult: CusReq{},
-			expectedError:  liberr.WithArgs(errors.New("request body is nil")),
+			expectedError:  erx.WithArgs(errors.New("request body is nil")),
 		},
 		"test request parse failure when fail to read body": {
 			input: func() *http.Request {
@@ -71,7 +71,7 @@ func TestParseRequest(t *testing.T) {
 				return r
 			},
 			expectedResult: CusReq{},
-			expectedError:  liberr.WithArgs(errors.New("unexpected end of JSON input")),
+			expectedError:  erx.WithArgs(errors.New("unexpected end of JSON input")),
 		},
 		"test request parse failure when unmarshalling fails": {
 			input: func() *http.Request {

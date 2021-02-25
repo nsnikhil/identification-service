@@ -3,8 +3,8 @@ package session
 import (
 	"context"
 	"fmt"
+	"github.com/nsnikhil/erx"
 	"identification-service/pkg/client"
-	"identification-service/pkg/liberr"
 	"identification-service/pkg/token"
 	"identification-service/pkg/user"
 )
@@ -27,7 +27,7 @@ type sessionService struct {
 
 func (ss *sessionService) LoginUser(ctx context.Context, email, password string) (string, string, error) {
 	wrap := func(err error) (string, string, error) {
-		return invalidToken, invalidToken, liberr.WithOp("Service.LoginUser", err)
+		return invalidToken, invalidToken, erx.WithArgs(erx.Operation("Service.LoginUser"), err)
 	}
 
 	cl, err := client.FromContext(ctx)
@@ -86,7 +86,7 @@ func (ss *sessionService) LoginUser(ctx context.Context, email, password string)
 
 func (ss *sessionService) LogoutUser(ctx context.Context, refreshToken string) error {
 	wrap := func(err error) error {
-		return liberr.WithOp("Service.LogoutUser", err)
+		return erx.WithArgs(erx.Operation("Service.LogoutUser"), err)
 	}
 
 	cl, err := client.FromContext(ctx)
@@ -109,7 +109,7 @@ func (ss *sessionService) LogoutUser(ctx context.Context, refreshToken string) e
 
 func (ss *sessionService) RefreshToken(ctx context.Context, refreshToken string) (string, error) {
 	wrap := func(err error) (string, error) {
-		return invalidToken, liberr.WithOp("Service.RefreshToken", err)
+		return invalidToken, erx.WithArgs(erx.Operation("Service.RefreshToken"), err)
 	}
 
 	cl, err := client.FromContext(ctx)
@@ -138,7 +138,7 @@ func (ss *sessionService) RefreshToken(ctx context.Context, refreshToken string)
 func (ss *sessionService) RevokeAllSessions(ctx context.Context, userID string) error {
 	_, err := ss.store.RevokeAllSessions(ctx, userID)
 	if err != nil {
-		return liberr.WithOp("Service.RevokeAllSessions", err)
+		return erx.WithArgs(erx.Operation("Service.RevokeAllSessions"), err)
 	}
 
 	return nil
@@ -160,7 +160,7 @@ func getValidSession(ctx context.Context, cl client.Client, store Store, refresh
 
 func validateSession(sessionTTL int, session Session, refreshToken string) error {
 	if session.revoked || session.IsExpired(float64(sessionTTL)) {
-		return liberr.WithArgs(liberr.AuthenticationError, fmt.Errorf("session expired for %s", refreshToken))
+		return erx.WithArgs(erx.AuthenticationError, fmt.Errorf("session expired for %s", refreshToken))
 	}
 
 	return nil

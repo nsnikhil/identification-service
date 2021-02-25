@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nsnikhil/erx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"identification-service/pkg/http/contract"
 	"identification-service/pkg/http/internal/handler"
 	mdl "identification-service/pkg/http/internal/middleware"
-	"identification-service/pkg/liberr"
 	reporters "identification-service/pkg/reporting"
 	"identification-service/pkg/test"
 	"identification-service/pkg/user"
@@ -55,7 +55,7 @@ func TestCreateUserFailure(t *testing.T) {
 		"test failure when service call fails fails": {
 			service: func() user.Service {
 				service := &user.MockService{}
-				service.On("CreateUser", mock.AnythingOfType("*context.emptyCtx"), userName, userEmail, userPassword).Return("", liberr.WithArgs(errors.New("failed to create new user")))
+				service.On("CreateUser", mock.AnythingOfType("*context.emptyCtx"), userName, userEmail, userPassword).Return("", erx.WithArgs(errors.New("failed to create new user")))
 
 				return service
 			},
@@ -114,7 +114,7 @@ func TestUpdatePasswordFailureWhenSvcCallFails(t *testing.T) {
 	userEmail, userPassword, userPasswordNew := test.NewEmail(), test.NewPassword(), test.NewPassword()
 
 	mockUserService := &user.MockService{}
-	mockUserService.On("UpdatePassword", mock.AnythingOfType("*context.emptyCtx"), userEmail, userPassword, userPasswordNew).Return(liberr.WithArgs(errors.New("failed to update password")))
+	mockUserService.On("UpdatePassword", mock.AnythingOfType("*context.emptyCtx"), userEmail, userPassword, userPasswordNew).Return(erx.WithArgs(errors.New("failed to update password")))
 
 	req := contract.UpdatePasswordRequest{Email: userEmail, OldPassword: userPassword, NewPassword: userPasswordNew}
 

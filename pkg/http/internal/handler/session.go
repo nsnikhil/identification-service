@@ -1,9 +1,9 @@
 package handler
 
 import (
+	"github.com/nsnikhil/erx"
 	"identification-service/pkg/http/contract"
 	"identification-service/pkg/http/internal/util"
-	"identification-service/pkg/liberr"
 	"identification-service/pkg/session"
 	"net/http"
 )
@@ -13,7 +13,7 @@ type SessionHandler struct {
 }
 
 func (sh *SessionHandler) Login(resp http.ResponseWriter, req *http.Request) error {
-	wrap := func(err error) error { return liberr.WithOp("SessionHandler.Login", err) }
+	wrap := func(err error) error { return erx.WithArgs(erx.Operation("SessionHandler.Login"), err) }
 
 	var data contract.LoginRequest
 	if err := util.ParseRequest(req, &data); err != nil {
@@ -39,7 +39,7 @@ func (sh *SessionHandler) Login(resp http.ResponseWriter, req *http.Request) err
 }
 
 func (sh *SessionHandler) RefreshToken(resp http.ResponseWriter, req *http.Request) error {
-	wrap := func(err error) error { return liberr.WithOp("SessionHandler.RefreshToken", err) }
+	wrap := func(err error) error { return erx.WithArgs(erx.Operation("SessionHandler.RefreshToken"), err) }
 
 	var data contract.RefreshTokenRequest
 	if err := util.ParseRequest(req, &data); err != nil {
@@ -64,7 +64,7 @@ func (sh *SessionHandler) RefreshToken(resp http.ResponseWriter, req *http.Reque
 }
 
 func (sh *SessionHandler) Logout(resp http.ResponseWriter, req *http.Request) error {
-	wrap := func(err error) error { return liberr.WithOp("SessionHandler.Logout", err) }
+	wrap := func(err error) error { return erx.WithArgs(erx.Operation("SessionHandler.Logout"), err) }
 
 	var data contract.LogoutRequest
 	if err := util.ParseRequest(req, &data); err != nil {

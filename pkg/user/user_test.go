@@ -2,9 +2,9 @@ package user_test
 
 import (
 	"errors"
+	"github.com/nsnikhil/erx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"identification-service/pkg/liberr"
 	"identification-service/pkg/password"
 	"identification-service/pkg/test"
 	"identification-service/pkg/user"
@@ -102,7 +102,7 @@ func TestCreateNewUserFailureForInvalidPassword(t *testing.T) {
 	mockEncoder.On(
 		"ValidatePassword",
 		mock.AnythingOfType("string"),
-	).Return(liberr.WithArgs(errors.New("invalid password")))
+	).Return(erx.WithArgs(errors.New("invalid password")))
 
 	_, err := user.NewUserBuilder(mockEncoder).
 		Name(test.RandString(8)).

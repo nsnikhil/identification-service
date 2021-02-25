@@ -2,7 +2,7 @@ package contract
 
 import (
 	"fmt"
-	"identification-service/pkg/liberr"
+	"github.com/nsnikhil/erx"
 )
 
 type pair struct {
@@ -13,9 +13,9 @@ type pair struct {
 func isValid(op string, pr ...pair) error {
 	for _, p := range pr {
 		if len(p.data) == 0 {
-			return liberr.WithArgs(
-				liberr.Operation(op),
-				liberr.ValidationError,
+			return erx.WithArgs(
+				erx.Operation(op),
+				erx.ValidationError,
 				fmt.Errorf("%s cannot be empty", p.name),
 			)
 		}

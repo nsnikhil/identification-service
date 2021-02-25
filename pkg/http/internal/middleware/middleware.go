@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/nsnikhil/erx"
 	"identification-service/pkg/client"
 	"identification-service/pkg/http/internal/resperr"
 	"identification-service/pkg/http/internal/util"
-	"identification-service/pkg/liberr"
 	reporters "identification-service/pkg/reporting"
 	"net/http"
 	"time"
@@ -61,9 +61,9 @@ func WithBasicAuth(cred map[string]string, lgr reporters.Logger, realm string, h
 		authFailed := func(resp http.ResponseWriter, realm string) {
 			resp.Header().Set("WWW-Authenticate", fmt.Sprintf(`Basic realm="%s"`, realm))
 
-			logAndWriteError(lgr, resp, liberr.WithArgs(
-				liberr.Operation("WithBasicAuth"),
-				liberr.AuthenticationError,
+			logAndWriteError(lgr, resp, erx.WithArgs(
+				erx.Operation("WithBasicAuth"),
+				erx.AuthenticationError,
 				errors.New("basic auth failed"),
 			))
 		}
@@ -91,18 +91,18 @@ func WithClientAuth(lgr reporters.Logger, service client.Service, handler http.H
 
 		cl, err := service.GetClient(req.Context(), name, secret)
 		if err != nil {
-			logAndWriteError(lgr, resp, liberr.WithArgs(
-				liberr.Operation("WithClientAuth"),
-				liberr.AuthenticationError,
+			logAndWriteError(lgr, resp, erx.WithArgs(
+				erx.Operation("WithClientAuth"),
+				erx.AuthenticationError,
 				err,
 			))
 			return
 		}
 
 		if cl.IsRevoked() {
-			logAndWriteError(lgr, resp, liberr.WithArgs(
-				liberr.Operation("WithClientAuth"),
-				liberr.AuthenticationError,
+			logAndWriteError(lgr, resp, erx.WithArgs(
+				erx.Operation("WithClientAuth"),
+				erx.AuthenticationError,
 				errors.New("client revoked"),
 			))
 			return
@@ -110,7 +110,7 @@ func WithClientAuth(lgr reporters.Logger, service client.Service, handler http.H
 
 		ctx, err := client.WithContext(req.Context(), cl)
 		if err != nil {
-			logAndWriteError(lgr, resp, liberr.WithOp("WithClientAuth", err))
+			logAndWriteError(lgr, resp, erx.WithArgs(erx.Operation("WithClientAuth"), err))
 			return
 		}
 
@@ -119,9 +119,9 @@ func WithClientAuth(lgr reporters.Logger, service client.Service, handler http.H
 }
 
 func logAndWriteError(lgr reporters.Logger, resp http.ResponseWriter, err error) {
-	t, ok := err.(*liberr.Error)
+	t, ok := err.(*erx.Erx)
 	if ok {
-		lgr.Error(t.EncodedStack())
+		lgr.Error(t.String())
 	} else {
 		lgr.Error(err.Error())
 	}

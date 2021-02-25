@@ -1,10 +1,10 @@
 package handler
 
 import (
+	"github.com/nsnikhil/erx"
 	"identification-service/pkg/client"
 	"identification-service/pkg/http/contract"
 	"identification-service/pkg/http/internal/util"
-	"identification-service/pkg/liberr"
 	"net/http"
 )
 
@@ -15,7 +15,7 @@ type ClientHandler struct {
 func (ch *ClientHandler) Register(resp http.ResponseWriter, req *http.Request) error {
 	var reqBody contract.CreateClientRequest
 	if err := util.ParseRequest(req, &reqBody); err != nil {
-		return liberr.WithArgs(liberr.Operation("ClientHandler.Register"), err)
+		return erx.WithArgs(erx.Operation("ClientHandler.Register"), err)
 	}
 
 	publicKey, secret, err := ch.service.CreateClient(
@@ -28,7 +28,7 @@ func (ch *ClientHandler) Register(resp http.ResponseWriter, req *http.Request) e
 	)
 
 	if err != nil {
-		return liberr.WithOp("ClientHandler.Register", err)
+		return erx.WithArgs(erx.Operation("ClientHandler.Register"), err)
 	}
 
 	respBody := contract.CreateClientResponse{PublicKey: publicKey, Secret: secret}
@@ -40,12 +40,12 @@ func (ch *ClientHandler) Register(resp http.ResponseWriter, req *http.Request) e
 func (ch *ClientHandler) Revoke(resp http.ResponseWriter, req *http.Request) error {
 	var reqBody contract.ClientRevokeRequest
 	if err := util.ParseRequest(req, &reqBody); err != nil {
-		return liberr.WithArgs(liberr.Operation("ClientHandler.Revoke"), err)
+		return erx.WithArgs(erx.Operation("ClientHandler.Revoke"), err)
 	}
 
 	err := ch.service.RevokeClient(req.Context(), reqBody.ID)
 	if err != nil {
-		return liberr.WithOp("ClientHandler.Revoke", err)
+		return erx.WithArgs(erx.Operation("ClientHandler.Revoke"), err)
 	}
 
 	respBody := contract.ClientRevokeResponse{Message: contract.ClientRevokeSuccessful}

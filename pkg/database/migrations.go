@@ -7,8 +7,8 @@ import (
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
+	"github.com/nsnikhil/erx"
 	"identification-service/pkg/config"
-	"identification-service/pkg/liberr"
 	"path/filepath"
 	"strings"
 )
@@ -41,13 +41,13 @@ func wrap(err error, name string) error {
 		return nil
 	}
 
-	return liberr.WithOp(liberr.Operation(name), err)
+	return erx.WithArgs(erx.Operation(name), err)
 }
 
 func NewMigrator(cfg config.MigrationConfig, db *sql.DB) (Migrator, error) {
 	newMigrate, err := newMigrate(cfg, db)
 	if err != nil {
-		return nil, liberr.WithOp("NewMigrator", err)
+		return nil, erx.WithArgs(erx.Operation("NewMigrator"), err)
 	}
 
 	return &pgMigrator{

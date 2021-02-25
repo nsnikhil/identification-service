@@ -5,8 +5,8 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"github.com/nsnikhil/erx"
 	"golang.org/x/crypto/ssh"
-	"identification-service/pkg/liberr"
 )
 
 type Ed25519Generator interface {
@@ -21,7 +21,7 @@ type ed25519KeyGenerator struct {
 func (eg *ed25519KeyGenerator) Generate() (ed25519.PublicKey, ed25519.PrivateKey, error) {
 	pubKey, priKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
-		return nil, nil, liberr.WithOp("Ed25519Generator.Generate", err)
+		return nil, nil, erx.WithArgs(erx.Operation("Ed25519Generator.Generate"), err)
 	}
 
 	return pubKey, priKey, err
@@ -30,18 +30,18 @@ func (eg *ed25519KeyGenerator) Generate() (ed25519.PublicKey, ed25519.PrivateKey
 func (eg *ed25519KeyGenerator) FromEncodedPem(encodedPem string) (ed25519.PublicKey, ed25519.PrivateKey, error) {
 	pem, err := base64.RawStdEncoding.DecodeString(encodedPem)
 	if err != nil {
-		return nil, nil, liberr.WithOp("Ed25519Generator.FromEncodedPem", err)
+		return nil, nil, erx.WithArgs(erx.Operation("Ed25519Generator.FromEncodedPem"), err)
 	}
 
 	privateKey, err := ssh.ParseRawPrivateKey(pem)
 	if err != nil {
-		return nil, nil, liberr.WithOp("Ed25519Generator.FromEncodedPem", err)
+		return nil, nil, erx.WithArgs(erx.Operation("Ed25519Generator.FromEncodedPem"), err)
 	}
 
 	priKey, ok := privateKey.(*ed25519.PrivateKey)
 	if !ok {
-		return nil, nil, liberr.WithOp(
-			"Ed25519Generator.FromEncodedPem",
+		return nil, nil, erx.WithArgs(
+			erx.Operation("Ed25519Generator.FromEncodedPem"),
 			fmt.Errorf("invalid ed25519 key %v", pem),
 		)
 	}

@@ -2,7 +2,7 @@ package consumer
 
 import (
 	"context"
-	"identification-service/pkg/liberr"
+	"github.com/nsnikhil/erx"
 	"identification-service/pkg/session"
 )
 
@@ -16,7 +16,7 @@ type updatePasswordHandler struct {
 
 func (uph *updatePasswordHandler) Handle(msg []byte) error {
 	if err := uph.ss.RevokeAllSessions(context.Background(), string(msg)); err != nil {
-		return liberr.WithOp("updatePasswordHandler", err)
+		return erx.WithArgs(erx.Operation("updatePasswordHandler"), err)
 	}
 
 	return nil

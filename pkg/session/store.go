@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/nsnikhil/erx"
 	"identification-service/pkg/database"
-	"identification-service/pkg/liberr"
 	"strings"
 )
 
@@ -40,7 +40,7 @@ func (ss *sessionStore) CreateSession(ctx context.Context, session Session) (str
 
 	err := ss.db.QueryRowContext(ctx, createSession, session.userID, session.refreshToken).Scan(&sessionID)
 	if err != nil {
-		return "", liberr.WithOp("Store.CreateSession", err)
+		return "", erx.WithArgs(erx.Operation("Store.CreateSession"), err)
 	}
 
 	return sessionID, nil
@@ -51,16 +51,16 @@ func (ss *sessionStore) GetSession(ctx context.Context, refreshToken string) (Se
 
 	row := ss.db.QueryRowContext(ctx, getSession, refreshToken)
 	if row.Err() != nil {
-		return session, liberr.WithOp("Store.GetSession", row.Err())
+		return session, erx.WithArgs(erx.Operation("Store.GetSession"), row.Err())
 	}
 
 	//TODO: REMOVE NESTED CHECKS HERE
 	err := row.Scan(&session.id, &session.userID, &session.revoked, &session.createdAt, &session.updatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return session, liberr.WithArgs(liberr.Operation("Store.GetSession"), liberr.ResourceNotFound, err)
+			return session, erx.WithArgs(erx.Operation("Store.GetSession"), erx.ResourceNotFoundError, err)
 		}
-		return session, liberr.WithOp("Store.GetSession", err)
+		return session, erx.WithArgs(erx.Operation("Store.GetSession"), err)
 	}
 
 	return session, nil
@@ -71,7 +71,7 @@ func (ss *sessionStore) GetActiveSessionsCount(ctx context.Context, userID strin
 
 	err := ss.db.QueryRowContext(ctx, getActiveSessionsCount, userID).Scan(&activeSessionCount)
 	if err != nil {
-		return -1, liberr.WithOp("Store.GetActiveSessionsCount", err)
+		return -1, erx.WithArgs(erx.Operation("Store.GetActiveSessionsCount"), err)
 	}
 
 	return activeSessionCount, nil
@@ -80,18 +80,18 @@ func (ss *sessionStore) GetActiveSessionsCount(ctx context.Context, userID strin
 func (ss *sessionStore) RevokeSessions(ctx context.Context, refreshTokens ...string) (int64, error) {
 	res, err := ss.db.ExecContext(ctx, revokeSessions, toArgs(refreshTokens))
 	if err != nil {
-		return 0, liberr.WithOp("Store.RevokeSession", err)
+		return 0, erx.WithArgs(erx.Operation("Store.RevokeSession"), err)
 	}
 
 	c, err := res.RowsAffected()
 	if err != nil {
-		return 0, liberr.WithOp("Store.RevokeSession", err)
+		return 0, erx.WithArgs(erx.Operation("Store.RevokeSession"), err)
 	}
 
 	if c == 0 {
-		return 0, liberr.WithArgs(
-			liberr.Operation("Store.RevokeSession"),
-			liberr.ResourceNotFound,
+		return 0, erx.WithArgs(
+			erx.Operation("Store.RevokeSession"),
+			erx.ResourceNotFoundError,
 			fmt.Errorf("no session found for refresh tokens %v", refreshTokens),
 		)
 	}
@@ -102,7 +102,7 @@ func (ss *sessionStore) RevokeSessions(ctx context.Context, refreshTokens ...str
 func (ss *sessionStore) RevokeLastNSessions(ctx context.Context, userID string, n int) (int64, error) {
 	rows, err := ss.db.QueryContext(ctx, getLastNRefreshTokens, userID, n)
 	if err != nil {
-		return 0, liberr.WithOp("Store.RevokeLastNSessions", err)
+		return 0, erx.WithArgs(erx.Operation("Store.RevokeLastNSessions"), err)
 	}
 
 	var refreshTokens []string
@@ -112,15 +112,15 @@ func (ss *sessionStore) RevokeLastNSessions(ctx context.Context, userID string, 
 
 		err := rows.Scan(&refreshToken)
 		if err != nil {
-			return 0, liberr.WithOp("Store.RevokeLastNSessions", err)
+			return 0, erx.WithArgs(erx.Operation("Store.RevokeLastNSessions"), err)
 		}
 
 		refreshTokens = append(refreshTokens, refreshToken)
 	}
 
 	if len(refreshTokens) == 0 {
-		return 0, liberr.WithOp(
-			"Store.RevokeLastNSessions",
+		return 0, erx.WithArgs(
+			erx.Operation("Store.RevokeLastNSessions"),
 			fmt.Errorf("no refresh tokens found to revoke against %s", userID),
 		)
 	}
@@ -131,17 +131,17 @@ func (ss *sessionStore) RevokeLastNSessions(ctx context.Context, userID string, 
 func (ss *sessionStore) RevokeAllSessions(ctx context.Context, userID string) (int64, error) {
 	res, err := ss.db.ExecContext(ctx, revokeAllSessions, userID)
 	if err != nil {
-		return 0, liberr.WithOp("Store.RevokeAllSessions", err)
+		return 0, erx.WithArgs(erx.Operation("Store.RevokeAllSessions"), err)
 	}
 
 	c, err := res.RowsAffected()
 	if err != nil {
-		return 0, liberr.WithOp("Store.RevokeAllSessions", err)
+		return 0, erx.WithArgs(erx.Operation("Store.RevokeAllSessions"), err)
 	}
 
 	if c == 0 {
-		return 0, liberr.WithOp(
-			"Store.RevokeAllSessions",
+		return 0, erx.WithArgs(
+			erx.Operation("Store.RevokeAllSessions"),
 			fmt.Errorf("no sessions found for user %s", userID),
 		)
 	}

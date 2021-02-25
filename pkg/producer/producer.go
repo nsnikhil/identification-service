@@ -2,7 +2,7 @@ package producer
 
 import (
 	"github.com/Shopify/sarama"
-	"identification-service/pkg/liberr"
+	"github.com/nsnikhil/erx"
 	"math"
 )
 
@@ -22,7 +22,7 @@ func (kp *kafkaProducer) Produce(topic string, value []byte) (int32, int64, erro
 	})
 
 	if err != nil {
-		return math.MinInt32, math.MinInt64, liberr.WithArgs(liberr.Operation("Producer.Produce"), liberr.ProducerError, err)
+		return math.MinInt32, math.MinInt64, erx.WithArgs(erx.Operation("Producer.Produce"), erx.ProducerError, err)
 	}
 
 	return partition, offset, nil
@@ -30,7 +30,7 @@ func (kp *kafkaProducer) Produce(topic string, value []byte) (int32, int64, erro
 
 func (kp *kafkaProducer) Close() error {
 	if err := kp.producer.Close(); err != nil {
-		return liberr.WithArgs(liberr.Operation("Producer.Close"), liberr.ProducerError, err)
+		return erx.WithArgs(erx.Operation("Producer.Close"), erx.ProducerError, err)
 	}
 
 	return nil

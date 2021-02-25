@@ -3,8 +3,8 @@ package cache
 import (
 	"context"
 	"github.com/go-redis/redis/v8"
+	"github.com/nsnikhil/erx"
 	"identification-service/pkg/config"
-	"identification-service/pkg/liberr"
 )
 
 type Handler interface {
@@ -28,7 +28,7 @@ func (rh *redisHandler) GetCache() (*redis.Client, error) {
 
 	cmd := cl.Ping(context.Background())
 	if cmd.Err() != nil {
-		return nil, liberr.WithOp("Handler.GetCache", cmd.Err())
+		return nil, erx.WithArgs(erx.Operation("Handler.GetCache"), cmd.Err())
 	}
 
 	return cl, nil

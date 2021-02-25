@@ -3,8 +3,8 @@ package database
 import (
 	"database/sql"
 	_ "github.com/lib/pq"
+	"github.com/nsnikhil/erx"
 	"identification-service/pkg/config"
-	"identification-service/pkg/liberr"
 	"time"
 )
 
@@ -19,7 +19,7 @@ type sqlDBHandler struct {
 func (dbh *sqlDBHandler) GetDB() (*sql.DB, error) {
 	db, err := sql.Open(dbh.cfg.DriverName(), dbh.cfg.Source())
 	if err != nil {
-		return nil, liberr.WithArgs(liberr.Operation("Handler.GetDB"), liberr.SeverityError, err)
+		return nil, erx.WithArgs(erx.Operation("Handler.GetDB"), erx.SeverityError, err)
 	}
 
 	db.SetMaxOpenConns(dbh.cfg.MaxOpenConnections())
@@ -27,7 +27,7 @@ func (dbh *sqlDBHandler) GetDB() (*sql.DB, error) {
 	db.SetConnMaxLifetime(time.Minute * time.Duration(dbh.cfg.ConnectionMaxLifetime()))
 
 	if err := db.Ping(); err != nil {
-		return nil, liberr.WithArgs(liberr.Operation("Handler.GetDB"), liberr.SeverityError, err)
+		return nil, erx.WithArgs(erx.Operation("Handler.GetDB"), erx.SeverityError, err)
 	}
 
 	return db, nil

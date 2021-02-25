@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nsnikhil/erx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"identification-service/pkg/http/contract"
 	"identification-service/pkg/http/internal/handler"
 	mdl "identification-service/pkg/http/internal/middleware"
-	"identification-service/pkg/liberr"
 	reporters "identification-service/pkg/reporting"
 	"identification-service/pkg/session"
 	"identification-service/pkg/test"
@@ -94,7 +94,7 @@ func TestLoginFailureWhenServiceCallFails(t *testing.T) {
 		mock.AnythingOfType("*context.emptyCtx"),
 		userEmail,
 		userPassword,
-	).Return("", "", liberr.WithArgs(errors.New("failed to login")))
+	).Return("", "", erx.WithArgs(errors.New("failed to login")))
 
 	testLogin(t, http.StatusInternalServerError, expectedBody, mockSessionService, reqBody)
 }
@@ -148,7 +148,7 @@ func TestRefreshTokenFailureWhenServiceCallFails(t *testing.T) {
 		"RefreshToken",
 		mock.AnythingOfType("*context.emptyCtx"),
 		refreshToken,
-	).Return("", liberr.WithArgs(errors.New("failed to refresh token")))
+	).Return("", erx.WithArgs(errors.New("failed to refresh token")))
 
 	expectedBody := `{"error":{"message":"internal server error"},"success":false}`
 
@@ -207,7 +207,7 @@ func TestLogoutFailureWhenServiceCallFails(t *testing.T) {
 		"LogoutUser",
 		mock.AnythingOfType("*context.emptyCtx"),
 		refreshToken,
-	).Return(liberr.WithArgs(errors.New("failed to logout user")))
+	).Return(erx.WithArgs(errors.New("failed to logout user")))
 
 	expectedBody := `{"error":{"message":"internal server error"},"success":false}`
 

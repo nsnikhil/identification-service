@@ -3,7 +3,7 @@ package user
 import (
 	"errors"
 	"fmt"
-	"identification-service/pkg/liberr"
+	"github.com/nsnikhil/erx"
 	"identification-service/pkg/password"
 	"identification-service/pkg/util"
 	"time"
@@ -169,7 +169,7 @@ func (b *Builder) UpdatedAt(updatedAt time.Time) *Builder {
 
 func (b *Builder) Build() (User, error) {
 	if b.err != nil {
-		return User{}, liberr.WithArgs(liberr.Operation("Builder.Build"), liberr.ValidationError, b.err)
+		return User{}, erx.WithArgs(erx.Operation("Builder.Build"), erx.ValidationError, b.err)
 	}
 
 	//TODO: ADD VALIDATION AGAIN SINCE USER MIGHT NOT HAVE SET ANY REQUIRED FIELDS USING BUILDER PATTERN

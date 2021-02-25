@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"github.com/nsnikhil/erx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"identification-service/pkg/client"
 	"identification-service/pkg/config"
 	"identification-service/pkg/http/internal/middleware"
-	"identification-service/pkg/liberr"
 	reporters "identification-service/pkg/reporting"
 	"identification-service/pkg/test"
 	"net/http"
@@ -31,27 +31,27 @@ func TestWithErrorHandling(t *testing.T) {
 			name: "test error middleware with typed error",
 			handler: func(resp http.ResponseWriter, req *http.Request) error {
 				db := func() error {
-					return liberr.WithArgs(
-						liberr.Operation("db.insert"),
-						liberr.Kind("databaseError"),
-						liberr.SeverityError,
+					return erx.WithArgs(
+						erx.Operation("db.insert"),
+						erx.Kind("databaseError"),
+						erx.SeverityError,
 						errors.New("insertion failed"),
 					)
 				}
 
 				svc := func() error {
-					return liberr.WithArgs(
-						liberr.Operation("svc.addUser"),
-						liberr.Kind("dependencyError"),
-						liberr.SeverityWarn,
+					return erx.WithArgs(
+						erx.Operation("svc.addUser"),
+						erx.Kind("dependencyError"),
+						erx.SeverityWarn,
 						db(),
 					)
 				}
 
-				return liberr.WithArgs(
-					liberr.Operation("handler.addUser"),
-					liberr.ValidationError,
-					liberr.SeverityInfo,
+				return erx.WithArgs(
+					erx.Operation("handler.addUser"),
+					erx.ValidationError,
+					erx.SeverityInfo,
 					svc(),
 				)
 			},
@@ -356,7 +356,7 @@ func TestWithClientAuthenticationFailureWhenSvcCallFails(t *testing.T) {
 		mock.AnythingOfType("*context.emptyCtx"),
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
-	).Return(client.Client{}, liberr.WithArgs(errors.New("client validation failed")))
+	).Return(client.Client{}, erx.WithArgs(errors.New("client validation failed")))
 
 	testWithClientAuthentication(t, http.StatusUnauthorized, mockClientService)
 }

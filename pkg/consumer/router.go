@@ -2,8 +2,8 @@ package consumer
 
 import (
 	"fmt"
+	"github.com/nsnikhil/erx"
 	"identification-service/pkg/config"
-	"identification-service/pkg/liberr"
 	"identification-service/pkg/session"
 )
 
@@ -18,7 +18,7 @@ type kafkaMessageRouter struct {
 
 func (kmr *kafkaMessageRouter) Route(topic string, message []byte) error {
 	wrap := func(err error) error {
-		return liberr.WithOp("router.route", err)
+		return erx.WithArgs(erx.Operation("router.route"), err)
 	}
 
 	handler, err := getHandler(topic, kmr)

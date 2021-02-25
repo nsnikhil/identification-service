@@ -2,8 +2,8 @@ package user
 
 import (
 	"context"
+	"github.com/nsnikhil/erx"
 	"identification-service/pkg/config"
-	"identification-service/pkg/liberr"
 	"identification-service/pkg/password"
 	"identification-service/pkg/producer"
 )
@@ -24,7 +24,7 @@ type userService struct {
 }
 
 func (us *userService) CreateUser(ctx context.Context, name, email, password string) (string, error) {
-	wrap := func(err error) error { return liberr.WithOp("Service.SignUp", err) }
+	wrap := func(err error) error { return erx.WithArgs(erx.Operation("Service.SignUp"), err) }
 
 	user, err := NewUserBuilder(us.encoder).Name(name).Email(email).Password(password).Build()
 	if err != nil {
@@ -45,19 +45,19 @@ func (us *userService) CreateUser(ctx context.Context, name, email, password str
 func (us *userService) GetUserID(ctx context.Context, email, password string) (string, error) {
 	user, err := us.store.GetUser(ctx, email)
 	if err != nil {
-		return "", liberr.WithArgs(liberr.Operation("Service.GetUserID"), liberr.InvalidCredentialsError, err)
+		return "", erx.WithArgs(erx.Operation("Service.GetUserID"), erx.InvalidCredentialsError, err)
 	}
 
 	err = us.encoder.VerifyPassword(password, user.passwordHash, user.passwordSalt)
 	if err != nil {
-		return "", liberr.WithArgs(liberr.Operation("Service.GetUserID"), liberr.InvalidCredentialsError, err)
+		return "", erx.WithArgs(erx.Operation("Service.GetUserID"), erx.InvalidCredentialsError, err)
 	}
 
 	return user.id, nil
 }
 
 func (us *userService) UpdatePassword(ctx context.Context, email, oldPassword, newPassword string) error {
-	wrap := func(err error) error { return liberr.WithOp("Service.UpdatePassword", err) }
+	wrap := func(err error) error { return erx.WithArgs(erx.Operation("Service.UpdatePassword"), err) }
 
 	err := us.encoder.ValidatePassword(newPassword)
 	if err != nil {

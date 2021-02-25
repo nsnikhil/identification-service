@@ -12,10 +12,11 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.13.0
 	github.com/google/uuid v1.1.2
 	github.com/lib/pq v1.8.0
+	github.com/nsnikhil/erx v0.0.1
 	github.com/o1egl/paseto v1.0.0
 	github.com/prometheus/client_golang v1.8.0
 	github.com/spf13/viper v1.7.1
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.7.0
 	go.uber.org/zap v1.16.0
 	golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897
 	golang.org/x/sys v0.0.0-20201101102859-da207088b7d1 // indirect
