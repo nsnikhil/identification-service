@@ -59,6 +59,18 @@ docker-build:
 docker-push: docker-build
 	docker push $(DOCKER_REGISTRY_USER_NAME)/$(APP):$(APP_VERSION)
 
+start-components-in-compose:
+	docker-compose -f build/components-docker-compose.yml up -d
+
+stop-components-in-compose:
+	docker-compose -f build/components-docker-compose.yml down
+
+start-app-in-compose:
+	docker-compose -f build/components-docker-compose.yml -f build/monitoring-docker-compose.yml -f build/app-docker-compose.yml up -d
+
+stop-app-in-compose:
+	docker-compose -f build/components-docker-compose.yml -f build/monitoring-docker-compose.yml -f build/app-docker-compose.yml down
+
 clean:
 	rm -rf out/
 
@@ -69,7 +81,7 @@ test:
 	go clean -testcache
 	go test ./...
 
-ci-test: copy-config migrate test
+ci-test: start-components-in-compose copy-config migrate test
 
 test-cover-html:
 	go clean -testcache

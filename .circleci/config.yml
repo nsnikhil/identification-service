@@ -7,9 +7,7 @@ jobs:
       docker_layer_caching: true
     steps:
       - checkout
-      - run: |
-          docker-compose -f build/components-docker-compose.yml up -d
-          make ci-test
+      - run: make ci-test
 
   publish:
     docker:
