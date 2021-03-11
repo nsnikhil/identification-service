@@ -1,6 +1,6 @@
 APP=identification-service
-APP_VERSION:=0.1
-APP_COMMIT:=$(shell git rev-parse HEAD)
+APP_VERSION=0.1
+APP_COMMIT=$(shell git rev-parse HEAD)
 APP_EXECUTABLE="./out/$(APP)"
 ALL_PACKAGES=$(shell go list ./... | grep -v "vendor")
 
@@ -54,7 +54,7 @@ worker: build
 
 docker-build:
 	docker build -t $(DOCKER_REGISTRY_USER_NAME)/$(APP):$(APP_VERSION) .
-	docker rmi -f $$(docker images -f "dangling=true" -q)
+	docker rmi -f $$(docker images -f "dangling=true" -q) || true
 
 docker-push: docker-build
 	docker push $(DOCKER_REGISTRY_USER_NAME)/$(APP):$(APP_VERSION)

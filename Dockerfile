@@ -8,4 +8,5 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-extldflag
 
 FROM scratch
 COPY --from=builder /identification-service/identification-service .
+COPY --from=builder /identification-service/pkg/database/migrations /migrations
 ENTRYPOINT ["./identification-service"]

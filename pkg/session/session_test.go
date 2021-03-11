@@ -64,7 +64,7 @@ func buildSession(d map[string]interface{}) (session.Session, error) {
 
 func TestIsExpiredTrue(t *testing.T) {
 	ss, err := session.NewSessionBuilder().
-		CreatedAt(time.Now().AddDate(0, -2, -1)).
+		CreatedAt(time.Now().AddDate(0, -2, -10)).
 		Build()
 
 	assert.Nil(t, err)

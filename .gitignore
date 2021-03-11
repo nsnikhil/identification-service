@@ -10,6 +10,7 @@ out
 *.iml
 *.DS_Store
 vendor/
+kube
 *.out
 *.log
 
