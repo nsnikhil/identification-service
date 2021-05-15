@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Shopify/sarama"
 	"github.com/go-redis/redis/v8"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -12,6 +11,7 @@ import (
 	"identification-service/pkg/config"
 	"identification-service/pkg/database"
 	"identification-service/pkg/http/contract"
+	"identification-service/pkg/queue"
 	"identification-service/pkg/util"
 	"io"
 	"io/ioutil"
@@ -28,7 +28,7 @@ type testDeps struct {
 	cl  *http.Client
 	db  database.SQLDatabase
 	cc  *redis.Client
-	cs  sarama.Consumer
+	qu  queue.Queue
 	cfg config.Config
 	ctx context.Context
 }
@@ -41,7 +41,7 @@ func setupTest(t *testing.T) testDeps {
 
 	db := NewDB(t, cfg)
 	cc := NewCache(t, cfg)
-	cs := NewConsumer(t, cfg)
+	qu := NewQueue(t, cfg.QueueConfig())
 
 	go app.StartHTTPServer(configFile)
 	go app.StartWorker(configFile)
@@ -49,7 +49,7 @@ func setupTest(t *testing.T) testDeps {
 
 	return testDeps{
 		db:  db,
-		cs:  cs,
+		qu:  qu,
 		cc:  cc,
 		cfg: cfg,
 		cl:  &http.Client{Timeout: time.Minute},
@@ -78,9 +78,9 @@ func registerClientAndGetHeaders(t *testing.T, cfg config.AuthConfig, cl *http.C
 
 func signUpUser(
 	t *testing.T,
-	cfg config.KafkaConfig,
+	cfg config.QueueConfig,
 	cl *http.Client,
-	cs sarama.Consumer,
+	qu queue.Queue,
 	headers map[string]string,
 ) contract.CreateUserRequest {
 
@@ -91,7 +91,7 @@ func signUpUser(
 		Data:    map[string]interface{}{"message": "user created successfully"},
 	}
 
-	testSignUpUser(t, cfg, cl, cs, http.StatusCreated, expectedRespData, headers, reqBody, false)
+	testSignUpUser(t, cfg, cl, qu, http.StatusCreated, expectedRespData, headers, reqBody, false)
 
 	return reqBody
 }
@@ -160,18 +160,15 @@ func newRequest(t *testing.T, method, path string, body io.Reader) *http.Request
 	return req
 }
 
-func testMessageConsume(t *testing.T, topicName string, cs sarama.Consumer) {
-	partitions, err := cs.Partitions(topicName)
-	require.NoError(t, err)
-
-	ps, err := cs.ConsumePartition(topicName, partitions[0], sarama.OffsetOldest)
+func testMessageConsume(t *testing.T, queueName string, qu queue.Queue) {
+	ch, err := qu.Consume(queueName)
 	require.NoError(t, err)
 
 	for {
 		select {
-		case msg := <-ps.Messages():
-			assert.NotEmpty(t, string(msg.Value))
-			assert.True(t, util.IsValidUUID(string(msg.Value)))
+		case msg := <-ch:
+			assert.NotEmpty(t, string(msg.Body))
+			assert.True(t, util.IsValidUUID(string(msg.Body)))
 			return
 		case <-time.After(time.Second * 2):
 			t.Fail()

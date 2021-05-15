@@ -14,14 +14,14 @@ import (
 func TestRouterSuccess(t *testing.T) {
 	userID := test.NewUUID()
 
-	mockKafkaConfig := &config.MockKafkaConfig{}
-	mockKafkaConfig.On("UpdatePasswordTopicName").Return("update-password")
+	mockQueueConfig := &config.MockQueueConfig{}
+	mockQueueConfig.On("UpdatePasswordQueueName").Return("update-password")
 
 	mockSessionService := &session.MockService{}
 	mockSessionService.On("RevokeAllSessions", mock.AnythingOfType("*context.emptyCtx"), userID).
 		Return(nil)
 
-	rt := consumer.NewMessageRouter(mockKafkaConfig, mockSessionService)
+	rt := consumer.NewMessageRouter(mockQueueConfig, mockSessionService)
 
 	testCases := map[string]struct {
 		topic string
@@ -46,26 +46,26 @@ func TestRouterFailure(t *testing.T) {
 	testCases := map[string]struct {
 		topic string
 		msg   []byte
-		cfg   func() config.KafkaConfig
+		cfg   func() config.QueueConfig
 		ss    func() session.Service
 	}{
 		"test router failure when topic name is invalid": {
 			topic: test.RandString(89),
 			msg:   []byte(userID),
-			cfg: func() config.KafkaConfig {
-				mockKafkaConfig := &config.MockKafkaConfig{}
-				mockKafkaConfig.On("UpdatePasswordTopicName").Return("update-password")
-				return mockKafkaConfig
+			cfg: func() config.QueueConfig {
+				mockQueueConfig := &config.MockQueueConfig{}
+				mockQueueConfig.On("UpdatePasswordQueueName").Return("update-password")
+				return mockQueueConfig
 			},
 			ss: func() session.Service { return &session.MockService{} },
 		},
 		"test router failure when handler returns error": {
 			topic: "update-password",
 			msg:   []byte(userID),
-			cfg: func() config.KafkaConfig {
-				mockKafkaConfig := &config.MockKafkaConfig{}
-				mockKafkaConfig.On("UpdatePasswordTopicName").Return("update-password")
-				return mockKafkaConfig
+			cfg: func() config.QueueConfig {
+				mockQueueConfig := &config.MockQueueConfig{}
+				mockQueueConfig.On("UpdatePasswordQueueName").Return("update-password")
+				return mockQueueConfig
 			},
 			ss: func() session.Service {
 				mockSessionService := &session.MockService{}

@@ -20,36 +20,16 @@ services:
     volumes:
       - ../pkg/database/migrations/:/docker-entrypoint-initdb.d/
 
-  zookeeper:
-    image: confluentinc/cp-zookeeper
-    ports:
-      - 2181:2181
+  rabbitmq:
+    image: rabbitmq:3-management
     networks:
       - idnetwork
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-
-  kafka:
-    image: confluentinc/cp-kafka
     ports:
-      - 9092:9092
-    networks:
-      - idnetwork
+      - 5672:5672
+      - 15672:15672
     environment:
-      KAFKA_LISTENERS: INTERNAL://kafka:9094,EXTERNAL://kafka:9092
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9094,EXTERNAL://127.0.0.1:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_BROKER_ID: 1
-      KAFKA_LOG4J_LOGGERS: "kafka.controller=INFO,kafka.producer.async.DefaultEventHandler=INFO,state.change.logger=INFO"
-      KAFKA_LOG4J_ROOT_LOGLEVEL: INFO
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_LOG_SEGMENT_BYTES: 16777216
-      KAFKA_LOG_RETENTION_BYTES: 134217728
-    depends_on:
-      - zookeeper
+      - RABBITMQ_USERNAME=guest
+      - RABBITMQ_PASSWORD=guest
 
   redis:
     image: redis:alpine

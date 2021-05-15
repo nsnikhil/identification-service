@@ -1,9 +1,9 @@
 package consumer
 
 import (
-	"github.com/Shopify/sarama"
 	"github.com/nsnikhil/erx"
 	"identification-service/pkg/config"
+	"identification-service/pkg/queue"
 	reporters "identification-service/pkg/reporting"
 	"os"
 	"os/signal"
@@ -15,68 +15,58 @@ type Consumer interface {
 	Close() error
 }
 
-type kafkaConsumer struct {
-	cfg           config.KafkaConfig
+type ampqConsumer struct {
 	lgr           reporters.Logger
-	consumer      sarama.Consumer
+	cfg           config.QueueConfig
+	queue         queue.Queue
 	messageRouter MessageRouter
 }
 
-func (kc *kafkaConsumer) Start() {
-	go consume(kc.cfg.UpdatePasswordTopicName(), kc)
-	handleGracefulShutdown(kc)
+func (aq *ampqConsumer) Start() {
+	go consume(aq.cfg.UpdatePasswordQueueName(), aq)
+	handleGracefulShutdown(aq)
 }
 
-func handleGracefulShutdown(kc *kafkaConsumer) {
+func handleGracefulShutdown(aq *ampqConsumer) {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	<-sigCh
 
-	defer func() { _ = kc.lgr.Flush() }()
+	defer func() { _ = aq.lgr.Flush() }()
 
-	if err := kc.consumer.Close(); err != nil {
+	if err := aq.queue.Close(); err != nil {
 		logError(
 			erx.WithArgs(erx.Operation("Consumer.handleGracefulShutdown"), erx.ConsumerError, err),
-			kc.lgr,
+			aq.lgr,
 		)
 	}
 
-	kc.lgr.Info("consumer shutdown successful")
+	aq.lgr.Info("consumer shutdown successful")
 }
 
-func (kc *kafkaConsumer) Close() error {
-	if err := kc.consumer.Close(); err != nil {
+func (aq *ampqConsumer) Close() error {
+	if err := aq.queue.Close(); err != nil {
 		return erx.WithArgs(erx.Operation("Consumer.Close"), erx.ConsumerError, err)
 	}
 
 	return nil
 }
 
-func consume(topic string, kc *kafkaConsumer) {
+func consume(queueName string, aq *ampqConsumer) {
 	wrap := func(err error) error {
 		return erx.WithArgs(erx.Operation("consume"), erx.ConsumerError, err)
 	}
 
-	partitions, err := kc.consumer.Partitions(topic)
+	dc, err := aq.queue.Consume(queueName)
 	if err != nil {
-		logError(wrap(err), kc.lgr)
-		return
-	}
-
-	pc, err := kc.consumer.ConsumePartition(topic, partitions[0], sarama.OffsetOldest)
-	if err != nil {
-		logError(wrap(err), kc.lgr)
-		return
+		logError(wrap(err), aq.lgr)
 	}
 
 	for {
-		select {
-		case msg := <-pc.Messages():
-			if err := kc.messageRouter.Route(topic, msg.Value); err != nil {
-				logError(wrap(err), kc.lgr)
-			}
-		case crr := <-pc.Errors():
-			logError(wrap(crr.Err), kc.lgr)
+		msg := <-dc
+		err = aq.messageRouter.Route(queueName, msg.Body)
+		if err != nil {
+			logError(wrap(err), aq.lgr)
 		}
 	}
 }
@@ -90,11 +80,16 @@ func logError(err error, lgr reporters.Logger) {
 	}
 }
 
-func NewConsumer(cfg config.KafkaConfig, lgr reporters.Logger, consumer sarama.Consumer, messageRouter MessageRouter) Consumer {
-	return &kafkaConsumer{
+func NewConsumer(
+	cfg config.QueueConfig,
+	lgr reporters.Logger,
+	queue queue.Queue,
+	messageRouter MessageRouter,
+) Consumer {
+	return &ampqConsumer{
 		cfg:           cfg,
 		lgr:           lgr,
-		consumer:      consumer,
+		queue:         queue,
 		messageRouter: messageRouter,
 	}
 }

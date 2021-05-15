@@ -2,19 +2,19 @@ package test
 
 import (
 	"database/sql"
-	"github.com/Shopify/sarama"
 	"github.com/go-redis/redis/v8"
 	"github.com/stretchr/testify/require"
 	"identification-service/pkg/cache"
 	"identification-service/pkg/config"
 	"identification-service/pkg/database"
+	"identification-service/pkg/queue"
 	"testing"
 )
 
 var sqlDB *sql.DB
 var db database.SQLDatabase
 var redisClient *redis.Client
-var cs sarama.Consumer
+var qu queue.Queue
 
 func NewSqlDB(t *testing.T, cfg config.Config) *sql.DB {
 	if sqlDB != nil {
@@ -56,15 +56,15 @@ func NewCache(t *testing.T, cfg config.Config) *redis.Client {
 	return redisClient
 }
 
-func NewConsumer(t *testing.T, cfg config.Config) sarama.Consumer {
-	if cs != nil {
-		return cs
+func NewQueue(t *testing.T, cfg config.QueueConfig) queue.Queue {
+	if qu != nil {
+		return qu
 	}
 
-	kcs, err := sarama.NewConsumer(cfg.KafkaConfig().Addresses(), sarama.NewConfig())
+	ch, err := queue.NewHandler(cfg).GetChannel()
 	require.NoError(t, err)
 
-	cs = kcs
+	qu := queue.NewQueue(ch)
 
-	return cs
+	return qu
 }

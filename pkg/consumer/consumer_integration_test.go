@@ -1,11 +1,11 @@
 package consumer_test
 
 import (
-	"github.com/Shopify/sarama"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"identification-service/pkg/config"
 	"identification-service/pkg/consumer"
+	"identification-service/pkg/queue"
 	reporters "identification-service/pkg/reporting"
 	"identification-service/pkg/session"
 	"identification-service/pkg/test"
@@ -15,8 +15,8 @@ import (
 
 type consumerTestSuite struct {
 	consumer consumer.Consumer
-	producer sarama.SyncProducer
-	cfg      config.KafkaConfig
+	queue    queue.Queue
+	cfg      config.QueueConfig
 	svc      *session.MockService
 	suite.Suite
 }
@@ -26,17 +26,12 @@ func (cts *consumerTestSuite) SetupSuite() {
 
 	lgr := reporters.NewLogger(cfg.Env(), cfg.LogConfig().Level())
 
-	kCfg := sarama.NewConfig()
-	kCfg.Producer.Return.Successes = true
-
-	cl, err := sarama.NewClient(cfg.KafkaConfig().Addresses(), kCfg)
+	ch, err := queue.NewHandler(cfg.QueueConfig()).GetChannel()
 	cts.Require().NoError(err)
 
-	cs, err := sarama.NewConsumerFromClient(cl)
-	cts.Require().NoError(err)
+	qu := queue.NewQueue(ch)
 
-	pd, err := sarama.NewSyncProducerFromClient(cl)
-	cts.Require().NoError(err)
+	time.Sleep(time.Second)
 
 	mockSessionService := &session.MockService{}
 	mockSessionService.On(
@@ -45,11 +40,11 @@ func (cts *consumerTestSuite) SetupSuite() {
 		mock.Anything,
 	).Return(nil)
 
-	rt := consumer.NewMessageRouter(cfg.KafkaConfig(), mockSessionService)
+	rt := consumer.NewMessageRouter(cfg.QueueConfig(), mockSessionService)
 
-	cts.consumer = consumer.NewConsumer(cfg.KafkaConfig(), lgr, cs, rt)
-	cts.producer = pd
-	cts.cfg = cfg.KafkaConfig()
+	cts.consumer = consumer.NewConsumer(cfg.QueueConfig(), lgr, qu, rt)
+	cts.queue = qu
+	cts.cfg = cfg.QueueConfig()
 	cts.svc = mockSessionService
 
 	go cts.consumer.Start()
@@ -60,13 +55,8 @@ func TestConsumer(t *testing.T) {
 	suite.Run(t, new(consumerTestSuite))
 }
 
-func (cts *consumerTestSuite) TestConsumeUpdatePasswordTopic() {
-	msg := &sarama.ProducerMessage{
-		Topic: cts.cfg.UpdatePasswordTopicName(),
-		Value: sarama.ByteEncoder(test.NewUUID()),
-	}
-
-	_, _, err := cts.producer.SendMessage(msg)
+func (cts *consumerTestSuite) TestConsumeUpdatePasswordQueue() {
+	err := cts.queue.Push(cts.cfg.UpdatePasswordQueueName(), test.RandBytes(8))
 	cts.Require().NoError(err)
 
 	time.Sleep(time.Second)

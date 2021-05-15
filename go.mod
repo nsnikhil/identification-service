@@ -4,7 +4,6 @@ go 1.16
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.0
-	github.com/Shopify/sarama v1.19.0
 	github.com/alicebob/miniredis/v2 v2.14.1
 	github.com/go-chi/chi v4.1.2+incompatible
 	github.com/go-chi/cors v1.1.1
@@ -16,6 +15,7 @@ require (
 	github.com/o1egl/paseto v1.0.0
 	github.com/prometheus/client_golang v1.8.0
 	github.com/spf13/viper v1.7.1
+	github.com/streadway/amqp v0.0.0-20190827072141-edfb9018d271
 	github.com/stretchr/testify v1.7.0
 	go.uber.org/zap v1.16.0
 	golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897

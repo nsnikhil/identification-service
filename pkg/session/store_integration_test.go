@@ -10,7 +10,7 @@ import (
 	"identification-service/pkg/config"
 	"identification-service/pkg/database"
 	"identification-service/pkg/password"
-	"identification-service/pkg/producer"
+	"identification-service/pkg/queue"
 	"identification-service/pkg/session"
 	"identification-service/pkg/test"
 	"identification-service/pkg/user"
@@ -168,16 +168,16 @@ func TestStoreIntegration(t *testing.T) {
 }
 
 func createUser(sst *sessionStoreIntegrationSuite, cfg config.Config) string {
-	mockPublisher := &producer.MockProducer{}
-	mockPublisher.On("Produce", mock.AnythingOfType("string"), mock.AnythingOfType("[]uint8")).
-		Return(int32(0), int64(0), nil)
+	mockQueue := &queue.MockQueue{}
+	mockQueue.On("Push", mock.AnythingOfType("string"), mock.AnythingOfType("[]uint8")).
+		Return(nil)
 
-	mockEventConfig := &config.MockKafkaConfig{}
-	mockEventConfig.On("SignUpTopicName").Return("sign-up")
+	mockQueueConfig := &config.MockQueueConfig{}
+	mockQueueConfig.On("SignUpQueueName").Return("sign-up")
 
 	encoder := password.NewEncoder(cfg.PasswordConfig())
 
-	userService := user.NewService(mockEventConfig, user.NewStore(sst.db), encoder, mockPublisher)
+	userService := user.NewService(mockQueueConfig, user.NewStore(sst.db), encoder, mockQueue)
 
 	userID, err := userService.CreateUser(sst.ctx, test.RandString(8), test.NewEmail(), test.NewPassword())
 	require.NoError(sst.T(), err)

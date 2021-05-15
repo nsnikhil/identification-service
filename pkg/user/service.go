@@ -5,7 +5,7 @@ import (
 	"github.com/nsnikhil/erx"
 	"identification-service/pkg/config"
 	"identification-service/pkg/password"
-	"identification-service/pkg/producer"
+	"identification-service/pkg/queue"
 )
 
 //TODO: RENAME (APPEND USER IN THE NAME)
@@ -17,10 +17,10 @@ type Service interface {
 
 // TODO: RENAME
 type userService struct {
-	cfg     config.KafkaConfig
+	cfg     config.QueueConfig
 	store   Store
 	encoder password.Encoder
-	pdr     producer.Producer
+	queue   queue.Queue
 }
 
 func (us *userService) CreateUser(ctx context.Context, name, email, password string) (string, error) {
@@ -37,7 +37,7 @@ func (us *userService) CreateUser(ctx context.Context, name, email, password str
 	}
 
 	//TODO: CHECK FOR ERROR
-	go us.pdr.Produce(us.cfg.SignUpTopicName(), []byte(userID))
+	go us.queue.Push(us.cfg.SignUpQueueName(), []byte(userID))
 
 	return userID, nil
 }
@@ -83,16 +83,16 @@ func (us *userService) UpdatePassword(ctx context.Context, email, oldPassword, n
 	}
 
 	//TODO: CHECK FOR ERROR
-	go us.pdr.Produce(us.cfg.UpdatePasswordTopicName(), []byte(userID))
+	go us.queue.Push(us.cfg.UpdatePasswordQueueName(), []byte(userID))
 
 	return nil
 }
 
-func NewService(cfg config.KafkaConfig, store Store, encoder password.Encoder, pdr producer.Producer) Service {
+func NewService(cfg config.QueueConfig, store Store, encoder password.Encoder, queue queue.Queue) Service {
 	return &userService{
 		cfg:     cfg,
 		store:   store,
 		encoder: encoder,
-		pdr:     pdr,
+		queue:   queue,
 	}
 }

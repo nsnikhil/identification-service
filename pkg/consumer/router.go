@@ -8,20 +8,20 @@ import (
 )
 
 type MessageRouter interface {
-	Route(topic string, message []byte) error
+	Route(queueName string, message []byte) error
 }
 
-type kafkaMessageRouter struct {
-	cfg config.KafkaConfig
+type ampqMessageRouter struct {
+	cfg config.QueueConfig
 	ss  session.Service
 }
 
-func (kmr *kafkaMessageRouter) Route(topic string, message []byte) error {
+func (amr *ampqMessageRouter) Route(queueName string, message []byte) error {
 	wrap := func(err error) error {
 		return erx.WithArgs(erx.Operation("router.route"), err)
 	}
 
-	handler, err := getHandler(topic, kmr)
+	handler, err := getHandler(queueName, amr)
 	if err != nil {
 		return wrap(err)
 	}
@@ -33,17 +33,17 @@ func (kmr *kafkaMessageRouter) Route(topic string, message []byte) error {
 	return nil
 }
 
-func getHandler(topic string, kcr *kafkaMessageRouter) (MessageHandler, error) {
+func getHandler(topic string, amr *ampqMessageRouter) (MessageHandler, error) {
 	switch topic {
-	case kcr.cfg.UpdatePasswordTopicName():
-		return NewUpdatePasswordHandler(kcr.ss), nil
+	case amr.cfg.UpdatePasswordQueueName():
+		return NewUpdatePasswordHandler(amr.ss), nil
 	default:
 		return nil, fmt.Errorf("no handler found for the topics %s", topic)
 	}
 }
 
-func NewMessageRouter(cfg config.KafkaConfig, ss session.Service) MessageRouter {
-	return &kafkaMessageRouter{
+func NewMessageRouter(cfg config.QueueConfig, ss session.Service) MessageRouter {
+	return &ampqMessageRouter{
 		cfg: cfg,
 		ss:  ss,
 	}

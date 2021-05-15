@@ -3,11 +3,11 @@ package test
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/Shopify/sarama"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"identification-service/pkg/config"
 	"identification-service/pkg/http/contract"
+	"identification-service/pkg/queue"
 	"math"
 	"net/http"
 	"testing"
@@ -51,9 +51,9 @@ func (uat *userAPITestSuite) TestSignUpUserSuccess() {
 
 	testSignUpUser(
 		uat.T(),
-		uat.deps.cfg.KafkaConfig(),
+		uat.deps.cfg.QueueConfig(),
 		uat.deps.cl,
-		uat.deps.cs,
+		uat.deps.qu,
 		http.StatusCreated,
 		expectedRespData,
 		authHeaders,
@@ -72,9 +72,9 @@ func (uat *userAPITestSuite) TestSignUpUserFailureWhenClientCredentialsAreMissin
 
 	testSignUpUser(
 		uat.T(),
-		uat.deps.cfg.KafkaConfig(),
+		uat.deps.cfg.QueueConfig(),
 		uat.deps.cl,
-		uat.deps.cs,
+		uat.deps.qu,
 		http.StatusUnauthorized,
 		expectedRespData,
 		map[string]string{},
@@ -117,9 +117,9 @@ func (uat *userAPITestSuite) TestSignUpUserClientAuthenticationFailure() {
 		uat.T().Run(name, func(t *testing.T) {
 			testSignUpUser(
 				uat.T(),
-				uat.deps.cfg.KafkaConfig(),
+				uat.deps.cfg.QueueConfig(),
 				uat.deps.cl,
-				uat.deps.cs,
+				uat.deps.qu,
 				http.StatusUnauthorized,
 				expectedRespData("authentication failed"),
 				testCase.authHeader,
@@ -170,9 +170,9 @@ func (uat *userAPITestSuite) TestSignUpUserValidationFailure() {
 		uat.T().Run(name, func(t *testing.T) {
 			testSignUpUser(
 				uat.T(),
-				uat.deps.cfg.KafkaConfig(),
+				uat.deps.cfg.QueueConfig(),
 				uat.deps.cl,
-				uat.deps.cs,
+				uat.deps.qu,
 				http.StatusBadRequest,
 				expectedRespData(testCase.errorMessage),
 				authHeaders,
@@ -195,9 +195,9 @@ func (uat *userAPITestSuite) TestSignUpUserFailureForDuplicateRecord() {
 
 	testSignUpUser(
 		uat.T(),
-		uat.deps.cfg.KafkaConfig(),
+		uat.deps.cfg.QueueConfig(),
 		uat.deps.cl,
-		uat.deps.cs,
+		uat.deps.qu,
 		http.StatusCreated,
 		expectedRespData,
 		authHeaders,
@@ -212,9 +212,9 @@ func (uat *userAPITestSuite) TestSignUpUserFailureForDuplicateRecord() {
 
 	testSignUpUser(
 		uat.T(),
-		uat.deps.cfg.KafkaConfig(),
+		uat.deps.cfg.QueueConfig(),
 		uat.deps.cl,
-		uat.deps.cs,
+		uat.deps.qu,
 		http.StatusConflict,
 		expectedRespData,
 		authHeaders,
@@ -225,7 +225,7 @@ func (uat *userAPITestSuite) TestSignUpUserFailureForDuplicateRecord() {
 
 func (uat *userAPITestSuite) TestUpdatePasswordSuccess() {
 	authHeaders := registerClientAndGetHeaders(uat.T(), uat.deps.cfg.AuthConfig(), uat.deps.cl, map[string]interface{}{})
-	userDetails := signUpUser(uat.T(), uat.deps.cfg.KafkaConfig(), uat.deps.cl, uat.deps.cs, authHeaders)
+	userDetails := signUpUser(uat.T(), uat.deps.cfg.QueueConfig(), uat.deps.cl, uat.deps.qu, authHeaders)
 
 	reqBody := getUpdatePasswordReqBody(
 		map[string]interface{}{
@@ -244,7 +244,7 @@ func (uat *userAPITestSuite) TestUpdatePasswordSuccess() {
 
 func (uat *userAPITestSuite) TestUpdatePasswordSuccessAllRevokeSession() {
 	authHeaders := registerClientAndGetHeaders(uat.T(), uat.deps.cfg.AuthConfig(), uat.deps.cl, map[string]interface{}{})
-	userDetails := signUpUser(uat.T(), uat.deps.cfg.KafkaConfig(), uat.deps.cl, uat.deps.cs, authHeaders)
+	userDetails := signUpUser(uat.T(), uat.deps.cfg.QueueConfig(), uat.deps.cl, uat.deps.qu, authHeaders)
 
 	loginUser(uat.T(), uat.deps.cl, authHeaders, map[string]interface{}{
 		userEmailKey:    userDetails.Email,
@@ -292,7 +292,7 @@ func getActiveSessions(uat *userAPITestSuite, email string) int {
 
 func (uat *userAPITestSuite) TestUpdatePasswordClientAuthenticationFailure() {
 	defaultAuthHeaders := registerClientAndGetHeaders(uat.T(), uat.deps.cfg.AuthConfig(), uat.deps.cl, map[string]interface{}{})
-	userDetails := signUpUser(uat.T(), uat.deps.cfg.KafkaConfig(), uat.deps.cl, uat.deps.cs, defaultAuthHeaders)
+	userDetails := signUpUser(uat.T(), uat.deps.cfg.QueueConfig(), uat.deps.cl, uat.deps.qu, defaultAuthHeaders)
 
 	reqBody := getUpdatePasswordReqBody(
 		map[string]interface{}{
@@ -343,7 +343,7 @@ func (uat *userAPITestSuite) TestUpdatePasswordClientAuthenticationFailure() {
 
 func (uat *userAPITestSuite) TestUpdatePasswordFailure() {
 	authHeaders := registerClientAndGetHeaders(uat.T(), uat.deps.cfg.AuthConfig(), uat.deps.cl, map[string]interface{}{})
-	signUpUser(uat.T(), uat.deps.cfg.KafkaConfig(), uat.deps.cl, uat.deps.cs, authHeaders)
+	signUpUser(uat.T(), uat.deps.cfg.QueueConfig(), uat.deps.cl, uat.deps.qu, authHeaders)
 
 	expectedRespData := func(msg string) contract.APIResponse {
 		return contract.APIResponse{
@@ -409,9 +409,9 @@ func (uat *userAPITestSuite) TestUpdatePasswordFailure() {
 
 func testSignUpUser(
 	t *testing.T,
-	cfg config.KafkaConfig,
+	cfg config.QueueConfig,
 	cl *http.Client,
-	cs sarama.Consumer,
+	qu queue.Queue,
 	expectedCode int,
 	expectedRespData contract.APIResponse,
 	reqHeaders map[string]string,
@@ -434,7 +434,7 @@ func testSignUpUser(
 	verifyResp(t, expectedRespData, responseData, true, nil)
 
 	if consumeMessage {
-		testMessageConsume(t, cfg.SignUpTopicName(), cs)
+		testMessageConsume(t, cfg.SignUpQueueName(), qu)
 	}
 }
 

@@ -2,7 +2,6 @@ package app
 
 import (
 	"database/sql"
-	"github.com/Shopify/sarama"
 	"github.com/go-redis/redis/v8"
 	"github.com/nsnikhil/erx"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -15,7 +14,7 @@ import (
 	"identification-service/pkg/http/server"
 	"identification-service/pkg/libcrypto"
 	"identification-service/pkg/password"
-	"identification-service/pkg/producer"
+	"identification-service/pkg/queue"
 	reporters "identification-service/pkg/reporting"
 	"identification-service/pkg/session"
 	"identification-service/pkg/token"
@@ -38,38 +37,17 @@ func initConsumer(configFile string) consumer.Consumer {
 	cfg := config.NewConfig(configFile)
 	lgr := initLogger(cfg)
 	_, _, ss := initServices(cfg)
-	mr := consumer.NewMessageRouter(cfg.KafkaConfig(), ss)
-	cs := initKafkaConsumer(initKafkaClient(cfg.KafkaConfig()))
+	mr := consumer.NewMessageRouter(cfg.QueueConfig(), ss)
+	qu := initQueue(cfg.QueueConfig())
 
-	return consumer.NewConsumer(cfg.KafkaConfig(), lgr, cs, mr)
+	return consumer.NewConsumer(cfg.QueueConfig(), lgr, qu, mr)
 }
 
-func initKafkaClient(cfg config.KafkaConfig) sarama.Client {
-	//TODO: SHOULD COME FORM CONFIGS
-	sCfg := sarama.NewConfig()
-	sCfg.ClientID = "identification-service"
-	sCfg.Producer.Return.Successes = true
-
-	//sarama.Logger = log.New(os.Stdout, "[sarama] ", log.LstdFlags)
-
-	cl, err := sarama.NewClient(cfg.Addresses(), sCfg)
+func initQueue(cfg config.QueueConfig) queue.Queue {
+	ch, err := queue.NewHandler(cfg).GetChannel()
 	logError(err)
 
-	return cl
-}
-
-func initKafkaConsumer(cl sarama.Client) sarama.Consumer {
-	cs, err := sarama.NewConsumerFromClient(cl)
-	logError(err)
-
-	return cs
-}
-
-func initKafkaProducer(cl sarama.Client) sarama.SyncProducer {
-	sp, err := sarama.NewSyncProducerFromClient(cl)
-	logError(err)
-
-	return sp
+	return queue.NewQueue(ch)
 }
 
 func initReporters(cfg config.Config) (reporters.Logger, reporters.Prometheus) {
@@ -107,9 +85,6 @@ func initServices(cfg config.Config) (client.Service, user.Service, session.Serv
 	cc, err := cache.NewHandler(cfg.CacheConfig()).GetCache()
 	logError(err)
 
-	kpr := initKafkaProducer(initKafkaClient(cfg.KafkaConfig()))
-	pr := producer.NewProducer(kpr)
-
 	en := password.NewEncoder(cfg.PasswordConfig())
 
 	kg := libcrypto.NewKeyGenerator()
@@ -117,8 +92,10 @@ func initServices(cfg config.Config) (client.Service, user.Service, session.Serv
 	tg, err := token.NewGenerator(cfg.TokenConfig(), kg)
 	logError(err)
 
+	qu := initQueue(cfg.QueueConfig())
+
 	cs := initClientService(cfg.ClientConfig(), db, cc, kg)
-	us := initUserService(cfg.KafkaConfig(), db, en, pr)
+	us := initUserService(cfg.QueueConfig(), db, en, qu)
 	ss := initSessionService(cfg.ClientConfig(), db, us, tg)
 
 	return cs, us, ss
@@ -129,9 +106,9 @@ func initClientService(cfg config.ClientConfig, db database.SQLDatabase, cc *red
 	return client.NewService(cfg, st, kg)
 }
 
-func initUserService(cfg config.KafkaConfig, db database.SQLDatabase, en password.Encoder, pr producer.Producer) user.Service {
+func initUserService(cfg config.QueueConfig, db database.SQLDatabase, en password.Encoder, qu queue.Queue) user.Service {
 	st := user.NewStore(db)
-	return user.NewService(cfg, st, en, pr)
+	return user.NewService(cfg, st, en, qu)
 }
 
 func initSessionService(cfg config.ClientConfig, db database.SQLDatabase, us user.Service, tg token.Generator) session.Service {

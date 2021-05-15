@@ -11,14 +11,13 @@ type Config interface {
 	LogConfig() LogConfig
 	LogFileConfig() LogFileConfig
 	Env() string
-	KafkaConfig() KafkaConfig
 	MigrationConfig() MigrationConfig
 	PasswordConfig() PasswordConfig
 	TokenConfig() TokenConfig
 	AuthConfig() AuthConfig
 	CacheConfig() CacheConfig
-	ConsumerConfig() ConsumerConfig
 	ClientConfig() ClientConfig
+	QueueConfig() QueueConfig
 }
 
 type appConfig struct {
@@ -28,13 +27,12 @@ type appConfig struct {
 	databaseConfig   DatabaseConfig
 	logConfig        LogConfig
 	logFileConfig    LogFileConfig
-	kafkaConfig      KafkaConfig
 	passwordConfig   PasswordConfig
 	tokenConfig      TokenConfig
 	cacheConfig      CacheConfig
-	consumerConfig   ConsumerConfig
 	authConfig       AuthConfig
 	clientConfig     ClientConfig
+	ampqConfig       QueueConfig
 }
 
 func (c appConfig) HTTPServerConfig() HTTPServerConfig {
@@ -51,10 +49,6 @@ func (c appConfig) LogConfig() LogConfig {
 
 func (c appConfig) LogFileConfig() LogFileConfig {
 	return c.logFileConfig
-}
-
-func (c appConfig) KafkaConfig() KafkaConfig {
-	return c.kafkaConfig
 }
 
 func (c appConfig) Env() string {
@@ -81,12 +75,12 @@ func (c appConfig) CacheConfig() CacheConfig {
 	return c.cacheConfig
 }
 
-func (c appConfig) ConsumerConfig() ConsumerConfig {
-	return c.consumerConfig
-}
-
 func (c appConfig) ClientConfig() ClientConfig {
 	return c.clientConfig
+}
+
+func (c appConfig) QueueConfig() QueueConfig {
+	return c.ampqConfig
 }
 
 //TODO: FIGURE OUT OF WAY TO KEEP ONE CONFIG FILE FOR LOCAL AND DOCKER
@@ -110,8 +104,7 @@ func NewConfig(configFile string) Config {
 		tokenConfig:      newTokenConfig(),
 		authConfig:       newAuthConfig(),
 		cacheConfig:      newCacheConfig(),
-		consumerConfig:   newConsumerConfig(),
 		clientConfig:     newClientConfig(),
-		kafkaConfig:      newKafkaConfig(),
+		ampqConfig:       newQueueConfig(),
 	}
 }
